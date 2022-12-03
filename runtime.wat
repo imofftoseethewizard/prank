@@ -46,9 +46,9 @@
   (global $output_buffer_size (export "output_buffer_size") i32 i32.const 0x4000)
   (global $error_buffer_size  (export "error_buffer_size")  i32 i32.const 0x4000)
 
-  (global $input_length  (export "input_length")  i32 i32.const 0)
-  (global $output_length (export "output_length") i32 i32.const 0)
-  (global $error_length  (export "error_length")  i32 i32.const 0)
+  (global $input_length  (export "input_length")  (mut i32) i32.const 0)
+  (global $output_length (export "output_length") (mut i32) i32.const 0)
+  (global $error_length  (export "error_length")  (mut i32) i32.const 0)
 
   (global $input_point  (export "input_point")  (mut i32) i32.const 0)
   (global $output_point (export "output_point") (mut i32) i32.const 0)
@@ -59,16 +59,21 @@
   (global $token_type_atom        i32 i32.const 2)
   (global $token_type_eof         i32 i32.const 3)
 
-  (global $char_space       i32 i32.const 32)
-  (global $char_open_paren  i32 i32.const 40)
-  (global $char_close_paren i32 i32.const 41)
+  (global $char_line_feed       i32 i32.const 10)
+  (global $char_carriage_return i32 i32.const 13)
+  (global $char_space           i32 i32.const 32)
+  (global $char_double_quote    i32 i32.const 34)
+  (global $char_open_paren      i32 i32.const 40)
+  (global $char_close_paren     i32 i32.const 41)
+  (global $char_semicolon       i32 i32.const 59)
+  (global $char_backslash       i32 i32.const 92)
 
   (global $error_code           (export "error-code") (mut i32) i32.const 0)
   (global $error_pair_expected  (export "error:pair-expected")  i32 i32.const 1)
   (global $error_unexpected_eof (export "error:unexpected-eof") i32 i32.const 2)
 
   (start $init)
-  (func $init (export "init") (param) (result)
+  (func $init (export "init")
         i32.const 0
         i32.const 0xff
         i32.const 0xffff
@@ -165,7 +170,7 @@
     global.get $false
     end)
 
-  (func $assert (param i32 i32) (result)
+  (func $assert (param i32 i32)
     local.get 0
     global.get $false
     i32.eq
@@ -273,7 +278,7 @@
     (param $elems i32)
     (param $size i32)
     (param $value i32)
-    (result)
+
 
     (local $_elem i32)
     (local $_end i32)
@@ -363,7 +368,7 @@
     (param $v i32)
     (param $i i32)
     (param $x i32)
-    (result)
+
     local.get $v
     call $deref_vector
     i32.load
@@ -517,28 +522,97 @@
     local.get $length
     call $make_symbol)
 
-  (func $skip_whitespace (param) (result)
-     loop $again
-       call $is_at_eof
-       if
-         return
-       end
+  (func $is_whitespace_char (param $c i32) (result i32)
+    local.get $c
+    global.get $char_space
+    i32.le_u)
 
-       call $peek_char
-       global.get $char_space
-       i32.le_u
-       if
-         call $advance_char
-         br $again
-       end
-     end)
+  (func $skip_whitespace
+    loop $again
+      call $is_at_eof
+      if
+        return
+      end
 
-  (func $is_at_eof (param) (result i32)
+      call $peek_char
+      call $is_whitespace_char
+      if
+        call $advance_char
+        br $again
+      end
+      end)
+
+  (func $is_line_break_char (param $c i32) (result i32)
+    local.get $c
+    global.get $char_line_feed
+    i32.eq
+    local.get $c
+    global.get $char_carriage_return
+    i32.eq
+    i32.or)
+
+  (func $skip_comment
+
+    call $is_at_eof
+    if
+      return
+    end
+
+    call $peek_char
+    global.get $char_semicolon
+    i32.eq
+    if
+      call $advance_char
+
+      loop $again
+        call $is_at_eof
+        if
+          return
+        end
+
+        call $peek_char
+        call $is_line_break_char
+        i32.eqz
+        if
+          call $advance_char
+          br $again
+        end
+      end
+    end)
+
+  (func $skip_comments_and_whitespace
+
+    (local $_c i32)
+
+    loop $again
+      call $is_at_eof
+      if
+        return
+      end
+
+      call $peek_char
+      local.tee $_c
+      call $is_whitespace_char
+      if
+        call $skip_whitespace
+        br $again
+      end
+
+      local.get $_c
+      global.get $char_semicolon
+      i32.eq
+      if
+        call $skip_comment
+        br $again
+      end
+    end)
+
+  (func $is_at_eof (result i32)
     global.get $input_point
     global.get $input_length
     i32.eq)
 
-  (func $advance_char (param) (result)
+  (func $advance_char
     global.get $input_point
     global.get $input_length
     i32.lt_u
@@ -550,15 +624,15 @@
     i32.add
     global.set $input_point)
 
-  (func $next_char (param) (result i32)
-    call $advance_char
-    call $peek_char)
+  (func $next_char (result i32)
+    call $peek_char
+    call $advance_char)
 
-  (func $peek_char (param) (result i32)
+  (func $peek_char (result i32)
     global.get $input_point
     global.get $input_buffer
     i32.add
-    i32.load)
+    i32.load8_u)
 
   (func $is_token_char (param $c i32) (result i32)
     local.get $c
@@ -576,46 +650,30 @@
     i32.and
     i32.and)
 
-  (func $next_token (export "next_token")
-    (param)
-    (result i32 i32 i32)
-
-    (local $_start i32)
+  (func $next_quoted_token (result i32 i32)
     (local $_c i32)
 
-    call $skip_whitespace
-    call $is_at_eof
-    if
-      global.get $token_type_eof
-      global.get $input_point
-      global.get $input_point
-      return
+    loop $again
+      call $next_char
+      local.tee $_c
+      global.get $char_double_quote
+      i32.ne
+      if
+        local.get $_c
+        global.get $char_backslash
+        i32.eq
+        if
+          call $advance_char
+        end
+
+        br $again
+      end
     end
 
     global.get $input_point
-    local.set $_start
+    global.get $token_type_atom)
 
-    call $next_char
-    local.tee $_c
-
-    global.get $char_open_paren
-    i32.eq
-    if
-      global.get $token_type_open_paren
-      local.get $_start
-      global.get $input_point
-      return
-    end
-
-    local.get $_c
-    global.get $char_close_paren
-    i32.eq
-    if
-      global.get $token_type_close_paren
-      local.get $_start
-      global.get $input_point
-      return
-    end
+  (func $next_simple_token (result i32 i32)
 
     loop $again
       call $peek_char
@@ -630,6 +688,51 @@
       end
     end
 
-    global.get $token_type_atom
-    local.get $_start
-    global.get $input_point))
+    global.get $input_point
+    global.get $token_type_atom)
+
+  (func $next_delimiter_token
+    (param $c i32)
+    (result i32 i32)
+
+    global.get $input_point
+    local.get $c
+    global.get $char_open_paren
+    i32.eq
+    if (result i32)
+      global.get $token_type_open_paren
+    else
+      global.get $token_type_close_paren
+    end)
+
+  (func $next_token (export "next_token")
+    (result i32 i32 i32)
+
+    (local $_c i32)
+
+    call $skip_comments_and_whitespace
+    global.get $input_point
+
+    call $is_at_eof
+    if (result i32 i32)
+      global.get $input_point
+      global.get $token_type_eof
+
+    else
+
+      call $next_char
+      local.tee $_c
+      local.get $_c
+      call $is_token_char
+      if (param i32) (result i32 i32)
+        global.get $char_double_quote
+        i32.eq
+        if (result i32 i32)
+          call $next_quoted_token
+        else
+          call $next_simple_token
+        end
+      else
+        call $next_delimiter_token
+      end
+    end))
