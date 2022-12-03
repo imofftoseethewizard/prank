@@ -1,0 +1,66 @@
+for 32 bit words
+  value types
+    small integers 0000
+    boolean        0001
+    object         0010
+    symbol         11
+
+  object
+    bytes
+    cell
+    float
+    large number
+    procedure
+    rational
+    regex
+    string
+    vector
+
+for 64 bit words
+  value types
+    cell           01
+    small integers 00
+    boolean        10
+    symbol         11
+    string
+    procedure
+    bytes
+    float
+    vector
+    large number
+    rational
+    regex
+
+make a cell first rest
+  slab of cells, each 2 words wide
+  idx of first unused cell
+  store first, rest in cell
+
+initialize
+  idx of next free cell <- 0
+
+first item of cell v
+  idx = 64 bit: v & ~(0xf)
+        32 bit: (v & ~(0xf)) >> 1
+
+  slab[idx]
+
+2nd item of cell v
+  as above, but slab[idx+(sizeof word)]
+
+
+alabaster
+alamode
+bar
+beer
+
+(
+ ((a l a) (
+   ((b a s t e r) 1)
+   ((m o d e) 2)
+ )
+ ((b) (
+   ((a r) 3)
+   ((e e r) 4)
+ )
+)
