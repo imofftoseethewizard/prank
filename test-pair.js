@@ -7,15 +7,16 @@ const memory                                = wasmInstance.exports['memory'];
 const offset_size                           = wasmInstance.exports['offset-size'];
 const value_size                            = wasmInstance.exports['value-size'];
 const pair_size                             = wasmInstance.exports['pair-size'];
-const block_size                            = wasmInstance.exports['block-size'];
+const group_size                            = wasmInstance.exports['group-size'];
 const page_size                             = wasmInstance.exports['page-size'];
 const memory_page_count                     = wasmInstance.exports['memory-page-count'];
 const memory_active_page                    = wasmInstance.exports['memory-active-page'];
 const page_flags                            = wasmInstance.exports['page-flags'];
 const page_free_count                       = wasmInstance.exports['page-free-count'];
-const page_free_scan_current_block          = wasmInstance.exports['page-free-scan-current-block'];
+const page_free_scan_current_group          = wasmInstance.exports['page-free-scan-current-group'];
 const page_pair_bottom                      = wasmInstance.exports['page-pair-bottom'];
 const page_next_free_pair                   = wasmInstance.exports['page-next-free-pair'];
+const page_smudge_flags                     = wasmInstance.exports['page-smudge-flags'];
 const page_freelist_head                    = wasmInstance.exports['page-freelist-head'];
 const page_freelist_bottom                  = wasmInstance.exports['page-freelist-bottom'];
 const page_freelist_top                     = wasmInstance.exports['page-freelist-top'];
@@ -23,13 +24,16 @@ const page_flag_frontier_closed             = wasmInstance.exports['page-flag-fr
 const page_pair_flags_area                  = wasmInstance.exports['page-pair-flags-area'];
 const page_pair_flags_byte_length           = wasmInstance.exports['page-pair-flags-byte-length'];
 const page_initial_bottom                   = wasmInstance.exports['page-initial-bottom'];
-const page_free_scan_end_block              = wasmInstance.exports['page-free-scan-end-block'];
+const page_free_scan_end_group              = wasmInstance.exports['page-free-scan-end-group'];
 const page_initial_free_count               = wasmInstance.exports['page-initial-free-count'];
 const page_offset_mask                      = wasmInstance.exports['page-offset-mask'];
 const pair_flag_reachable                   = wasmInstance.exports['pair-flag-reachable'];
 const pair_flag_pending                     = wasmInstance.exports['pair-flag-pending'];
 const pair_flags_mask                       = wasmInstance.exports['pair-flags-mask'];
-const pair_flag_reachable_i64_block         = wasmInstance.exports['pair-flag-reachable-i64-block'];
+const pair_smudge_shift                     = wasmInstance.exports['pair-smudge-shift'];
+const smudge_flag_shift_mask                = wasmInstance.exports['smudge-flag-shift-mask'];
+const max_trace_depth                       = wasmInstance.exports['max-trace-depth'];
+const pair_flag_reachable_i64_group         = wasmInstance.exports['pair-flag-reachable-i64-group'];
 const pair_page_offset_mask                 = wasmInstance.exports['pair-page-offset-mask'];
 const pair_flag_addr_shift                  = wasmInstance.exports['pair-flag-addr-shift'];
 const pair_flag_idx_mask                    = wasmInstance.exports['pair-flag-idx-mask'];
@@ -65,15 +69,24 @@ const clear_pair_flag                       = wasmInstance.exports['clear-pair-f
 const mark_pair_reachable                   = wasmInstance.exports['mark-pair-reachable'];
 const mark_pair_dirty                       = wasmInstance.exports['mark-pair-dirty'];
 const mark_pair_scanned                     = wasmInstance.exports['mark-pair-scanned'];
+const pair_smudge_flag_addr                 = wasmInstance.exports['pair-smudge-flag-addr'];
+const set_group_smudge                      = wasmInstance.exports['set-group-smudge'];
 const mark_vector_reachable                 = wasmInstance.exports['mark-vector-reachable'];
-const scan_value                            = wasmInstance.exports['scan-value'];
-const scan_pair                             = wasmInstance.exports['scan-pair'];
+const trace_value                           = wasmInstance.exports['trace-value'];
+const trace_pair                            = wasmInstance.exports['trace-pair'];
+const get_group_ready_pair_map              = wasmInstance.exports['get-group-ready-pair-map'];
+const get_group_free_pair_map               = wasmInstance.exports['get-group-free-pair-map'];
+const get_flag_group_pair_offset            = wasmInstance.exports['get-flag-group-pair-offset'];
+const next_pair_offset                      = wasmInstance.exports['next-pair-offset'];
+const get_ready_map_trace_depth             = wasmInstance.exports['get-ready-map-trace-depth'];
+const clear_group_smudge                    = wasmInstance.exports['clear-group-smudge'];
+const trace_group                           = wasmInstance.exports['trace-group'];
+const collection_step                       = wasmInstance.exports['collection-step'];
 const begin_collection                      = wasmInstance.exports['begin-collection'];
 const is_collection_complete                = wasmInstance.exports['collection-complete?'];
 const end_collection                        = wasmInstance.exports['end-collection'];
 const page_decr_free_count                  = wasmInstance.exports['page-decr-free-count'];
 const fill_page_freelist_from_free_pair_map = wasmInstance.exports['fill-page-freelist-from-free-pair-map'];
-const get_block_free_pair_map               = wasmInstance.exports['get-block-free-pair-map'];
 const fill_page_freelist                    = wasmInstance.exports['fill-page-freelist'];
 const page_alloc_freelist_pair              = wasmInstance.exports['page-alloc-freelist-pair'];
 const is_page_frontier_closed               = wasmInstance.exports['page-frontier-closed?'];
@@ -122,9 +135,9 @@ test_units = [
                 expected:  (page_size.value - page_initial_bottom.value)/pair_size.value - 1,
             },
             {
-                name:      'free scan current block',
-                action:    () => uint32buffer[(get_active_page() + page_free_scan_current_block)/4],
-                expected:  get_active_page() + page_initial_bottom.value - block_size.value,
+                name:      'free scan current group',
+                action:    () => uint32buffer[(get_active_page() + page_free_scan_current_group)/4],
+                expected:  get_active_page() + page_initial_bottom.value - group_size.value,
             },
             {
                 name:      'pair bottom',
@@ -520,115 +533,115 @@ test_units = [
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_pair_flags_area.value, 0n),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
             },
             {
                 name:        'fill page freelist from free pair map -- bottom, lowest',
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_pair_flags_area.value, 1n),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_initial_bottom.value])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_initial_bottom.value])
             },
             {
                 name:        'fill page freelist from free pair map -- bottom, lowest + 1',
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_pair_flags_area.value, 4n),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_initial_bottom.value + pair_size.value])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_initial_bottom.value + pair_size.value])
             },
             {
                 name:        'fill page freelist from free pair map -- bottom, lowest and lowest + 1',
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_pair_flags_area.value, 5n),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_initial_bottom.value + pair_size.value, page_initial_bottom.value])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_initial_bottom.value + pair_size.value, page_initial_bottom.value])
             },
             {
                 name:        'fill page freelist from free pair map -- bottom, lowest and highest',
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_pair_flags_area.value, 1n + (1n << 62n)),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_initial_bottom.value + pair_size.value * 31, page_initial_bottom.value])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_initial_bottom.value + pair_size.value * 31, page_initial_bottom.value])
             },
             {
                 name:        'fill page freelist from free pair map -- top, lowest',
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_initial_bottom.value - 8, 1n),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - 32 * pair_size.value])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - 32 * pair_size.value])
             },
             {
                 name:        'fill page freelist from free pair map -- top, lowest + 1',
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_initial_bottom.value - 8, 4n),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - 31 * pair_size.value])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - 31 * pair_size.value])
             },
             {
                 name:        'fill page freelist from free pair map -- top, lowest and lowest + 1',
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_initial_bottom.value - 8, 5n),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - 31 * pair_size.value, page_size.value - 32 * pair_size.value])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - 31 * pair_size.value, page_size.value - 32 * pair_size.value])
             },
             {
                 name:        'fill page freelist from free pair map -- top, lowest and highest',
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_initial_bottom.value - 8, 1n + (1n << 62n)),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - pair_size.value, page_size.value - 32 * pair_size.value])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - pair_size.value, page_size.value - 32 * pair_size.value])
             },
             {
                 name:        'fill page freelist from free pair map -- top, highest',
                 setup:       () => fill_page_freelist_from_free_pair_map(get_active_page(), get_active_page() + page_initial_bottom.value - 8, (1n << 62n)),
                 tear_down:   () => init_page(1),
                 action:      () => uint16buffer.slice((get_active_page() + page_freelist_bottom)/2, (get_active_page() + page_pair_flags_area)/2),
-                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - pair_size.value])
+                expected:    new Uint16Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, page_size.value - pair_size.value])
             },
         ],
     },
     {
-        name: 'get block free pair map',
+        name: 'get group free pair map',
         enable: true,
         cases: [
             {
                 name:        'empty',
-                action:      () => get_block_free_pair_map(0n),
+                action:      () => get_group_free_pair_map(0n),
                 expected:    0x5555555555555555n,
             },
             {
                 name:        'all pending and reachable',
-                action:      () => get_block_free_pair_map(0xffffffffffffffffn),
+                action:      () => get_group_free_pair_map(0xffffffffffffffffn),
                 expected:    0n,
             },
             {
                 name:        'all reachable',
-                action:      () => get_block_free_pair_map(0x5555555555555555n),
+                action:      () => get_group_free_pair_map(0x5555555555555555n),
                 expected:    0n,
             },
             {
                 name:        'all pending',
-                action:      () => get_block_free_pair_map(0xaaaaaaaaaaaaaaaan),
+                action:      () => get_group_free_pair_map(0xaaaaaaaaaaaaaaaan),
                 expected:    0n,
             },
             {
                 name:        'all pending but least',
-                action:      () => get_block_free_pair_map(0xaaaaaaaaaaaaaaa8n),
+                action:      () => get_group_free_pair_map(0xaaaaaaaaaaaaaaa8n),
                 expected:    1n,
             },
             {
                 name:        'all pending but greatest',
-                action:      () => get_block_free_pair_map(0x2aaaaaaaaaaaaaaan),
+                action:      () => get_group_free_pair_map(0x2aaaaaaaaaaaaaaan),
                 expected:    1n << 62n,
             },
             {
                 name:        'all reachable but least',
-                action:      () => get_block_free_pair_map(0x5555555555555554n),
+                action:      () => get_group_free_pair_map(0x5555555555555554n),
                 expected:    1n,
             },
             {
                 name:        'all reachable but greatest',
-                action:      () => get_block_free_pair_map(0x1555555555555555n),
+                action:      () => get_group_free_pair_map(0x1555555555555555n),
                 expected:    1n << 62n,
             },
         ],
@@ -843,7 +856,109 @@ test_units = [
                 expected:    FALSE.value,
             },
         ]
-    }
+    },
+    {
+        name: 'get group ready pair map',
+        enable: true,
+        cases: [
+            {
+                name:        'empty',
+                action:      () => get_group_ready_pair_map(0n),
+                expected:    0n,
+            },
+            {
+                name:        'all pending and reachable',
+                action:      () => get_group_ready_pair_map(0xffffffffffffffffn),
+                expected:    0x5555555555555555n,
+            },
+            {
+                name:        'all reachable',
+                action:      () => get_group_ready_pair_map(0x5555555555555555n),
+                expected:    0n,
+            },
+            {
+                name:        'all pending',
+                action:      () => get_group_ready_pair_map(0xaaaaaaaaaaaaaaaan),
+                expected:    0n,
+            },
+            {
+                name:        'all pending but least ready',
+                action:      () => get_group_ready_pair_map(0xaaaaaaaaaaaaaaabn),
+                expected:    1n,
+            },
+            {
+                name:        'all pending but greatest ready',
+                action:      () => get_group_ready_pair_map(0xeaaaaaaaaaaaaaaan),
+                expected:    1n << 62n,
+            },
+        ],
+    },
+    {
+        name: 'get ready map trace depth',
+        enable: true,
+        cases: [
+            {
+                name:        'empty',
+                action:      () => get_ready_map_trace_depth(0n),
+                expected:    6,
+            },
+            {
+                name:        'lowest set',
+                action:      () => get_ready_map_trace_depth(1n),
+                expected:    5,
+            },
+            {
+                name:        'highest set',
+                action:      () => get_ready_map_trace_depth(1n << 62n),
+                expected:    5,
+            },
+            {
+                name:        'two set',
+                action:      () => get_ready_map_trace_depth(5n),
+                expected:    4,
+            },
+            {
+                name:        'three set',
+                action:      () => get_ready_map_trace_depth((1n << 62n) + 5n),
+                expected:    4,
+            },
+            {
+                name:        'four set',
+                action:      () => get_ready_map_trace_depth((1n << 62n) + 21n),
+                expected:    3,
+            },
+            {
+                name:        'seven set',
+                action:      () => get_ready_map_trace_depth(0x1555n),
+                expected:    3,
+            },
+            {
+                name:        'eigth set',
+                action:      () => get_ready_map_trace_depth(0x5555n),
+                expected:    2,
+            },
+            {
+                name:        '15 set',
+                action:      () => get_ready_map_trace_depth(0x55555551n),
+                expected:    2,
+            },
+            {
+                name:        '16 set',
+                action:      () => get_ready_map_trace_depth(0x55555555n),
+                expected:    1,
+            },
+            {
+                name:        '31 set',
+                action:      () => get_ready_map_trace_depth(0x1555555555555555n),
+                expected:    1,
+            },
+            {
+                name:        '32 set',
+                action:      () => get_ready_map_trace_depth(0x5555555555555555n),
+                expected:    0,
+            },
+        ],
+    },
 ]
 
 function is_equiv(a, b) {

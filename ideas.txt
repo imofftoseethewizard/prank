@@ -1,66 +1,306 @@
-for 32 bit words
-  value types
-    small integers 0000
-    boolean        0001
-    object         0010
-    symbol         11
+generational garbage collection
+  if there is no mutation, then memory changes only
+    come from adding/removing roots
+    any
 
-  object
-    bytes
-    cell
-    float
-    large number
-    procedure
-    rational
-    regex
-    string
-    vector
-
-for 64 bit words
-  value types
-    cell           01
-    small integers 00
-    boolean        10
-    symbol         11
-    string
-    procedure
-    bytes
-    float
-    vector
-    large number
-    rational
-    regex
-
-make a cell first rest
-  slab of cells, each 2 words wide
-  idx of first unused cell
-  store first, rest in cell
-
-initialize
-  idx of next free cell <- 0
-
-first item of cell v
-  idx = 64 bit: v & ~(0xf)
-        32 bit: (v & ~(0xf)) >> 1
-
-  slab[idx]
-
-2nd item of cell v
-  as above, but slab[idx+(sizeof word)]
+  if there is mutation, then each mutated value
 
 
-alabaster
-alamode
-bar
-beer
+let M be a directional graph of nodes m_i and R = { r_i } subset M.
+let R* be the transitive closure of R.
 
-(
- ((a l a) (
-   ((b a s t e r) 1)
-   ((m o d e) 2)
- )
- ((b) (
-   ((a r) 3)
-   ((e e r) 4)
- )
-)
+A node m in M is reachable if there is a path P { p_i } in M of length n  where there exists
+r in R st r = p_0, p_k -> p_k+1 for 0 <= k < n, and p_n = m.
+
+keep inverse index
+on mutation, mark former target pending
+scan pending for inbound using inverse index
+  remove source links from inverse index
+  if not present, mark children pending
+  mark free
+
+pair memory page
+  freelist is lowest cell
+  init
+    for each pair below the last, set car to #null, cdr to next pair
+
+  => alloc-pair
+    loop $again
+      get active page
+
+      while freelist empty? and smudges
+        check reachable for each smudged flag group
+
+      if freelist empty?
+        => page is full
+        activate next page
+        br $again
+
+      else
+        new cell <- cdr freelist
+        set-cdr! freelist cdr freelist
+        set-car! new-cell #null
+        set-cdr! new-cell #null
+        decr free count
+        do index maintenance
+        new-cell
+
+index
+  allocate 1 index page per memory page, keep index pages contiguous
+  and above all memory pages
+
+  keep one empty page above the last allocated memory page, to allow
+  incremental copying of index to higher memory. => copy N+1 index entries
+  per allocation, where N is the number of memory pages
+
+  initialize a full 64kb page with empty 8 byte entries evenly spaced with
+  keys between the lowest cell and highest cells in a new memory page,
+  i.e page + 2048 to page + 65528, aligned to 8 bytes. an empty entry has
+  $null = (0xffffffff) in the second 4 bytes
+
+  when activating a new memory page, schedule an insertion of new block of f
+  empty entries into the index.
+
+  a sorted array of pairs with a semi-dense set of gaps, avg 1 gap per k entries
+  gaps have the index of the entry below, but an empty value
+
+  operations
+    lookup O(log n) -- binary search
+    delete O(log n) -- find by binary search, leave entry, but set value empty
+    insert O(log n) + O(k) where k is the gap radius -- find by binary search,
+      find nearest gap by linear search (bidirectional, outward), shift
+      entries to move gap to desired location, set value
+    expand O(n) -- copies array to new array, inserting a gap every k entries
+
+  attributes
+    k, n
+    filled entries
+    base addr
+    capacity threshold
+    EMA threshold
+    state (stable/expanding)
+    when expanding
+      new addr
+      i -- index into old of next item to copy to new
+      j -- index into new of next item from old
+
+    stats
+      EMA of shift radius per insert
+      ratio filled/capacity
+
+  when EMA or ratio gets above threshold
+    increase size of table by 2/k
+    inserting a gap for every k/2 entries
+
+history of page types
+0, mem, *, idx
+0, mem, mem, *, idx, idx
+
+explore:
+  flags page holds pending/reachable flags for 32 64kb pages (2MB).
+
+block storage pages
+  storage header
+    freelist
+    relocation-target-offset
+    relocation-blocks-start
+    current-relo-block
+    <first block head>
+
+  block head
+    block-owner-address
+    block-length (count of values, not incl head)
+
+  in string and bytearray blocks, the first value is the length in bytes of the content
+  in number blocks, the first value is the descriptor
+
+  block owner (pair)
+    block-type
+    block-head-address
+
+  free block structure
+    #null (owner)
+    block length (or -1 if last block)
+    addr of next free block (or #null if last block)
+
+  block operations
+    init page
+      set page count
+      set relo-target-offset 0
+      set relo-source-addr 0
+      set freelist <addr of next value>
+      #null
+      -1
+      #null
+
+    split free (b n)
+      if free length >= 4 and n < freelength - 3
+        set value *(block + n + 4) = *(block + 2) -- free list link
+        set value *(block + n + 3) = block free length - n - 2
+        set value *(block + n + 2) = #null
+        set block length = n
+        set value *(block + 2) = block + n + 2
+
+    compact freelist
+      if relo target offset == 0
+        free = addr of freelist head
+        loop
+          if *(*(free + 2) + 1) == -1
+            if free + *(free + 1) + 2 == *(free + 2)
+              *(free + 1) = -1
+              *(free + 2) = #null
+          else
+            if free + *(free + 1) + 2 == *(free + 2)
+              *(free + 1) = *(free + 1) + *(*(free + 2) + 1) + 2
+              *(free + 2) = *(*(free + 2) + 2)
+              again
+
+    allocate (n, o) -> b
+      if relo target offset == 0
+
+        if allocate exact != #null
+          return
+
+        if allocate free != #null
+          return
+
+      return allocate end
+
+    allocate exact (n, o)
+      free = addr of freelist head addr
+      b = #null
+      loop
+        if *(*free + 1) == n
+          b = *free
+          *free = *(b + 2)
+          *b = o
+          *(b + 1) = n
+        else
+          if *(*free + 1) != -1
+            free = *free + 2
+            again
+
+      return b
+
+    allocate free
+      free = addr of freelist head addr
+      b = #null
+      loop
+        if *(*free + 1) >= n + 3
+          split free (*free, n)
+          b = *free
+          *free = *(b + 2)
+          *b = o
+          *(b + 1) = n
+        else
+          if *(*free + 1) != -1
+            free = *free + 2
+            again
+
+      return b
+
+    allocate end
+      free = of freelist head addr
+      while *(free + 1) != -1
+        free = *(free + 2)
+
+      if free + 2 + n + 2 > available
+        grow enough memory
+
+      b = free
+      *b = o
+      *(b + 1) = n
+      free = b + n + 2
+      *free = #null
+      *(free + 1) = -1
+      *(free + 2) = #null
+
+      return b
+
+    allocate (b)
+      *b = #null
+      free = addr of freelist head
+
+      if *free < b
+        while *(*(free) + 2)) < b
+          *free = *(free + 2)
+
+      *(b + 2) = *free
+      *free = b
+
+      compact freelist
+
+    move down
+      free = addr of freelist head
+      if *(free + 1) != -1
+        free length = *(free + 1)
+        next free = *(free + 2)
+        b-orig = free + free-length + 2
+        b = free
+        *b = *b_orig
+        *(*b + 1) = b
+        b length = *(b_orig + 1)
+        *(b + 1) = b_length
+        copy memory from b_orig + 2 to b + 2, length b_length
+        free = b + b_length + 2
+        *free = #null
+        *(free + 1) = free length
+        *(free + 2) = next free
+        compact freelist
+
+    begin relocation (n-pages)
+      if not enough memory
+        grow enough
+
+      set relocation target offset = page size * n-pages
+
+      if freelist == address of first block
+        end relocation
+        return
+
+      free = addr of freelist head addr
+      while *(*free + 1) != -1
+        free = *(*free + 2)
+
+      orig-b-addrs-start = *free + 2
+
+      *free += relo offset
+      **free = #null
+      *(*free + 1) = -1
+      *(*free + 2) = #null
+
+      b = addr of 1st block
+      orig-b-addr = orig-b-addrs-start
+      *orig-b-addr++ = b
+
+      while *(b + 1) != -1
+        *orig-b-addr++ = b
+        b += *(b+1) + 2
+
+      current relo block = --orig-b-addr
+      relo block start = orig-b-addrs start
+
+    relocation step
+      b = *current relo block
+      copy b to b + relo offset, length *(b + 1)
+      if *b != #null
+        *(*b + 1) = b + relo offset
+      else
+        free = head of freelist addr
+        while *free != b
+          free = *free + 2
+        *free = b + relo offset
+
+      if current relo block == relo start
+        end relocation
+      else
+        --current relo block
+
+    end relocation
+      update new relo page header
+        set page count
+        set relo-target-offset 0
+        set relo-source-addr 0
+        set freelist
+
+      update page 0 block storage page
