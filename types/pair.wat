@@ -643,15 +643,15 @@
    (local $depth i32)
    (local $pair-offset i32)
 
-  (call $clear-group-smudge (local.get $group))
+   (call $clear-group-smudge (local.get $group))
 
-  (local.set $ready-pair-map
-             (call $get-group-ready-pair-map
-                   (i64.load (local.get $group))))
+   (local.set $ready-pair-map
+              (call $get-group-ready-pair-map
+                    (i64.load (local.get $group))))
 
-  (local.set $depth (call $get-ready-map-trace-depth (local.get $ready-pair-map)))
+   (local.set $depth (call $get-ready-map-trace-depth (local.get $ready-pair-map)))
 
-  (local.set $pair-offset (call $get-flag-group-pair-offset (local.get $group)))
+   (local.set $pair-offset (call $get-flag-group-pair-offset (local.get $group)))
 
    (loop $again
      (if (i64.ne (local.get $ready-pair-map) (i64.const 0))
@@ -985,89 +985,262 @@
  ;; Block storage area page header
 
  ;; Count of 64Ki pages (contiguous) in the block storage area
- (global $blockstore-page-count         (export "blockstore-page-count")         i32 (i32.const 0x0000))
 
  ;; Address of the first free block in the freelist.
- (global $blockstore-freelist-head      (export "blockstore-freelist-head")      i32 (i32.const 0x0004))
 
  ;; When relocating, this is the offset from the current block storage area to
  ;; the target area. This will be a positive multiple of 64Ki during
  ;; relocations, zero otherwise.
- (global $blockstore-relo-offset        (export "blockstore-relo-offset")        i32 (i32.const 0x0008))
 
  ;; When relocating, this is the address of the lowest block address that needs
  ;; to be relocated.
- (global $blockstore-relo-bottom-block  (export "blockstore-relo-bottom-block")  i32 (i32.const 0x000c))
 
-  ;; When relocating, this is the address of the highest block address that needs
+ ;; When relocating, this is the address of the highest block address that needs
  ;; to be relocated.
- (global $blockstore-relo-current-block (export "blockstore-relo-current-block") i32 (i32.const 0x0010))
 
  ;; The initial blocklist and initial freelist consist of a single free block of
  ;; length -1.
- (global $blockstore-initial-freelist   (export "blockstore-initial-freelist")   i32 (i32.const 0x0014))
 
  ;; Initializes the free block at the given address
+
+ ;; Blockstore structure
+
+ (global $blockstore-page-count         (export "blockstore-page-count")         i32 (i32.const 0x0000))
+ (global $blockstore-block-count        (export "blockstore-block-count")        i32 (i32.const 0x0004))
+ (global $blockstore-relocation-offset  (export "blockstore-relocation-offset")  i32 (i32.const 0x0008))
+ (global $blockstore-relocation-block   (export "blockstore-relocation-block")   i32 (i32.const 0x000c))
+ (global $blockstore-current-relocation (export "blockstore-current-relocation") i32 (i32.const 0x0010))
+ (global $blockstore-end-block          (export "blockstore-end-block")          i32 (i32.const 0x0014))
+ (global $blockstore-free-space         (export "blockstore-free-space")         i32 (i32.const 0x0018))
+
+ ;; Block structure
+
+ (global $block-owner           (export "block-owner")           i32 (i32.const 0x0000))
+ (global $block-length          (export "block-length")          i32 (i32.const 0x0004))
+ (global $free-block-next-block (export "free-block-next-block") i32 (i32.const 0x0008))
+
+ ;; Sizes and lengths
+
+ (global $block-header-length    (export "block-header-length")    i32 (i32.const 2))
+ (global $block-header-size      (export "block-header-size")      i32 (i32.const 0x0008))
+ (global $blockstore-header-size (export "blockstore-header-size") i32 (i32.const 0x001c))
+
+ ;; Blockstore getters and setters
+
+ (func $get-blockstore-page-count (export "get-blockstore-page-count")
+   (result i32)
+   (i32.load (i32.add (call $get-blockstore)
+                      (global.get $blockstore-page-count))))
+
+ (func $get-blockstore-block-count (export "get-blockstore-block-count")
+   (result i32)
+   (i32.load (i32.add (call $get-blockstore)
+                      (global.get $blockstore-block-count))))
+
+ (func $get-blockstore-freelist (export "get-blockstore-freelist")
+   (result i32)
+   ;; The first block in the storage area is always the head of the free list.
+   (i32.load (i32.add (call $get-blockstore)
+                      (global.get $blockstore-header-size))))
+
+ (func $get-blockstore-relocation-offset (export "get-blockstore-relocation-offset")
+   (result i32)
+   (i32.load (i32.add (call $get-blockstore)
+                      (global.get $blockstore-relocation-offset))))
+
+ (func $get-blockstore-relocation-block (export "get-blockstore-relocation-block")
+   (result i32)
+   (i32.load (i32.add (call $get-blockstore)
+                      (global.get $blockstore-relocation-block))))
+
+ (func $get-blockstore-current-relocation (export "get-blockstore-current-relocation")
+   (result i32)
+   (i32.load (i32.add (call $get-blockstore)
+                      (global.get $blockstore-current-relocation))))
+
+ (func $get-blockstore-end-block (export "get-blockstore-end-block")
+   (result i32)
+   (i32.load (i32.add (call $get-blockstore)
+                      (global.get $blockstore-end-block))))
+
+ (func $get-blockstore-free-space (export "get-blockstore-free-space")
+   (result i32)
+   (i32.load (i32.add (call $get-blockstore)
+                      (global.get $blockstore-free-space))))
+
+ (func $set-blockstore-page-count (export "set-blockstore-page-count")
+   (param $page-count i32)
+   (result i32)
+   (i32.store (i32.add (call $get-blockstore)
+                       (global.get $blockstore-page-count))
+              (local.get $page-count)))
+
+ (func $set-blockstore-block-count (export "set-blockstore-block-count")
+   (param $block-count)
+   (result i32)
+   (i32.store (i32.add (call $get-blockstore)
+                       (global.get $blockstore-block-count))
+              (local.get $block-count)))
+
+ (func $set-blockstore-relocation-offset (export "set-blockstore-relocation-offset")
+   (param $relocation-offset)
+   (result i32)
+   (i32.store (i32.add (call $get-blockstore)
+                       (global.get $blockstore-relocation-offset))
+              (local.get $relocation-offset)))
+
+ (func $set-blockstore-relocation-block (export "set-blockstore-relocation-block")
+   (param $relocation-block)
+   (result i32)
+   (i32.store (i32.add (call $get-blockstore)
+                       (global.get $blockstore-relocation-block))
+              (local.get $relocation-block)))
+
+ (func $set-blockstore-current-relocation (export "set-blockstore-current-relocation")
+   (param $current-relocation)
+   (result i32)
+   (i32.store (i32.add (call $get-blockstore)
+                       (global.get $blockstore-current-relocation))
+              (local.get $current-relocation)))
+
+ (func $set-blockstore-end-block (export "set-blockstore-end-block")
+   (param $end-block)
+   (result i32)
+   (i32.store (i32.add (call $get-blockstore)
+                       (global.get $blockstore-end-block))
+              (local.get $end-block)))
+
+ (func $set-blockstore-free-space (export "set-blockstore-free-space")
+   (param $free-space)
+   (result i32)
+   (i32.store (i32.add (call $get-blockstore)
+                       (global.get $blockstore-free-space))
+              (local.get $free-space)))
+
+ ;; Block getters and setters
+
+ (func $get-block-owner (export "get-block-owner")
+   (param $block i32)
+   (result i32)
+   (i32.load (i32.add (local.get $block)
+                      (global.get $block-owner))))
+
+ (func $get-block-length (export "get-block-length")
+   (param $block i32)
+   (result i32)
+   (i32.load (i32.add (local.get $block)
+                      (global.get $block-length))))
+
+ (func $get-free-block-next-block (export "get-free-block-next-block")
+   (param $block i32)
+   (result i32)
+   (i32.load (i32.add (local.get $block)
+                      (global.get $free-block-next-block))))
+
+ (func $set-block-owner (export "set-block-owner")
+   (param $block i32)
+   (param $owner i32)
+   (result i32)
+   (i32.store (i32.add (local.get $block)
+                       (global.get $block-owner))
+              (local.get $owner)))
+
+ (func $set-block-length (export "set-block-length")
+   (param $block i32)
+   (param $length i32)
+   (result i32)
+   (i32.store (i32.add (local.get $block)
+                       (global.get $block-length))
+              (local.get $length)))
+
+ (func $set-free-block-next-block (export "set-free-block-next-block")
+   (param $block i32)
+   (param $next-block i32)
+   (result i32)
+   (i32.store (i32.add (local.get $block)
+                       (global.get $free-block-next-block))
+              (local.get $next-block)))
+
+ ;; Blockstore utility functions
+
+ (func $is-blockstore-relocating (export "is-blockstore-relocating")
+   (result i32)
+   (i32.ne (call $get-blockstore-relocation-block)) (global.get $null))
+
+ (func $decr-blockstore-block-count (export "decr-blockstore-block-count")
+   (call $set-blockstore-block-count (i32.sub (call $get-blockstore-block-count)
+                                              (i32.const 1))))
+
+ (func $incr-blockstore-block-count (export "incr-blockstore-block-count")
+   (call $set-blockstore-block-count (i32.add (call $get-blockstore-block-count)
+                                              (i32.const 1))))
+
+ ;; Block utility functions
+
+ (func $get-block-size (export "get-block-size")
+   (param $block i32)
+   (result i32)
+
+   (i32.add (global.get $block-header-size)
+            (i32.mul (call $get-block-length $block) (global.get $value-size))))
+
+ (func $get-next-block (export "get-next-block")
+   (param $block i32)
+   (result i32)
+
+   (i32.add (local.get $block)
+            (call $get-block-size $block)))
+
+ (func $get-next-free-block (export "get-next-free-block")
+   (param $block i32)
+   (result i32)
+   (call $get-free-block-next-block (local.get $block)))
+
+ (func $is-free-block (export "is-free-block")
+   (param $block i32)
+   (result i32)
+   (i32.eq (call $get-block-owner (local.get $block)) (global.get $null)))
+
+ (func $is-last-free-block (export "is-last-free-block")
+   (param $block i32)
+   (result i32)
+   (i32.eq (call $get-next-free-block (local.get $block)) (global.get $null)))
+
+ ;; Constructors
+
  (func $make-free-block (export "make-free-block")
    (param $block)
    (param $length)
-   (param $next)
+   (param $next-block)
 
-   (i32.store (local.get $block)
-              (global.get $null))
-
-   (i32.store
-    (i32.add (local.get $block) (global.get $value-size))
-    (local.get $length))
-
-   (i32.store
-    (i32.add (local.get $block) (i32.shl (global.get $value-size) (i32.const 1)))
-    (local.get $next)))
+   (call $set-block-owner           (local.get $block) (global.get $null))
+   (call $set-block-length          (local.get $block) (local.get $length))
+   (call $set-free-block-next-block (local.get $block) (local.get $next-block)))
 
  (func $init-blockstore (export "init-blockstore")
    (param $page-idx i32)
    (param $page-count i32)
 
-   (local $freelist i32)
-   (local $page i32)
+   (local $end-block i32)
 
-   (local.set $page (i32.mul (local.get $page-idx) (global.get $page-size)))
-   (local.set $freelist (i32.add (local.get $page) (global.get $blockstore-initial-freelist)))
+   (call $set-blockstore (i32.mul (local.get $page-idx) (global.get $page-size)))
 
-   (i32.store
-    (i32.add (local.get $page) (global.get $blockstore-page-count))
-    (local.get $page-count))
+   (call $set-blockstore-page-count (local.get $page-count))
+   (call $set-blockstore-block-count (i32.const 1))
+   (call $set-blockstore-relocation-offset (i32.const 0))
+   (call $set-blockstore-relocation-block (global.get $null))
+   (call $set-blockstore-current-relocation-block (global.get $null))
 
-   (i32.store
-    (i32.add (local.get $page) (global.get $blockstore-page-freelist-head))
-    (local.get $freelist))
+   (local.set $end-block (call $get-blockstore-freelist))
 
-   (i32.store
-    (i32.add (local.get $page) (global.get $blockstore-relo-offset))
-    (i32.const 0))
-
-   (i32.store
-    (i32.add (local.get $page) (global.get $blockstore-relo-bottom-block))
-    (i32.const 0))
-
-   (i32.store
-    (i32.add (local.get $page) (global.get $blockstore-relo-current-block))
-    (i32.const 0))
-
-   (i32.store
-    (i32.add (local.get $page) (global.get $blockstore-block-count))
-    (i32.const 2))
+   (call $set-blockstore-end-block (local.get $end-block))
 
    (call $make-free-block
-         (local.get $freelist)
-         (global.get $null)
-         (i32.const -1)
-         (global.get $null)))
+         (local.get $end-block)
+         (i32.const 1)
+         (global.get $null))
 
- (func $is-free-block (export "is-free-block")
-   (param $block i32)
-   (result i32)
-   (i32.eq (i32.load (local.get $block)) (global.get $null)))
+   (call $set-blockstore-free-area (call $get-next-block (local.get $end-block))))
 
  (func $can-split-free-block (export "can-split-free-block")
    (param $block i32)
@@ -1115,10 +1288,8 @@
                            (local.get $split-length))
                   (global.get $block-header-length)))
 
-      (local.set $next-free-block
-                 (i32.load
-                  (i32.add (local.get $block)
-                           (global.get $free-block-next-block))))
+      (local.set $next-free-block (call $get-next-free-block
+                                        (local.get $block)))
 
       (call $make-free-block
             (local.get $new-block)
@@ -1131,21 +1302,6 @@
             (local.get $new-block))
 
       (call $incr-blockstore-block-count))))
-
- (func $get-block-size (export "get-block-size")
-   (param $block i32)
-   (result i32)
-
-   (i32.add (i32.mul (call $get-block-length $block)
-                     (global.get $value-size))
-            (global.get $block-header-size)))
-
- (func $get-next-block (export "get-next-block")
-   (param $block i32)
-   (result i32)
-
-   (i32.add (local.get $block)
-            (call $get-block-size $block)))
 
  (func $compact-block-freelist (export "compact-block-freelist")
 
@@ -1219,8 +1375,8 @@
                (local.get $length))
          (then
           (call $split-free-block
-               (local.get $next-free-block)
-               (local.get $length))
+                (local.get $next-free-block)
+                (local.get $length))
 
           (call $set-next-free-block
                 (local.get $free-block)
@@ -1252,10 +1408,11 @@
 
    (if (i32.gt_u (local.get $alloc-top) (local.get $blockstore-top))
        (memory.grow (i32.add (i32.const 1)
-                             (i32.shr_u (i32.sub
-                                         (i32.sub (local.get $alloc-top)
-                                                  (local.get $blockstore-top))
-                                         (32.const 1)))))))
+                             (i32.div (i32.sub
+                                       (i32.sub (local.get $alloc-top)
+                                                (local.get $blockstore-top))
+                                       (32.const 1))
+                                      (global.get $page-size))))))
 
  (func $alloc-end-block (export "alloc-end-block")
    (param $owner i32)
@@ -1283,7 +1440,6 @@
    (call $incr-blockstore-block-count)
 
    (local.get $new-block))
-
 
  (func $alloc-block (export "alloc-block")
    (param $owner i32)
@@ -1321,118 +1477,199 @@
 
    (local $block-new i32)
    (local $block-orig i32)
-   (local $block-size i32)
    (local $free-block i32)
    (local $next-free-block i32)
+   (local $next-free-length i32)
    (local $next-next-free-block i32)
 
-   (local.set $free-block (call $get-blockstore-freelist))
-   (local.set $next-free-block (call $get-next-free-block (local.get $free-block)))
-
    (if (i32.and (i32.eqz (call $is-blockstore-relocating))
-                (i32.eqz (call $is-last-free-block (local.get $next-free-block))))
+                (i32.eqz (call $is-blockstore-freelist-empty)))
        (then
 
-        (local.set $block-orig (i32.add (local.get $next-free-block)
-                                        (call $get-block-size (local.get $next-free-block))))
-        (local.set $block-new (local.get $next-free-block))
-
+        (local.set $free-block (call $get-blockstore-freelist))
+        (local.set $next-free-block (call $get-next-free-block (local.get $free-block)))
+        (local.set $next-free-length (call $get-block-length $next-free-block))
         (local.set $next-next-free-block (call $get-next-free-block (local.get $next-free-block)))
 
-        (local.set $block-size (call $get-block-size (local.get $block-orig)))
+        (local.set $block-orig (call $get-next-block (local.get $next-free-block)))
+        (local.set $block-new (local.get $next-free-block))
 
-        (memory.copy (local.get $block-size)
+        (memory.copy (call $get-block-size (local.get $block-orig))
                      (local.get $block-orig)
                      (local.get $block-new))
 
-        (local.set $next-free-block (i32.add (local.get $block-new)
-                                             (local.get $block-size)))
+        (local.set $next-free-block (call $get-next-block (local.get $block-new)))
 
         (call $make-free-block
               (local.get $next-free-block)
+              (local.get $next-free-length)
               (local.get $next-next-free-block))
 
         (call $set-next-free-block
               (local.get $free-block)
               (local.get $next-free-block)))))
 
- (func $begin-relocate-blockstore (export "begin-relocate-blockstore")
-   (param $page-count i32)
+ (func $fill-relocation-block (export "fill-relocation-block")
+   (result i32)
 
    (local $block i32)
-   (local $blockstore i32)
-   (local $bottom-block-ref i32)
-   (local $current-block-ref i32)
-   (local $end-block i32)
-   (local $free-block i32)
-   (local $next-free-block i32)
-   (local $offset i32)
+   (local $block-ref i32)
+   (local $end-ref i32)
+   (local $relocation-block)
 
-   (local.set $blockstore (call $get-blockstore))
+   (local.set $relocation-block (call $get-blockstore-relocation-block))
 
-   (call $ensure-blockstore-pages
-         (i32.add (call $get-blockstore-pages)
-                  (local.get $page-count)))
+   (local.set $block (call $get-blockstore-initial-block))
 
-   (i32.store (i32.add (local.get $blockstore)
-                       (global.get $blockstore-relo-offset))
-              (i32.mul (local.get $page-count)
-                       (global.get $page-size)))
+   (local.set $block-ref (i32.add (local.get $relocation-block)
+                                  (global.get $block-header-size)))
+
+   (local.set $end-ref (call $get-next-block (local.get $relocation-block)))
+
+   (loop $again
+     (i32.store (local.get $block-ref)
+                (local.get $block))
+
+     (if (i32.lt_u (local.get $block-ref) (local.get $end-ref))
+         (then
+          (local.set $block (call $get-next-block (local.get $block)))
+          (local.set $block-ref (i32.add (local.get $block-ref)
+                                         (global.get $value-size)))
+          (br $again))))
+
+   (local.get $relocation-block))
+
+ (func $make-relocation-block (export "make-relocation-block")
+   (result i32)
+
+   (local $block-count i32)
+   (local $relocation-block i32)
+
+   (local.set $relocation-block (i32.add (call $get-blockstore-free-space)
+                                         (call $get-blockstore-relocation-offset)))
+
+   ;; add one to include the relocation block, which will become
+   ;; a free block once relocation has finshed
+   (local.set $block-count (i32.add (call $get-blockstore-block-count)
+                                    (i32.const 1)))
+
+   (call $ensure-blockstore-alloc-top
+         (i32.add (local.get $relocation-block)
+                  (call $calc-block-size (local.get $block-count))))
+
+   (call $make-free-block
+         (local.get $relocation-block)
+         (local.get $block-count)
+         (global.get $null))
+
+   (call $fill-relocation-block (local.get $relocation-block)))
+
+ (func $add-freelist-block (export "add-freelist-block")
+   (param $block i32)
 
    (local.set $free-block (call $get-blockstore-freelist))
 
    (loop $again
-     (local.set $next-free-block (call $get-next-free-block (local.get $free-block)))
-     (if (i32.eqz (call $is-last-free-block (local.get $next-free-block)))
+     (if (i32.eqz (call $is-last-free-block (local.get $free-block)))
+         (then
+          (call $set-next-free-block
+                (local.get $free-block)
+                (local.get $block)))
+       (else
+        (local.set $next-free-block (call $get-next-free-block (local.get $free-block)))
+        (if (i32.lt_u (local.get $next-free-block)
+                      (local.get $block))
             (then
              (local.set $free-block (local.get $next-free-block))
-             (br $again))))
+             (br $again))
+          (else
+           (call $set-next-free-block
+                 (local.get $free-block)
+                 (local.get $block))
+           (call $set-next-free-block
+                 (local.get $block)
+                 (local.get $next-free-block))))))))
 
-   (local.set $free-block (local.get $next-free-block))
+ (func $begin-relocate-blockstore (export "begin-relocate-blockstore")
+   (param $page-count i32)
 
-   (local.set $next-free-block (i32.add (local.get $next-free-block)
-                                        (local.get $offset)))
+   (local $relocation-block i32)
 
-   (call $set-next-free-block
-         (local.get $free-block)
-         (local.get $next-free-block))
+   (call $set-blockstore-relocation-offset
+         (i32.mul (local.get $page-count)
+                  (global.get $page-size)))
 
-   (call $make-free-block
-         (local.get $next-free-block)
-         (i32.const -1)
-         (global.get $null))
+   (local.set $relocation-block (call $make-relocation-block))
 
-   (local.set $bottom-block-ref (call $get-next-block (local.get $end-block)))
+   (call $set-blockstore-relocation-block (local.get $relocation-block))
+   (call $set-blockstore-end-block (local.get $relocation-block))
+   (call $set-blockstore-free-space (call $get-next-block (local.get $relocation-block)))
 
-   (local.set $current-block-ref (local.get $bottom-block-ref))
+   (call $set-blockstore-current-relocation
+         (i32.sub (call $get-next-block (local.get $relocation-block))
+                  (global.get $value-size))))
 
-   (local.set $block (call $get-blockstore-initial-block))
+ (func $step-relocate-blockstore (export "step-relocate-blockstore")
 
-   (loop $again
-     (i32.store (local.get $current-block-ref)
-                (local.get $block))
+   (local $block i32)
+   (local $block-owner i32)
+   (local $block-ref i32)
+   (local $next-free-block i32)
+   (local $offset i32)
+   (local $relocated-block i32)
 
-     (if (i32.ne (local.get $block) (local.get $end-block))
-         (then
-          (local.set $block (call $get-next-block (local.get $block)))
-          (local.set $current-block-ref (i32.add (local.get $current-block-ref)
-                                                 (global.get $value-size)))
-          (br $again))))
+   (local.set $block-ref (call $get-blockstore-current-relocation))
 
-   (i32.store (i32.add (local.get $blockstore) (global.get $blockstore-relo-bottom-block-ref))
-              (local.get $bottom-block-ref))
+   (local.set $block (i32.load (local.get $block-ref)))
 
-   (i32.store (i32.add (local.get $blockstore) (global.get $blockstore-relo-current-block-ref))
-              (i32.sub (local.get $current-block-ref)
-                       (global.get $value-size))))
+   (local.set $offset (call $get-blockstore-relocation-offset))
 
- (func $step-blockstore-relocate (export "step-blockstore-relocate")
+   (local.set $relocated-block (i32.add (local.get $block) (local.get $offset)))
 
-   )
+   (local.set $block-owner (call $get-block-owner (local.get $block)))
+
+   (if (i32.ne (local.get $block-owner) (global.get $null))
+       (then
+        (call $set-blockvalue-block
+              (local.get $block-owner)
+              (local.get $relocated-block)))
+     (else
+      (local.set $next-free-block (call $get-next-free-block (local.get $block)))
+      (if (i32.ne (local.get $next-free-block) (global.get $null))
+          (then
+           (call $set-next-free-block
+                 (local.get $block)
+                 (i32.add (local.get $next-free-block)
+                          (local.get $offset)))))))
+
+   (memory.copy (call $get-block-size (local.get $block))
+                (local.get $block)
+                (local.get $relocated-block))
+
+   (call $set-blockstore-current-relocation
+         (i32.sub (local.get $block-ref)
+                  (global.get $value-size))))
 
  (func $end-relocate-blockstore (export "end-relocate-blockstore")
 
-   )
+   (local $blockstore i32)
+   (local $relocated-blockstore i32)
+
+   (local.set $blockstore (call $get-blockstore))
+   (local.set $relocated-blockstore (i32.add (local.get $blockstore)
+                                             (call $get-blockstore-relocation-offset)))
+
+   (memory.copy (global.get $blockstore-header-size)
+                (local.get $blockstore)
+                (local.get $relocated-blockstore))
+
+   (call $set-blockstore (local.get $relocated-blockstore))
+
+   (call $deallocate-block (call $get-blockstore-relocation-block))
+
+   (call $set-blockstore-relocation-offset (i32.const 0))
+   (call $set-blockstore-relocation-block (global.get $null))
+   (call $set-blockstore-current-relocation (global.get $null)))
 
 
  )
