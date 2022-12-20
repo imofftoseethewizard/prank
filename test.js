@@ -110,7 +110,6 @@ const blockstore_block_count                = wasmInstance.exports['blockstore-b
 const blockstore_relocation_offset          = wasmInstance.exports['blockstore-relocation-offset'];
 const blockstore_relocation_block           = wasmInstance.exports['blockstore-relocation-block'];
 const blockstore_current_relocation         = wasmInstance.exports['blockstore-current-relocation'];
-const blockstore_end_block                  = wasmInstance.exports['blockstore-end-block'];
 const blockstore_free_area                  = wasmInstance.exports['blockstore-free-area'];
 const block_owner                           = wasmInstance.exports['block-owner'];
 const block_length                          = wasmInstance.exports['block-length'];
@@ -124,14 +123,12 @@ const get_blockstore_freelist               = wasmInstance.exports['get-blocksto
 const get_blockstore_relocation_offset      = wasmInstance.exports['get-blockstore-relocation-offset'];
 const get_blockstore_relocation_block       = wasmInstance.exports['get-blockstore-relocation-block'];
 const get_blockstore_current_relocation     = wasmInstance.exports['get-blockstore-current-relocation'];
-const get_blockstore_end_block              = wasmInstance.exports['get-blockstore-end-block'];
 const get_blockstore_free_area              = wasmInstance.exports['get-blockstore-free-area'];
 const set_blockstore_page_count             = wasmInstance.exports['set-blockstore-page-count'];
 const set_blockstore_block_count            = wasmInstance.exports['set-blockstore-block-count'];
 const set_blockstore_relocation_offset      = wasmInstance.exports['set-blockstore-relocation-offset'];
 const set_blockstore_relocation_block       = wasmInstance.exports['set-blockstore-relocation-block'];
 const set_blockstore_current_relocation     = wasmInstance.exports['set-blockstore-current-relocation'];
-const set_blockstore_end_block              = wasmInstance.exports['set-blockstore-end-block'];
 const set_blockstore_free_area              = wasmInstance.exports['set-blockstore-free-area'];
 const get_block_owner                       = wasmInstance.exports['get-block-owner'];
 const get_block_length                      = wasmInstance.exports['get-block-length'];
@@ -153,17 +150,18 @@ const make_free_block                       = wasmInstance.exports['make-free-bl
 const init_blockstore                       = wasmInstance.exports['init-blockstore'];
 const can_split_free_block                  = wasmInstance.exports['can-split-free-block'];
 const split_free_block                      = wasmInstance.exports['split-free-block'];
-const compact_block_freelist                = wasmInstance.exports['compact-block-freelist'];
 const alloc_exact_freelist_block            = wasmInstance.exports['alloc-exact-freelist-block'];
-const alloc_freelist_block                  = wasmInstance.exports['alloc-freelist-block'];
+const alloc_split_freelist_block            = wasmInstance.exports['alloc-split-freelist-block'];
 const calc_block_size                       = wasmInstance.exports['calc-block-size'];
 const ensure_blockstore_alloc_top           = wasmInstance.exports['ensure-blockstore-alloc-top'];
 const alloc_end_block                       = wasmInstance.exports['alloc-end-block'];
 const alloc_block                           = wasmInstance.exports['alloc-block'];
+const add_free_block                        = wasmInstance.exports['add-free-block'];
+const compact_block_freelist                = wasmInstance.exports['compact-block-freelist'];
+const dealloc_block                         = wasmInstance.exports['dealloc-block'];
 const step_blockstore_compact               = wasmInstance.exports['step-blockstore-compact'];
 const fill_relocation_block                 = wasmInstance.exports['fill-relocation-block'];
 const make_relocation_block                 = wasmInstance.exports['make-relocation-block'];
-const add_freelist_block                    = wasmInstance.exports['add-freelist-block'];
 const begin_relocate_blockstore             = wasmInstance.exports['begin-relocate-blockstore'];
 const step_relocate_blockstore              = wasmInstance.exports['step-relocate-blockstore'];
 const end_relocate_blockstore               = wasmInstance.exports['end-relocate-blockstore'];
@@ -1132,16 +1130,241 @@ test_units = [
             {
                 name:        'last block is freelist',
                 setup:       () => init_blockstore(5, 1),
-                action:      () => get_blockstore_freelist() - get_blockstore_end_block(),
-                expected:    0,
-            },
-            {
-                name:        'next block after last is free area',
-                setup:       () => init_blockstore(5, 1),
-                action:      () => get_next_block(get_blockstore_end_block()) - get_blockstore_free_area(),
+                action:      () => get_next_block(get_blockstore_freelist()) - get_blockstore_free_area(),
                 expected:    0,
             },
         ]
+    },
+    {
+        name: 'alloc end block',
+        enable: true,
+        cases: [
+            {
+                name:        'at old end',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_blockstore_free_area() - alloc_end_block(NULL, 10),
+                expected:    0,
+            },
+            {
+                name:        'free area moved',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => (
+                    get_blockstore_free_area()
+                    + 0*alloc_end_block(NULL, 10)
+                    - get_blockstore_free_area()
+                ),
+                expected:    -calc_block_size(10),
+            },
+            {
+                name:        'new block is end block',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_next_block(alloc_end_block(NULL, 10)) - get_blockstore_free_area(),
+                expected:    0
+            },
+            {
+                name:        'new block owner',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_block_owner(alloc_end_block(715, 10)),
+                expected:    715
+            },
+            {
+                name:        'new block length',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_block_length(alloc_end_block(715, 10)),
+                expected:    10
+            },
+            {
+                name:        'block count',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => (
+                    get_blockstore_block_count()
+                    + 0*alloc_end_block(NULL, 10)
+                    - get_blockstore_block_count()
+                ),
+                expected:    -1
+            },
+            {
+                name:        '2 blocks -- 1st owner',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(1, 5);
+                    let b = alloc_end_block(2, 7);
+                },
+                action:      () => get_block_owner(get_next_block(get_blockstore_initial_block())),
+                expected:    1
+            },
+            {
+                name:        '2 blocks -- 1st length',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(1, 5);
+                    let b = alloc_end_block(2, 7);
+                },
+                action:      () => get_block_length(get_next_block(get_blockstore_initial_block())),
+                expected:    5
+            },
+            {
+                name:        '2 blocks -- 2nd owner',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(1, 5);
+                    let b = alloc_end_block(2, 7);
+                },
+                action:      () => get_block_owner(get_next_block(get_next_block(get_blockstore_initial_block()))),
+                expected:    2
+            },
+            {
+                name:        '2 blocks -- 2nd length',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(1, 5);
+                    let b = alloc_end_block(2, 7);
+                },
+                action:      () => get_block_length(get_next_block(get_next_block(get_blockstore_initial_block()))),
+                expected:    7
+            },
+        ]
+    },
+    {
+        name: 'add free list block',
+        enable: true,
+        cases: [
+            {
+                name:        'simple 1',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 10))
+                ),
+                action:      () => is_last_free_block(get_blockstore_freelist()),
+                expected:    0
+            },
+            {
+                name:        'simple 2',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 10))
+                ),
+                action:      () => is_last_free_block(get_next_block(get_blockstore_freelist())),
+                expected:    1
+            },
+            {
+                name:        'simple 3',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 10))
+                ),
+                action:      () => is_last_free_block(get_next_free_block(get_blockstore_freelist())),
+                expected:    1
+            },
+            {
+                name:        'insert end 1',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(NULL, 5);
+                    let b = alloc_end_block(NULL, 7);
+                    add_free_block(a);
+                    add_free_block(b);
+                },
+                action:      () => is_last_free_block(get_blockstore_freelist()),
+                expected:    0
+            },
+            {
+                name:        'insert end 2',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(NULL, 5);
+                    let b = alloc_end_block(NULL, 7);
+                    add_free_block(a);
+                    add_free_block(b);
+                },
+                action:      () => is_last_free_block(get_next_free_block(get_blockstore_freelist())),
+                expected:    0
+            },
+            {
+                name:        'insert end 3',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(NULL, 5);
+                    let b = alloc_end_block(NULL, 7);
+                    add_free_block(a);
+                    add_free_block(b);
+                },
+                action:      () => get_block_length(get_next_free_block(get_blockstore_freelist())),
+                expected:    5
+            },
+            {
+                name:        'insert end 3',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(NULL, 5);
+                    let b = alloc_end_block(NULL, 7);
+                    add_free_block(a);
+                    add_free_block(b);
+                },
+                action:      () => get_block_length(get_next_free_block(get_next_free_block(get_blockstore_freelist()))),
+                expected:    7
+            },
+            {
+                name:        'insert end 4',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(NULL, 5);
+                    let b = alloc_end_block(NULL, 7);
+                    add_free_block(b);
+                    add_free_block(a);
+                },
+                action:      () => is_last_free_block(get_next_free_block(get_next_free_block(get_blockstore_freelist()))),
+                expected:    1
+            },
+            {
+                name:        'insert front 1',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(NULL, 5);
+                    let b = alloc_end_block(NULL, 7);
+                    add_free_block(b);
+                    add_free_block(a);
+                },
+                action:      () => is_last_free_block(get_blockstore_freelist()),
+                expected:    0
+            },
+            {
+                name:        'insert front 2',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(NULL, 5);
+                    let b = alloc_end_block(NULL, 7);
+                    add_free_block(b);
+                    add_free_block(a);
+                },
+                action:      () => is_last_free_block(get_next_free_block(get_blockstore_freelist())),
+                expected:    0
+            },
+            {
+                name:        'insert front 3',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(NULL, 5);
+                    let b = alloc_end_block(NULL, 7);
+                    add_free_block(b);
+                    add_free_block(a);
+                },
+                action:      () => get_block_length(get_next_free_block(get_blockstore_freelist())),
+                expected:    5
+            },
+            {
+                name:        'insert front 4',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(NULL, 5);
+                    let b = alloc_end_block(NULL, 7);
+                    add_free_block(b);
+                    add_free_block(a);
+                },
+                action:      () => is_last_free_block(get_next_free_block(get_next_free_block(get_blockstore_freelist()))),
+                expected:    1
+            },
+        ],
     },
     {
         name: 'can split free block',
@@ -1151,39 +1374,38 @@ test_units = [
                 name:        'minimal block',
                 setup:       () => (
                     init_blockstore(5, 1),
-                    make_free_block(get_blockstore_free_area(), 1, NULL)
+                    add_free_block(alloc_end_block(NULL, 1))
                 ),
-                action:      () => can_split_free_block(get_blockstore_free_area()),
+                action:      () => can_split_free_block(get_next_free_block(get_blockstore_freelist()), 1),
                 expected:    0,
             },
             {
                 name:        'small block 2',
                 setup:       () => (
                     init_blockstore(5, 1),
-                    make_free_block(get_blockstore_free_area(), 2, NULL)
+                    add_free_block(alloc_end_block(NULL, 2))
                 ),
-                action:      () => can_split_free_block(get_blockstore_free_area()),
+                action:      () => can_split_free_block(get_next_free_block(get_blockstore_freelist()), 1),
                 expected:    0,
             },
             {
                 name:        'small block 3',
                 setup:       () => (
                     init_blockstore(5, 1),
-                    make_free_block(get_blockstore_free_area(), 3, NULL)
+                    add_free_block(alloc_end_block(NULL, 3))
                 ),
-                action:      () => can_split_free_block(get_blockstore_free_area()),
+                action:      () => can_split_free_block(get_next_free_block(get_blockstore_freelist()), 1),
                 expected:    0,
             },
             {
                 name:        'minimal splittable 3',
                 setup:       () => (
                     init_blockstore(5, 1),
-                    make_free_block(get_blockstore_free_area(), 4, NULL)
+                    add_free_block(alloc_end_block(NULL, 4))
                 ),
-                action:      () => can_split_free_block(get_blockstore_free_area()),
+                action:      () => can_split_free_block(get_next_free_block(get_blockstore_freelist()), 1),
                 expected:    1,
             },
-
         ],
     },
     {
@@ -1194,39 +1416,603 @@ test_units = [
                 name:        'minimal block',
                 setup:       () => (
                     init_blockstore(5, 1),
-                    make_free_block(get_blockstore_free_area(), 1, NULL)
+                    add_free_block(alloc_end_block(NULL, 1))
                 ),
-                action:      () => split_free_block(get_blockstore_free_area()),
+                action:      () => split_free_block(get_next_free_block(get_blockstore_freelist()), 1),
                 expected:    0,
             },
             {
                 name:        'small block 2',
                 setup:       () => (
                     init_blockstore(5, 1),
-                    make_free_block(get_blockstore_free_area(), 2, NULL)
+                    add_free_block(alloc_end_block(NULL, 2))
                 ),
-                action:      () => split_free_block(get_blockstore_free_area()),
+                action:      () => split_free_block(get_next_free_block(get_blockstore_freelist()), 1),
                 expected:    0,
             },
             {
                 name:        'small block 3',
                 setup:       () => (
                     init_blockstore(5, 1),
-                    make_free_block(get_blockstore_free_area(), 3, NULL)
+                    add_free_block(alloc_end_block(NULL, 3))
                 ),
-                action:      () => split_free_block(get_blockstore_free_area()),
+                action:      () => split_free_block(get_next_free_block(get_blockstore_freelist()), 1),
                 expected:    0,
             },
             {
                 name:        'minimal splittable 3',
                 setup:       () => (
                     init_blockstore(5, 1),
-                    make_free_block(get_blockstore_free_area(), 4, NULL)
+                    add_free_block(alloc_end_block(NULL, 4))
                 ),
-                action:      () => split_free_block(get_blockstore_free_area()),
+                action:      () => split_free_block(get_next_free_block(get_blockstore_freelist()), 1),
                 expected:    1,
             },
-
+            {
+                name:        'minimal splittable 3',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 4)),
+                    split_free_block(get_next_free_block(get_blockstore_freelist()), 1)
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    3,
+            },
+            {
+                name:        'split 14 -> 7/5 -- length 1',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 14)),
+                    split_free_block(get_next_free_block(get_blockstore_freelist()), 7)
+                ),
+                action:      () => get_block_length(get_next_block(get_blockstore_initial_block())),
+                expected:    7,
+            },
+            {
+                name:        'split 14 -> 7/5 -- length 2',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 14)),
+                    split_free_block(get_next_free_block(get_blockstore_freelist()), 7)
+                ),
+                action:      () => get_block_length(get_next_block(get_next_block(get_blockstore_initial_block()))),
+                expected:    5,
+            },
+            {
+                name:        'split 14 -> 7/5 -- freelist 1',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 14)),
+                    split_free_block(get_next_free_block(get_blockstore_freelist()), 7)
+                ),
+                action:      () => get_block_length(get_next_free_block(get_blockstore_freelist())),
+                expected:    7,
+            },
+            {
+                name:        'split 14 -> 7/5 -- freelist 1',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 14)),
+                    split_free_block(get_next_free_block(get_blockstore_freelist()), 7)
+                ),
+                action:      () => get_block_length(get_next_free_block(get_next_free_block(get_blockstore_freelist()))),
+                expected:    5,
+            },
+        ],
+    },
+    {
+        name: 'alloc exact block',
+        enable: true,
+        cases: [
+            {
+                name:        'empty',
+                setup:       () => (
+                    init_blockstore(5, 1)
+                ),
+                action:      () => alloc_exact_freelist_block(11, 1),
+                expected:    NULL.value,
+            },
+            {
+                name:        '5 in 14',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 14))
+                ),
+                action:      () => alloc_exact_freelist_block(11, 5),
+                expected:    NULL.value,
+            },
+            {
+                name:        '5 in 5 success check',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 5))
+                ),
+                action:      () => alloc_exact_freelist_block(11, 5) == get_next_block(get_blockstore_initial_block()),
+                expected:    true,
+            },
+            {
+                name:        '5 in 5 freelist empty',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 5)),
+                    alloc_exact_freelist_block(11, 5)
+                ),
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    1,
+            },
+            {
+                name:        '5 in 5,7 success check',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 5)),
+                    add_free_block(alloc_end_block(NULL, 7))
+                ),
+                action:      () => alloc_exact_freelist_block(11, 5) == get_next_block(get_blockstore_initial_block()),
+                expected:    true,
+            },
+            {
+                name:        '5 in 5,7 freelist length 1',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 5)),
+                    add_free_block(alloc_end_block(NULL, 7)),
+                    alloc_exact_freelist_block(11, 5)
+                ),
+                action:      () => is_last_free_block(get_next_free_block(get_blockstore_freelist())),
+                expected:    1,
+            },
+        ],
+    },
+    {
+        name: 'alloc freelist block (splitting)',
+        enable: true,
+        cases: [
+            {
+                name:        'empty',
+                setup:       () => (
+                    init_blockstore(5, 1)
+                ),
+                action:      () => alloc_split_freelist_block(11, 1),
+                expected:    NULL.value,
+            },
+            {
+                name:        'too small -- 1',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7))
+                ),
+                action:      () => alloc_split_freelist_block(11, 14),
+                expected:    NULL.value,
+            },
+            {
+                name:        'too small -- 2',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7))
+                ),
+                action:      () => alloc_split_freelist_block(11, 7),
+                expected:    NULL.value,
+            },
+            {
+                name:        'too small -- 3',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7))
+                ),
+                action:      () => alloc_split_freelist_block(11, 5),
+                expected:    NULL.value,
+            },
+            {
+                name:        '7 split for 4 -- basic',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7)),
+                    alloc_split_freelist_block(11, 4)
+                ),
+                action:      () => get_block_length(get_next_block(get_blockstore_initial_block())),
+                expected:    4,
+            },
+            {
+                name:        '7 split for 4 -- free block length',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7)),
+                    alloc_split_freelist_block(11, 4)
+                ),
+                action:      () => get_block_length(get_next_block(get_next_block(get_blockstore_initial_block()))),
+                expected:    1,
+            },
+            {
+                name:        '7 split for 4 -- freelist',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7)),
+                    alloc_split_freelist_block(11, 4)
+                ),
+                action:      () => get_block_length(get_next_free_block(get_blockstore_freelist())),
+                expected:    1,
+            },
+            {
+                name:        '7 split for 4 -- block count',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7)),
+                    alloc_split_freelist_block(11, 4)
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    3,
+            },
+        ],
+    },
+    {
+        name: 'alloc block',
+        enable: true,
+        cases: [
+            {
+                name:        'length 0',
+                setup:       () => (
+                    init_blockstore(5, 1)
+                ),
+                action:      () => alloc_block(77, 0),
+                expected:    NULL.value
+            },
+            {
+                name:        'length 1 -- length check',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    alloc_block(77, 1)
+                ),
+                action:      () => get_block_length(get_next_block(get_blockstore_initial_block())),
+                expected:    1
+            },
+            {
+                name:        'length 1 -- owner check',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    alloc_block(77, 1)
+                ),
+                action:      () => get_block_owner(get_next_block(get_blockstore_initial_block())),
+                expected:    77
+            },
+            {
+                name:        '3 for 7,3 -- owner check',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7)),
+                    add_free_block(alloc_end_block(NULL, 3)),
+                    alloc_block(77, 3)
+                ),
+                action:      () => get_block_owner(get_next_block(get_next_block(get_blockstore_initial_block()))),
+                expected:    77
+            },
+            {
+                name:        '4 for 7,3 -- owner check',
+                enable: false,
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7)),
+                    add_free_block(alloc_end_block(NULL, 3)),
+                    alloc_block(77, 4)
+                ),
+                action:      () => get_block_owner(get_next_block(get_blockstore_initial_block())),
+                expected:    77
+            },
+            {
+                name:        '4 for 7,3 -- block count',
+                enable: false,
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(NULL, 7)),
+                    add_free_block(alloc_end_block(NULL, 3)),
+                    alloc_block(77, 4)
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    4
+            },
+        ],
+    },
+    {
+        name: 'compact freelist',
+        enable: true,
+        cases: [
+            {
+                name:        'empty',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    compact_block_freelist()
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    1,
+            },
+            {
+                name:        'one alloc -- block count',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    alloc_end_block(77, 5),
+                    compact_block_freelist()
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    2,
+            },
+            {
+                name:        'one alloc -- free list',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    alloc_end_block(77, 5),
+                    compact_block_freelist()
+                ),
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    1,
+            },
+            {
+                name:        'one free -- block count',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(77, 5)),
+                    compact_block_freelist()
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    1,
+            },
+            {
+                name:        'one free -- free list',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(77, 5)),
+                    compact_block_freelist()
+                ),
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    1,
+            },
+            {
+                name:        'two free -- block count',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(77, 5)),
+                    add_free_block(alloc_end_block(77, 5)),
+                    compact_block_freelist()
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    1,
+            },
+            {
+                name:        'two free -- free list',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(77, 5)),
+                    add_free_block(alloc_end_block(77, 5)),
+                    compact_block_freelist()
+                ),
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    1,
+            },
+            {
+                name:        'three free -- block count',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(77, 5)),
+                    add_free_block(alloc_end_block(77, 5)),
+                    add_free_block(alloc_end_block(77, 5)),
+                    compact_block_freelist()
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    1,
+            },
+            {
+                name:        'three free -- free list',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(77, 5)),
+                    add_free_block(alloc_end_block(77, 5)),
+                    add_free_block(alloc_end_block(77, 5)),
+                    compact_block_freelist()
+                ),
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    1,
+            },
+            {
+                name:        'two free, one alloc-- block count',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(77, 5)),
+                    add_free_block(alloc_end_block(77, 5)),
+                    alloc_end_block(77, 5),
+                    compact_block_freelist()
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    3,
+            },
+            {
+                name:        'two free, one alloc -- free list',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(77, 5)),
+                    add_free_block(alloc_end_block(77, 5)),
+                    alloc_end_block(77, 5),
+                    compact_block_freelist()
+                ),
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    0,
+            },
+            {
+                name:        'two free, one alloc -- block length',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    add_free_block(alloc_end_block(77, 5)),
+                    add_free_block(alloc_end_block(77, 5)),
+                    alloc_end_block(77, 5),
+                    compact_block_freelist()
+                ),
+                action:      () => get_block_length(get_next_free_block(get_blockstore_freelist())),
+                expected:    10 + block_header_length,
+            },
+        ],
+    },
+    {
+        name: 'dealloc block',
+        enable: true,
+        cases: [
+            {
+                name:        'one alloc',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    dealloc_block(alloc_end_block(77, 5))
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    1,
+            },
+            {
+                name:        'one alloc',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    dealloc_block(alloc_end_block(77, 5))
+                ),
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    1,
+            },
+            {
+                name:        'two alloc, dealloc last',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    alloc_end_block(77, 5),
+                    dealloc_block(alloc_end_block(77, 5))
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    2,
+            },
+            {
+                name:        'two alloc, dealloc last',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    alloc_end_block(77, 5),
+                    dealloc_block(alloc_end_block(77, 5))
+                ),
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    1,
+            },
+            {
+                name:        'two alloc, dealloc first',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(77, 5);
+                    alloc_end_block(77, 5);
+                    dealloc_block(a);
+                },
+                action:      () => get_blockstore_block_count(),
+                expected:    3,
+            },
+            {
+                name:        'two alloc, dealloc first',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(77, 5);
+                    alloc_end_block(77, 5);
+                    dealloc_block(a);
+                },
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    0,
+            },
+            {
+                name:        'three alloc, dealloc first, second',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(77, 5);
+                    let b = alloc_end_block(77, 5);
+                    let c = alloc_end_block(77, 5);
+                    dealloc_block(a);
+                    dealloc_block(b);
+                },
+                action:      () => get_blockstore_block_count(),
+                expected:    3,
+            },
+            {
+                name:        'three alloc, dealloc first, second',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(77, 5);
+                    let b = alloc_end_block(77, 5);
+                    let c = alloc_end_block(77, 5);
+                    dealloc_block(a);
+                    dealloc_block(b);
+                },
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    0,
+            },
+            {
+                name:        'three alloc, dealloc second, third',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(77, 5);
+                    let b = alloc_end_block(77, 5);
+                    let c = alloc_end_block(77, 5);
+                    dealloc_block(b);
+                    dealloc_block(c);
+                },
+                action:      () => get_blockstore_block_count(),
+                expected:    2,
+            },
+            {
+                name:        'three alloc, dealloc second, third',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(77, 5);
+                    let b = alloc_end_block(77, 5);
+                    let c = alloc_end_block(77, 5);
+                    dealloc_block(b);
+                    dealloc_block(c);
+                },
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    1,
+            },
+        ],
+    },
+    {
+        name: 'step blockstore compact',
+        enable: true,
+        cases: [
+            {
+                name:        'empty',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    step_blockstore_compact()
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    1,
+            },
+            {
+                name:        'one alloc',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    alloc_end_block(77, 5),
+                    step_blockstore_compact()
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    2,
+            },
+            {
+                name:        'free, one alloc -- block count',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(77, 5);
+                    let b = alloc_end_block(88, 5);
+                    dealloc_block(a);
+                    step_blockstore_compact();
+                },
+                action:      () => get_blockstore_block_count(),
+                expected:    2,
+            },
+            {
+                name:        'free, one alloc -- block count',
+                setup:       function() {
+                    init_blockstore(5, 1);
+                    let a = alloc_end_block(77, 5);
+                    let b = alloc_end_block(88, 5);
+                    dealloc_block(a);
+                    step_blockstore_compact();
+                },
+                action:      () => get_block_owner(get_next_block(get_blockstore_initial_block())),
+                expected:    88,
+            },
         ],
     },
 ]
