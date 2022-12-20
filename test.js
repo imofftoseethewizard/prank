@@ -1,6 +1,6 @@
 const fs = require("fs");
 
-const wasmModule = new WebAssembly.Module(fs.readFileSync("types/pair.wasm"));
+const wasmModule = new WebAssembly.Module(fs.readFileSync("crack.wasm"));
 const wasmInstance = new WebAssembly.Instance(wasmModule, {});
 
 const memory                                = wasmInstance.exports['memory'];
@@ -175,6 +175,7 @@ var uint32buffer = new Uint32Array(memory.buffer);
 test_units = [
     {
         name: 'memory init',
+        enable: false,
         cases: [
             {
                 name:      'page count',
@@ -191,7 +192,7 @@ test_units = [
     {
         name: 'page init',
         setup: () => init_page(1),
-        enable: true,
+        enable: false,
         cases: [
             {
                 name:      'flags',
@@ -235,7 +236,7 @@ test_units = [
     {
         name: 'pair flags',
         setup: () => init_page(1),
-        enable: true,
+        enable: false,
         cases: [
             {
                 name:       'pair flags location -- bottom',
@@ -594,7 +595,7 @@ test_units = [
     },
     {
         name: 'fill freelist',
-        enable: true,
+        enable: false,
         setup: () => init_page(1),
         cases: [
             {
@@ -671,7 +672,7 @@ test_units = [
     },
     {
         name: 'get group free pair map',
-        enable: true,
+        enable: false,
         cases: [
             {
                 name:        'empty',
@@ -827,7 +828,7 @@ test_units = [
     },
     {
         name: 'frontier alloc',
-        enable: true,
+        enable: false,
         cases: [
             {
                 name:        'alloc frontier pair',
@@ -839,7 +840,7 @@ test_units = [
     },
     {
         name: 'alloc pair',
-        enable: true,
+        enable: false,
         cases: [
             {
                 name:        'check flags',
@@ -898,7 +899,7 @@ test_units = [
     },
     {
         name: 'make pair',
-        enable: true,
+        enable: false,
         cases: [
             {
                 name:        'make_pair flags',
@@ -928,7 +929,7 @@ test_units = [
     },
     {
         name: 'get group ready pair map',
-        enable: true,
+        enable: false,
         cases: [
             {
                 name:        'empty',
@@ -964,7 +965,7 @@ test_units = [
     },
     {
         name: 'get ready map trace depth',
-        enable: true,
+        enable: false,
         cases: [
             {
                 name:        'empty',
@@ -1026,6 +1027,206 @@ test_units = [
                 action:      () => get_ready_map_trace_depth(0x5555555555555555n),
                 expected:    0,
             },
+        ]
+    },
+    {
+        name: 'getters, setters, and utility fns',
+        enable: true,
+        cases: [
+            {
+                name:        'get/set blockstore',
+                setup:       () => set_blockstore(10),
+                action:      () => get_blockstore(),
+                expected:    10,
+            },
+            {
+                name:        'get blockstore freelist',
+                setup:       () => set_blockstore(0x50000),
+                action:      () => get_blockstore_freelist(0x50000),
+                expected:    0x50000 + blockstore_header_size,
+            },
+            {
+                name:        'make free block -- owner',
+                setup:       () => make_free_block(0x50000, 1, NULL),
+                action:      () => get_block_owner(0x50000),
+                expected:    NULL.value,
+            },
+            {
+                name:        'make free block -- owner',
+                setup:       () => make_free_block(0x50000, 7, NULL),
+                action:      () => get_block_length(0x50000),
+                expected:    7,
+            },
+            {
+                name:        'make free block -- next free block',
+                setup:       () => make_free_block(0x50000, 7, NULL),
+                action:      () => get_next_free_block(0x50000),
+                expected:    NULL.value,
+            },
+            {
+                name:        'make free block -- next free block',
+                setup:       () => make_free_block(0x50000, 7, 0x5010),
+                action:      () => get_next_free_block(0x50000),
+                expected:    0x5010,
+            },
+        ]
+    },
+    {
+        name: 'init block store',
+        enable: true,
+        cases: [
+            {
+                name:        'simple',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_blockstore(),
+                expected:    5 * page_size,
+            },
+            {
+                name:        'page count',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_blockstore_page_count(),
+                expected:    1,
+            },
+            {
+                name:        'block count',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_blockstore_block_count(),
+                expected:    1,
+            },
+            {
+                name:        'relocation offset',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_blockstore_relocation_offset(),
+                expected:    0,
+            },
+            {
+                name:        'relocation block',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_blockstore_relocation_block(),
+                expected:    NULL.value,
+            },
+            {
+                name:        'current relocation',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_blockstore_current_relocation(),
+                expected:    NULL.value,
+            },
+            {
+                name:        'freelist is last free block',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => is_last_free_block(get_blockstore_freelist()),
+                expected:    1,
+            },
+            {
+                name:        'is freelist empty',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => is_blockstore_freelist_empty(),
+                expected:    1,
+            },
+            {
+                name:        'freelist is last free block',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => is_last_free_block(get_blockstore_freelist()),
+                expected:    1,
+            },
+            {
+                name:        'last block is freelist',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_blockstore_freelist() - get_blockstore_end_block(),
+                expected:    0,
+            },
+            {
+                name:        'next block after last is free area',
+                setup:       () => init_blockstore(5, 1),
+                action:      () => get_next_block(get_blockstore_end_block()) - get_blockstore_free_area(),
+                expected:    0,
+            },
+        ]
+    },
+    {
+        name: 'can split free block',
+        enable: true,
+        cases: [
+            {
+                name:        'minimal block',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    make_free_block(get_blockstore_free_area(), 1, NULL)
+                ),
+                action:      () => can_split_free_block(get_blockstore_free_area()),
+                expected:    0,
+            },
+            {
+                name:        'small block 2',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    make_free_block(get_blockstore_free_area(), 2, NULL)
+                ),
+                action:      () => can_split_free_block(get_blockstore_free_area()),
+                expected:    0,
+            },
+            {
+                name:        'small block 3',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    make_free_block(get_blockstore_free_area(), 3, NULL)
+                ),
+                action:      () => can_split_free_block(get_blockstore_free_area()),
+                expected:    0,
+            },
+            {
+                name:        'minimal splittable 3',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    make_free_block(get_blockstore_free_area(), 4, NULL)
+                ),
+                action:      () => can_split_free_block(get_blockstore_free_area()),
+                expected:    1,
+            },
+
+        ],
+    },
+    {
+        name: 'split free block',
+        enable: true,
+        cases: [
+            {
+                name:        'minimal block',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    make_free_block(get_blockstore_free_area(), 1, NULL)
+                ),
+                action:      () => split_free_block(get_blockstore_free_area()),
+                expected:    0,
+            },
+            {
+                name:        'small block 2',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    make_free_block(get_blockstore_free_area(), 2, NULL)
+                ),
+                action:      () => split_free_block(get_blockstore_free_area()),
+                expected:    0,
+            },
+            {
+                name:        'small block 3',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    make_free_block(get_blockstore_free_area(), 3, NULL)
+                ),
+                action:      () => split_free_block(get_blockstore_free_area()),
+                expected:    0,
+            },
+            {
+                name:        'minimal splittable 3',
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    make_free_block(get_blockstore_free_area(), 4, NULL)
+                ),
+                action:      () => split_free_block(get_blockstore_free_area()),
+                expected:    1,
+            },
+
         ],
     },
 ]

@@ -5,7 +5,7 @@
  ;; Pairs are the fundamental data type, from which values of all other types
  ;; are referenced.
 
- (memory (export "memory") 1)
+ (memory (export "memory") 5)
 
  ;; Memory
  ;;
@@ -121,7 +121,7 @@
  ;; addresses in page 0
  (global $memory-page-count  (export "memory-page-count")  i32 (i32.const 0x00000000))
  (global $memory-active-page (export "memory-active-page") i32 (i32.const 0x00000002))
- (global $memory-blockstore  (export "memory-block-store") i32 (i32.const 0x00000004))
+ (global $memory-blockstore  (export "memory-blockstore")  i32 (i32.const 0x00000004))
 
  (global $page-flags                   (export "page-flags")                   i32 (i32.const 0x0000))
  (global $page-free-count              (export "page-free-count")              i32 (i32.const 0x0002))
@@ -961,7 +961,8 @@
    ;; Applying this to the 0 page corrupts everything.
    (if (i32.eqz (local.get $page-idx)) (unreachable))
 
-   (local.set $page (i32.mul (local.get $page-idx) (global.get $page-size)))
+   (local.set $page (i32.shl (local.get $page-idx)
+                             (global.get $page-size-bits)))
    (local.set $pair-flags-area (i32.add (local.get $page) (global.get $page-pair-flags-area)))
 
    (memory.fill
@@ -1059,8 +1060,8 @@
  (func $get-blockstore-freelist (export "get-blockstore-freelist")
    (result i32)
    ;; The first block in the storage area is always the head of the free list.
-   (i32.load (i32.add (call $get-blockstore)
-                      (global.get $blockstore-header-size))))
+   (i32.add (call $get-blockstore)
+            (global.get $blockstore-header-size)))
 
  (func $get-blockstore-relocation-offset (export "get-blockstore-relocation-offset")
    (result i32)
@@ -1172,13 +1173,20 @@
 
  ;; Block utility functions
 
+ (func $calc-block-size (export "calc-block-size")
+   (param $length i32)
+   (result i32)
+   (i32.add (global.get $block-header-size)
+            (i32.shl (local.get $length)
+                     (global.get $value-size-bits))))
+
  (func $get-block-size (export "get-block-size")
    (param $block i32)
    (result i32)
 
    (i32.add (global.get $block-header-size)
-            (i32.mul (call $get-block-length (local.get $block))
-                     (global.get $value-size))))
+            (i32.shl (call $get-block-length (local.get $block))
+                     (global.get $value-size-bits))))
 
  (func $get-next-block (export "get-next-block")
    (param $block i32)
@@ -1241,7 +1249,8 @@
 
    (local $end-block i32)
 
-   (call $set-blockstore (i32.mul (local.get $page-idx) (global.get $page-size)))
+   (call $set-blockstore (i32.shl (local.get $page-idx)
+                                  (global.get $page-size-bits)))
 
    (call $set-blockstore-page-count (local.get $page-count))
    (call $set-blockstore-block-count (i32.const 1))
@@ -1258,7 +1267,7 @@
          (i32.const 1)
          (global.get $null))
 
-   (call $set-blockstore-free-area (call $get-next-block (local.get $end-block))))
+  (call $set-blockstore-free-area (call $get-next-block (local.get $end-block))))
 
  (func $can-split-free-block (export "can-split-free-block")
    (param $block i32)
@@ -1276,12 +1285,14 @@
     ;; requested, a block header for the new block, and at least one more for
     ;; the freelist link address?
     (i32.gt_u (local.get $length)
-              (i32.add (local.get $split-length)
-                       (global.get $block-header-length)))))
+              (i32.add (i32.add (local.get $split-length)
+                                (global.get $block-header-length))
+                       (i32.const 1)))))
 
  (func $split-free-block (export "split-free-block")
    (param $block i32)
    (param $split-length i32)
+   (result i32)
 
    (local $length i32)
    (local $new-block i32)
@@ -1290,10 +1301,10 @@
 
    (local.set $length (call $get-block-length (local.get $block)))
 
-   (if (i32.eqz (call $can-split-free-block
-                      (local.get $block)
-                      (local.get $split-length)))
-       (then (unreachable))
+   (if (result i32) (i32.eqz (call $can-split-free-block
+                                   (local.get $block)
+                                   (local.get $split-length)))
+     (then (i32.const 0))
      (else
       (local.set $new-block
                  (i32.add (local.get $block)
@@ -1319,7 +1330,8 @@
             (local.get $split-length)
             (local.get $new-block))
 
-      (call $incr-blockstore-block-count))))
+      (call $incr-blockstore-block-count)
+      (i32.const 1))))
 
  (func $compact-block-freelist (export "compact-block-freelist")
 
@@ -1390,14 +1402,10 @@
 
    (loop $again
      (local.set $next-free-block (call $get-next-free-block (local.get $free-block)))
-     (if (call $can-split-free-block
+     (if (call $split-free-block
                (local.get $next-free-block)
                (local.get $length))
          (then
-          (call $split-free-block
-                (local.get $next-free-block)
-                (local.get $length))
-
           (call $set-next-free-block
                 (local.get $free-block)
                 (call $get-next-free-block (local.get $next-free-block)))
@@ -1411,13 +1419,6 @@
              (br $again))))))
 
    (local.get $new-block))
-
- (func $calc-block-size (export "calc-block-size")
-   (param $length i32)
-   (result i32)
-   (i32.add (global.get $block-header-size)
-            (i32.mul (local.get $length)
-                     (global.get $value-size))))
 
  (func $ensure-blockstore-alloc-top (export "ensure-blockstore-alloc-top")
    (param $alloc-top i32)
@@ -1621,8 +1622,8 @@
    (local $relocation-block i32)
 
    (call $set-blockstore-relocation-offset
-         (i32.mul (local.get $page-count)
-                  (global.get $page-size)))
+         (i32.shl (local.get $page-count)
+                  (global.get $page-size-bits)))
 
    (local.set $relocation-block (call $make-relocation-block))
 
