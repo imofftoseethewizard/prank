@@ -1025,7 +1025,12 @@
         (global.set $ref-count (i32.add (global.get $ref-count) (i32.const 1)))
         (global.set $ref-list
                     (call $make-pair
-                          (call $make-pair (local.get $pair) (local.get $value))
+                          ;; The pair is the key for index lookup, by putting it
+                          ;; in the cdr, it packs the pair as an index entry
+                          ;; which can be treated as i64 with the key in the high
+                          ;; bits. Hence numeric comparisons on i64 can be used
+                          ;; for loading, storing, and comparisons.
+                          (call $make-pair (local.get $value) (local.get $pair))
                           (global.get $ref-list))))))
 
  (func $is-pair-reachable (export "is-pair-reachable")
@@ -1057,6 +1062,78 @@
    ;; m_i, m_i+1, m_j of the index into each of the vectors. Searches proceeed normally until
    ;; j is finished, at which point it becomes the new i_n and i_n+2 is renumber to i_n+1, etc.
    ())
+
+ (func $dealloc-ref-list (export "dealloc-ref-list")
+   (param $head-addr i32)
+   (param $next-addr i32)
+
+   (if (i32.ne (global.get $ref-list) (global.get $null))
+       (then
+        (local.set $ref-list-addr (call $get-pair-addr (global.get $ref-list)))
+        (local.set $head-addr (local.get $ref-list-addr))
+
+        (loop $again
+          (local.set $next (i32.load (i32.add (local.get $head-addr)
+                                              (global.get $value-size))))
+
+          (if (i32.eq (local.get $next) (global.get $null))
+              (then
+               (i32.store (call $get-pair-addr (i32.load $head-addr))
+                          (global.get $pair-free-list)))
+            (else
+             (local.set $next-addr (call $get-pair-addr (local.get $next)))
+             (i32.store (call $get-pair-addr (i32.load $head-addr))
+                        (local.get $next-addr))
+             (local.set $head-addr (local.get $next-addr))
+             (br $again))))
+
+        (global.set $pair-free-list (local.get $ref-list-addr))
+        (global.set $ref-list (global.get $null))
+        (global.set $ref-list-length (i32.const 0)))))
+
+ (func $sort-index-entries (export "sort-index-entries")
+   ())
+
+ (func $make-ref-list-index (export "make-ref-list-index")
+   ;; converts ref-list into a sorted array of index entries, then
+   (result i32)
+
+   (local $entry i64)
+   (local $head-addr i32)
+   (local $idx i32)
+   (local $next i32)
+
+   (if (result i32) (i32.eq (global.get $ref-list) (global.get $null))
+     (then
+      (global.get $null))
+
+     (else
+      (local.set $idx (call $alloc-block
+                            (i32.mul (global.get $ref-list-count)
+                                     (global.get $index-entry-length))))
+
+      (local.set $head-addr (call $get-pair-addr (global.get $ref-list)))
+
+      (local.set $entry (i64.extend_i32_u (call $get-block-elements (local.get $idx))))
+
+      (loop $again
+
+        (i64.store (local.get $entry)
+                   (i64.load (i64.extend_i32_u (call $get-pair-addr
+                                                     (local.get $head-addr)))))
+
+        (local.set $next (i32.load (i32.add (local.get $head-addr)
+                                            (global.get $value-size))))
+
+        (if (i32.ne (local.get $next) (global.get $null))
+            (then
+             (local.set $head-addr (call $get-pair-addr (local.get $next)))
+             (local.set $entry (i64.add (local.get $entry)
+                                        (global.get $refindex-entry-size)))
+             (br $again))))
+
+        (call $sort-index-entries $idx)
+        (local.get $idx))))
 
  (func $release (export "release")
    (param $pair i32)
