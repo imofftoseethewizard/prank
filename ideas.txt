@@ -19,6 +19,24 @@ scan pending for inbound using inverse index
   if not present, mark children pending
   mark free
 
+keep refindex in blockstore
+pair memory lifecycle
+  cons:
+    get from head of free list
+    insert refs to ref list
+
+  vector-set! set-cdr! set-car! -> erase entry in index
+
+  begin sweep
+    assign i0 -> i1, i1 -> i2, etc, then sort ref list -> i0,
+    init iterators
+
+  sweep step
+    check pair flags of each item, etc, searching i0, i1, ...
+
+  end sweep
+    if len(i0) > len(i1)/log2(len(i1), merge i0 into i1
+
 pair memory page
   freelist is lowest cell
   init
@@ -46,6 +64,51 @@ pair memory page
         new-cell
 
 index
+  actions
+    init index
+    init page
+      idx = mem page + 2048
+      addr = idx page
+      write idx to addr
+      write null to addr+4
+      if i%32 != 0
+        addr += 8
+      idx += 8
+    insert entry (idx, tgt)
+      bsearch
+      search outward bidirectionally for entry with tgt == null (prefer high addr on tie)
+      move block, set new entry
+      track # of entries moved in ema
+    remove entry
+      bsearch
+      set
+    lookup entries by idx
+      bsearch, return 1st index
+    begin relocation
+    relocation step
+    end relocation
+    begin expansion
+    expansion step
+    end expansion
+
+  aux fns
+    bsearch
+      note, lexicographic, 8 byte, in 4 byte words
+    update ema
+      normal is ema_n = ((k-1)ema_n-1 + v)/k
+      for k = 2^n for some n, then mul-shift works
+        say (15*e + v ) >> 4 or (32*e +v) >> 5
+      for #s typically less than 16, use << 4 to provide fractions
+
+
+  odd cases:
+    expansion triggered during relocation
+    relocation triggered during expansion
+
+  worst case index to storage is 2:1 where all pairs refer to other pairs, but
+  typical usage is closer to 1:1. By default, there will be 32/31 index entries
+  per pair.
+
   allocate 1 index page per memory page, keep index pages contiguous
   and above all memory pages
 
@@ -99,208 +162,28 @@ history of page types
 explore:
   flags page holds pending/reachable flags for 32 64kb pages (2MB).
 
-block storage pages
-  storage header
-    freelist
-    relocation-target-offset
-    relocation-blocks-start
-    current-relo-block
-    <first block head>
+initial memory layout
 
-  block head
-    block-owner-address
-    block-length (count of values, not incl head)
+0x00000000 256 bytes system state
+0x00000100 256 bytes smudge bits
+0x00000200 pair flags for 512KB - 16KB -> 16k - 512 bytes
+0x00004000 pair memory
+0x00010000 beginning of index memory
+0x00020000 beginning of block store
+0x00030000 end of block store/memory top
 
-  in string and bytearray blocks, the first value is the length in bytes of the content
-  in number blocks, the first value is the descriptor
+1 smudge bit covers 64 bits of pair flags
+2 bits of pair flags covers 1 pair (8 bytes)
 
-  block owner (pair)
-    block-type
-    block-head-address
+=> 1 smudge bit covers 256 bytes memory
+=> 1 smudge byte covers 2KB memory
+=> 32 bytes smudge covers 64 KB
 
-  free block structure
-    #null (owner)
-    block length (or -1 if last block)
-    addr of next free block (or #null if last block)
+64 KB requires 2KB pair flags
+=> lower 2KB of pair area is covered by flags
+=> lower 256 pairs are not available
+=> lower 512 bits of pair flags are not needed
+=> lower 64 bytes pair flags are not needed
+=> lower 8 smudge bits not needed
 
-  block operations
-    init page
-      set page count
-      set relo-target-offset 0
-      set relo-source-addr 0
-      set freelist <addr of next value>
-      #null
-      -1
-      #null
-
-    split free (b n)
-      if free length >= 4 and n < freelength - 3
-        set value *(block + n + 4) = *(block + 2) -- free list link
-        set value *(block + n + 3) = block free length - n - 2
-        set value *(block + n + 2) = #null
-        set block length = n
-        set value *(block + 2) = block + n + 2
-
-    compact freelist
-      if relo target offset == 0
-        free = addr of freelist head
-        loop
-          if *(*(free + 2) + 1) == -1
-            if free + *(free + 1) + 2 == *(free + 2)
-              *(free + 1) = -1
-              *(free + 2) = #null
-          else
-            if free + *(free + 1) + 2 == *(free + 2)
-              *(free + 1) = *(free + 1) + *(*(free + 2) + 1) + 2
-              *(free + 2) = *(*(free + 2) + 2)
-              again
-
-    allocate (n, o) -> b
-      if relo target offset == 0
-
-        if allocate exact != #null
-          return
-
-        if allocate free != #null
-          return
-
-      return allocate end
-
-    allocate exact (n, o)
-      free = addr of freelist head addr
-      b = #null
-      loop
-        if *(*free + 1) == n
-          b = *free
-          *free = *(b + 2)
-          *b = o
-          *(b + 1) = n
-        else
-          if *(*free + 1) != -1
-            free = *free + 2
-            again
-
-      return b
-
-    allocate free
-      free = addr of freelist head addr
-      b = #null
-      loop
-        if *(*free + 1) >= n + 3
-          split free (*free, n)
-          b = *free
-          *free = *(b + 2)
-          *b = o
-          *(b + 1) = n
-        else
-          if *(*free + 1) != -1
-            free = *free + 2
-            again
-
-      return b
-
-    allocate end
-      free = of freelist head addr
-      while *(free + 1) != -1
-        free = *(free + 2)
-
-      if free + 2 + n + 2 > available
-        grow enough memory
-
-      b = free
-      *b = o
-      *(b + 1) = n
-      free = b + n + 2
-      *free = #null
-      *(free + 1) = -1
-      *(free + 2) = #null
-
-      return b
-
-    allocate (b)
-      *b = #null
-      free = addr of freelist head
-
-      if *free < b
-        while *(*(free) + 2)) < b
-          *free = *(free + 2)
-
-      *(b + 2) = *free
-      *free = b
-
-      compact freelist
-
-    move down
-      free = addr of freelist head
-      if *(free + 1) != -1
-        free length = *(free + 1)
-        next free = *(free + 2)
-        b-orig = free + free-length + 2
-        b = free
-        *b = *b_orig
-        *(*b + 1) = b
-        b length = *(b_orig + 1)
-        *(b + 1) = b_length
-        copy memory from b_orig + 2 to b + 2, length b_length
-        free = b + b_length + 2
-        *free = #null
-        *(free + 1) = free length
-        *(free + 2) = next free
-        compact freelist
-
-    begin relocation (n-pages)
-      if not enough memory
-        grow enough
-
-      set relocation target offset = page size * n-pages
-
-      if freelist == address of first block
-        end relocation
-        return
-
-      free = addr of freelist head addr
-      while *(*free + 1) != -1
-        free = *(*free + 2)
-
-      orig-b-addrs-start = *free + 2
-
-      *free += relo offset
-      **free = #null
-      *(*free + 1) = -1
-      *(*free + 2) = #null
-
-      b = addr of 1st block
-      orig-b-addr = orig-b-addrs-start
-      *orig-b-addr++ = b
-
-      while *(b + 1) != -1
-        *orig-b-addr++ = b
-        b += *(b+1) + 2
-
-      current relo block = --orig-b-addr
-      relo block start = orig-b-addrs start
-
-    relocation step
-      b = *current relo block
-      copy b to b + relo offset, length *(b + 1)
-      if *b != #null
-        *(*b + 1) = b + relo offset
-      else
-        free = head of freelist addr
-        while *free != b
-          free = *free + 2
-        *free = b + relo offset
-
-      if current relo block == relo start
-        end relocation
-      else
-        --current relo block
-
-    end relocation
-      update new relo page header
-        set page count
-        set relo-target-offset 0
-        set relo-source-addr 0
-        set freelist
-
-      update page 0 block storage page
+also 1st 64B open below pair flags, and in there need space for 32B smudge

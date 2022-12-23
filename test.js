@@ -1709,6 +1709,16 @@ test_units = [
                 action:      () => get_blockstore_block_count(),
                 expected:    4
             },
+            {
+                name:        'force grow memory',
+                enable: false,
+                setup:       () => (
+                    init_blockstore(5, 1),
+                    alloc_block(77, 0x20000)
+                ),
+                action:      () => get_blockstore_block_count(),
+                expected:    2
+            },
         ],
     },
     {
