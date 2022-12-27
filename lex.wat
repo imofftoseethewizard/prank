@@ -1,5 +1,5 @@
 (module
- (memory (export "memory") 1)
+ (import "memory" "main" (memory 1))
 
  (type $lexical-rule-func (func (param i32 i32 i32) (result i32 i32)))
  (table $lexical-rules 200 funcref)

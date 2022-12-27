@@ -5,7 +5,6 @@ generational garbage collection
 
   if there is mutation, then each mutated value
 
-
 let M be a directional graph of nodes m_i and R = { r_i } subset M.
 let R* be the transitive closure of R.
 
@@ -36,32 +35,6 @@ pair memory lifecycle
 
   end sweep
     if len(i0) > len(i1)/log2(len(i1), merge i0 into i1
-
-pair memory page
-  freelist is lowest cell
-  init
-    for each pair below the last, set car to #null, cdr to next pair
-
-  => alloc-pair
-    loop $again
-      get active page
-
-      while freelist empty? and smudges
-        check reachable for each smudged flag group
-
-      if freelist empty?
-        => page is full
-        activate next page
-        br $again
-
-      else
-        new cell <- cdr freelist
-        set-cdr! freelist cdr freelist
-        set-car! new-cell #null
-        set-cdr! new-cell #null
-        decr free count
-        do index maintenance
-        new-cell
 
 index
   actions
@@ -155,35 +128,50 @@ index
     increase size of table by 2/k
     inserting a gap for every k/2 entries
 
-history of page types
-0, mem, *, idx
-0, mem, mem, *, idx, idx
-
 explore:
   flags page holds pending/reachable flags for 32 64kb pages (2MB).
 
-initial memory layout
+another refindex design
 
-0x00000000 256 bytes system state
-0x00000100 256 bytes smudge bits
-0x00000200 pair flags for 512KB - 16KB -> 16k - 512 bytes
-0x00004000 pair memory
-0x00010000 beginning of index memory
-0x00020000 beginning of block store
-0x00030000 end of block store/memory top
+  stored as blocks and pairs
+  reflist: linked list of ( pair addr . ref addr )
+  idxlist: linked list of vector or ( ( i_n . idx_n ) ( i_n+1 . idx_n+1 ) ( j . idx ) )
 
-1 smudge bit covers 64 bits of pair flags
-2 bits of pair flags covers 1 pair (8 bytes)
+  on alloc or set, add items to reflist
+  on set or root change
+    compact refindex
 
-=> 1 smudge bit covers 256 bytes memory
-=> 1 smudge byte covers 2KB memory
-=> 32 bytes smudge covers 64 KB
+  compact
+    create vector of length of refindex * 2
+    sort by key
+    add reflist to pair free list
+    push to head of idxlist
 
-64 KB requires 2KB pair flags
-=> lower 2KB of pair area is covered by flags
-=> lower 256 pairs are not available
-=> lower 512 bits of pair flags are not needed
-=> lower 64 bytes pair flags are not needed
-=> lower 8 smudge bits not needed
+    for each idx_n and idx_n+1 in idx list
+      if len(idx_n) > len(idx_n+1)/log2(len(idx_n+1))
+        if len(idx_n) + len(idx_n+1) < chunk size
+          merge sored, replace the two by the merged list
+          dealloc 1 pair and the two old vector blocks and their owners
+        else
+          begin merge sorted
+            create idx of length len(idx_n) + len(iex_n+1)
+            replace idx_n, idx_n+1 with ( ( 0 . idx_n ) ( 0 . idx_n+1 ) ( 0 . idx ) )
+            process chunk size elements so that idx has the 1st chunk size values
+            filled in.
 
-also 1st 64B open below pair flags, and in there need space for 32B smudge
+project organization
+  file dependencies
+    memory.wat defines the memory, anything that has to accees
+      memory has to import it from there
+
+    algorithms.wat
+      provide standard algorithms
+      imports memory
+
+    lex.wat
+      r7rs tokenizer, per spec
+      imports memory
+
+    kernel
+      data representation
+  kernel.wat
