@@ -8,6 +8,91 @@
  (import "algorithms" "hoare-quicksort-i64"
          (func $hoare-quicksort-i64 (param i32 i32 i32)))
 
+ (func $init-pair-flags (export "init-pair-flags")
+
+   (call $init-bytearray-value
+         (global.get $root-pair-flags)
+         (global.get $initial-pair-flags-size))
+
+   (call $init-bytearray-value
+         (global.get $root-stale-pair-group-flags)
+         (global.get $initial-pair-group-flags-size))
+
+   (call $init-bytearray-value
+         (global.get $root-uncertain-pair-group-flags)
+         (global.get $initial-pair-group-flags-size))
+
+   (call $mark-pair-reachable (global.get $root-pair-flags))
+   (call $mark-pair-reachable (global.get $root-stale-pair-group-flags))
+   (call $mark-pair-reachable (global.get $root-uncertain-pair-group-flags)))
+
+ (global $root-pair-flags                 (export "root-pair-flags")                 i32 (i32.const 0x00000008))
+ (global $root-stale-pair-group-flags     (export "root-stale-pair-group-flags")     i32 (i32.const 0x00000010))
+ (global $root-uncertain-pair-group-flags (export "root-uncertain-pair-group-flags") i32 (i32.const 0x00000018))
+
+ ;; (global $root-z (export "root-z") i32 (i32.const 0))
+
+ (global $sep-list              (export "ref-list")              (mut i32) (i32.const 0))
+ (global $ref-list              (export "ref-list")              (mut i32) (i32.const 0))
+ (global $ref-list-length       (export "ref-list-length")       (mut i32) (i32.const 0))
+ (global $refindex-generations-list (export "refindex-generations-list") i32 (i32.const 0x0000))
+
+ ;; Refindex
+
+ (global $index-entry-size      (export "index-entry-size")      i32 (i32.const 8))
+ (global $index-entry-length    (export "index-entry-length")    i32 (i32.const 2))
+
+ (func $clear-pair-flags-area (export "clear-pair-flags-area")
+   (param $bottom i32)
+   (param $top i32)
+
+   (local $flags-bottom i32)
+   (local $flags-top i32)
+
+   (local.set $flags-bottom (i32.shr_u (local.get $bottom)
+                                       (global.get $pair-flag-addr-shift)))
+
+   (local.set $flags-top (i32.shr_u (local.get $top)
+                                    (global.get $pair-flag-addr-shift)))
+
+   (memory.fill
+    (local.get $flags-bottom)
+    (i32.const 0)
+    (i32.sub (local.get $flags-top) (local.get $flags-bottom))))
+
+ (func $can-ref (export "can-ref")
+   (param $value i32)
+   (result i32)
+
+   (local $tag i32)
+
+   (local.set $tag (call $get-value-tag (local.get $value)))
+
+   (i32.or (i32.eq (local.get $tag) (global.get $tag-block))
+           (i32.or (i32.eq (local.get $tag) (global.get $tag-box))
+                   (i32.eq (local.get $tag) (global.get $tag-pair)))))
+
+
+ (func $dealloc-list-pairs (export "dealloc-list-pairs")
+   (param $pair i32)
+
+   (local $car i32)
+   (local $cdr i32)
+
+   (local.set $car (call $get-pair-car (local.get $pair)))
+   (local.set $cdr (call $get-pair-cdr (local.get $pair)))
+
+   (if (call $is-pair-value (local.get $car))
+       (then
+        (call $dealloc-list-pairs (local.get $car))))
+
+   (if (call $is-pair-value (local.get $cdr))
+       (then
+        (call $dealloc-list-pairs (local.get $cdr))))
+
+   (call $dealloc-pair (local.get $pair)))
+
+
  ;;=============================================================================
  ;;
  ;; Refindex

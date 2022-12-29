@@ -1,2 +1,4 @@
 (module
- (memory (export "main") 1))
+ (memory (export "main") 1)
+
+ )
