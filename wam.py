@@ -1,13 +1,14 @@
 import argparse
-import textwrap
+import os
 import re
+import textwrap
 
 parser = argparse.ArgumentParser(
     prog='wam',
     description='Extension to WAT to support debug and include forms.')
 
 parser.add_argument('filename')
-parser.add_argument('-d', '--debug', action='store_true')
+parser.add_argument('-d', '--debug', action='store_true', default=os.environ.get('WAM_DEBUG'))
 
 def process(args):
 

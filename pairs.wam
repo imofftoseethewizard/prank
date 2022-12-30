@@ -190,27 +190,11 @@
  (func $dealloc-pair (export "dealloc-pair")
    (param $pair i32)
 
-   (if (call $is-pair-block-owner (local.get $pair))
-       (then
-        (call $dealloc-block (call $get-pair-cdr (local.get $pair)))))
-
    (call $set-pair-car (local.get $pair) (global.get $pair-free-list))
 
    (global.set $pair-free-list (local.get $pair))
 
    (global.set $pair-count (i32.sub (global.get $pair-count) (i32.const 1))))
-
- (func $is-pair-block-owner (export "is-pair-block-owner")
-   (param $pair i32)
-   (result i32)
-   (call $is-block-type (call $get-pair-car (local.get $pair))))
-
-(func $is-block-type (export "is-block-type")
-   (param $value i32)
-   (result i32)
-   (i32.eq (i32.and (local.get $value)
-                    (global.get $singleton-type-mask))
-           (global.get $singleton-type-block-type)))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -274,7 +258,7 @@
  ;; and `release` methods. They each take two parameters. The first is the pair
  ;; that will be/was referencing the value given as the second parameter.
 
- (table $gc-interface (export "gc-interface") (2 2) funcref)
+ (table $gc-interface (export "gc-interface") 2 funcref)
  (global $gc-add-ref (export "gc-add-ref") i32 (i32.const 0))
  (global $gc-release (export "gc-release") i32 (i32.const 1))
 
