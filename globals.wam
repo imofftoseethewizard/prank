@@ -1,0 +1,35 @@
+;; This file contains a fragment of a module which is included in most
+;; modules in this project.  It should only contain non-mutable
+;; globals which are used in more than one module.
+
+(global $value-size  (export "value-size")  i32 (i32.const 4))
+(global $pair-size   (export "pair-size")   i32 (i32.const 8))
+(global $page-size   (export "page-size")   i32 (i32.const 0x10000))
+
+(global $value-size-bits  (export "value-size-bits")  i32 (i32.const 2))
+(global $pair-size-bits   (export "pair-size-bits")   i32 (i32.const 3))
+(global $page-size-bits   (export "page-size-bits")   i32 (i32.const 16))
+
+(global $tag-small-integer (export "tag-small-integer") i32 (i32.const 0x00))
+(global $tag-block         (export "tag-block")         i32 (i32.const 0x01))
+(global $tag-box           (export "tag-box")           i32 (i32.const 0x02))
+(global $tag-char          (export "tag-char")          i32 (i32.const 0x03))
+(global $tag-pair          (export "tag-pair")          i32 (i32.const 0x04))
+(global $tag-procedure     (export "tag-procedure")     i32 (i32.const 0x05))
+(global $tag-symbol        (export "tag-symbol")        i32 (i32.const 0x06))
+(global $tag-singleton     (export "tag-singleton")     i32 (i32.const 0x07))
+
+(global $eof            (export "#eof-object")    i32 (i32.const 0xeee00fff))
+(global $false          (export "#false")         i32 (i32.const 0x00000007))
+(global $null           (export "#null")          i32 (i32.const 0xffffffff))
+(global $true           (export "#true")          i32 (i32.const 0x0000000f))
+(global $type-bytearray (export "type-bytearray") i32 (i32.const 0x00010007))
+(global $type-number    (export "type-number")    i32 (i32.const 0x00010017))
+(global $type-string    (export "type-string")    i32 (i32.const 0x00010027))
+(global $type-vector    (export "type-vector")    i32 (i32.const 0x0001003f))
+
+(global $singleton-type-mask       (export "singleton-type-mask")       i32 (i32.const 0xffff0007))
+(global $singleton-type-null       (export "singleton-type-null")       i32 (i32.const 0xffff0007))
+(global $singleton-type-boolean    (export "singleton-type-boolean")    i32 (i32.const 0x00000007))
+(global $singleton-type-eof        (export "singleton-type-eof")        i32 (i32.const 0xeee00007))
+(global $singleton-type-block-type (export "singleton-type-block-type") i32 (i32.const 0x00010007))
