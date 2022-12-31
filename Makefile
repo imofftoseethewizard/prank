@@ -4,12 +4,35 @@
 %.wat: %.wam
 	${WAM} $*.wam >$@
 
-SOURCES = algorithms.wat kernel.wat lex.wat memory.wat
-OBJECTS = algorithms.wasm kernel.wasm lex.wasm memory.wasm
+SOURCES = \
+	algorithms.wam \
+	blocks.wam \
+	boxes.wam \
+	globals.wam \
+	kernel.wam \
+	lex.wam \
+	memory.wam \
+	pairs.wam \
+	values.wam \
+	vectors.wam
+
+OBJECTS = \
+	algorithms.wasm \
+	blocks.wasm \
+	boxes.wasm \
+	kernel.wasm \
+	lex.wasm \
+	memory.wasm \
+	pairs.wasm \
+	values.wasm \
+	vectors.wasm
 
 all: test
 
-test: ${OBJECTS}
+objects: ${OBJECTS}
+
+test: ${SOURCES}
+	WAM_DEBUG=1 make objects
 	${NODE} test.js
 
-.PHONY: all test
+.PHONY: all objects test

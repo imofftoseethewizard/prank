@@ -1,5 +1,9 @@
 (module
 
+  (import "pairs" "init-pairs" (func $init-pairs))
+  (import "blocks" "init-blocks" (func $init-blocks))
+
+
  ;;=============================================================================
  ;;
  ;; Kernel
@@ -17,16 +21,10 @@
 
  (start $init)
  (func $init
-   (call $init-pairs
-         (global.get $initial-pairs-bottom)
-         (global.get $initial-pairs-top))
+   (call $init-pairs)
 
-   (call $init-refindex)
+;;   (call $init-refindex)
 
-   (call $init-blocks
-         (global.get $initial-blocks-bottom)
-         (global.get $initial-blocks-top)))
-
-
+   (call $init-blocks))
 
  )

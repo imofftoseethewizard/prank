@@ -1,38 +1,108 @@
 (module
+
+ (import "pairs" "get-pair-car"   (func $get-pair-car  (param i32)     (result i32)))
+ (import "pairs" "get-pair-cdr"   (func $get-pair-cdr  (param i32)     (result i32)))
+ (import "pairs" "set-pair-car"   (func $set-pair-car  (param i32 i32)))
+ (import "pairs" "set-pair-cdr"   (func $set-pair-cdr  (param i32 i32)))
+
  ;;=============================================================================
  ;;
  ;; Box values
  ;;
+ ;;
+ ;; Block values
+ ;;
+ ;; Block values are pairs which serve as the fixed reference point of a block.
+ ;; A block can be relocated, but pairs cannot, so these are stable addresses.
+ ;; Each block that is referenced in a procedurally managed pair must have
+ ;; exactly one block value associated with it.  Since blocks are used to
+ ;; represent bytearrays, strings, and vectors, the value used to represent them
+ ;; in pairs is a the block-tagged address of the corresponding block value.
+ ;;
+ ;; For example, a one element list referencing a string in its car would have
+ ;; the following structure in memory:
+ ;;
+ ;;     pair addr: ( <block value addr | $tag-block > . $null )
+ ;;
+ ;;     block value addr: ( $type-string . < block addr > )
+ ;;
+ ;;     block addr:
+ ;;       < block value addr >
+ ;;       < length of block in values >
+ ;;       < length of string in bytes >
+ ;;       < bytes ... >
+ ;;
 
- (global $box-value-type  (export "box-value-type")  i32 (i32.const 0x0000))
- (global $box-value-value (export "box-value-value") i32 (i32.const 0x0004))
 
  (global $box-value-type-weakref (export "box-value-type-weakref") i32 (i32.const 0))
 
- (func $get-box-value-type (export "get-box-value-type")
-   (param $box-value i32)
-   (result i32)
-   (i32.load (i32.add (local.get $box-value)
-                      (global.get $box-value-type))))
-
- (func $get-box-value-value (export "get-box-value-value")
-   (param $box-value i32)
-   (result i32)
-   (i32.load (i32.add (local.get $box-value)
-                      (global.get $box-value-value))))
-
- (func $set-box-value-type (export "set-box-value-type")
-   (param $box-value i32)
+ (func $get-box-type (export "get-box-type")
    (param $box i32)
-   (i32.store (i32.add (local.get $box-value)
-                       (global.get $box-value-type))
-              (local.get $box)))
+   (result i32)
+   (call $get-pair-car (local.get $box)))
 
- (func $set-box-value-value (export "set-box-value-value")
-   (param $box-value i32)
+ (func $get-box-value (export "get-box-value")
    (param $box i32)
-   (i32.store (i32.add (local.get $box-value)
-                       (global.get $box-value-value))
-              (local.get $box)))
+  (result i32)
+   (call $get-pair-cdr (local.get $box)))
 
+ (func $set-box-type (export "set-box-type")
+   (param $box i32)
+   (param $type i32)
+   (call $set-pair-car (local.get $box) (local.get $type)))
+
+ (func $set-box-value (export "set-box-value")
+   (param $box i32)
+   (param $value i32)
+   (call $set-pair-cdr (local.get $box) (local.get $value)))
+
+ (func $alloc-block-value (export "alloc-block-value")
+   (param $block-type i32)
+   (param $length i32)
+   (result i32)
+
+   (local $pair-addr i32)
+   (local.set $pair-addr (call $alloc-pair))
+
+   (call $init-block-value
+         (local.get $pair-addr)
+         (local.get $block-type)
+         (local.get $length))
+
+   (i32.or (local.get $pair-addr) (global.get $tag-block)))
+
+ (func $init-block-value (export "init-block-value")
+   (param $pair-addr i32)
+   (param $block-type i32)
+   (param $length i32)
+
+   (call $set-pair-car (local.get $pair-addr) (local.get $block-type))
+   (call $set-pair-cdr
+         (local.get $pair-addr)
+         (call $alloc-block (local.get $pair-addr) (local.get $length))))
+
+ (func $dealloc-block-value (export "dealloc-block-value")
+   (param $block-value i32)
+
+   (local $block i32)
+
+   (local.set $block (call $get-block-value-block (local.get $block-value)))
+
+   (if (i32.ne (local.get $block) (global.get $null))
+       (then
+        (call $dealloc-block (local.get $block))))
+   (call $dealloc-pair (local.get $block-value)))
+
+
+ (func $is-pair-block-owner (export "is-pair-block-owner")
+   (param $pair i32)
+   (result i32)
+   (call $is-block-type (call $get-pair-car (local.get $pair))))
+
+(func $is-block-type (export "is-block-type")
+   (param $value i32)
+   (result i32)
+   (i32.eq (i32.and (local.get $value)
+                    (global.get $singleton-type-mask))
+           (global.get $singleton-type-block-type)))
 )

@@ -18,6 +18,7 @@
  ;; unused.
 
  (include "./globals.wam")
+ (include "./gc-client.wam")
 
  ;;=============================================================================
  ;;
@@ -248,57 +249,6 @@
               (local.get $value))
 
    (call $add-ref (local.get $pair) (local.get $value)))
-
-
- ;;=============================================================================
- ;;
- ;; Garbage Collection Interface
- ;;
- ;; Garbage collection can be provided by any module that implements `add-ref`
- ;; and `release` methods. They each take two parameters. The first is the pair
- ;; that will be/was referencing the value given as the second parameter.
-
- (table $gc-interface (export "gc-interface") 2 funcref)
- (global $gc-add-ref (export "gc-add-ref") i32 (i32.const 0))
- (global $gc-release (export "gc-release") i32 (i32.const 1))
-
- (type $gc-add-ref-sig (func (param i32 i32)))
-
- (func $add-ref (export "add-ref")
-   (param $pair i32)
-   (param $value i32)
-
-   (call_indirect $gc-interface
-                  (type $gc-add-ref-sig)
-                  (global.get $gc-add-ref)
-                  (local.get $pair)
-                  (local.get $value)))
-
- (type $gc-release-sig (func (param i32 i32)))
-
- (func $release (export "release")
-   (param $pair i32)
-   (param $value i32)
-
-   (call_indirect $gc-interface
-                  (type $gc-release-sig)
-                  (global.get $gc-release)
-                  (local.get $pair)
-                  (local.get $value)))
-
- ;; Explicit versus Procedural Memory Management
- ;;
- ;; Explicit memory management refers to the use of alloc and dealloc functions
- ;; by functions, modules, or subsystems for their own use. These pairs and
- ;; blocks are never directly exposed at the level of the programming language,
- ;; nor are they ever tracked by the garbage collector -- ie. they may never be
- ;; provided as arguments to add-ref or release.  The internal implementation is
- ;; responsible for tracking ownership of these objects and deallocating them when
- ;; they are no longer needed.
- ;;
- ;; Procedural memory management is done by the gc module. Objects that are
- ;; managed by gc should never refer to explicitly managed objects.
-
 
 
  )
