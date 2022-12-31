@@ -23,20 +23,21 @@
  ;; an overflow, the value will be automatically promoted to a block value,
  ;; encoding the number as an arbitrary-precision integer.
  ;;
- ;; Blocks contain the address of a pair.  The first value in the pair contains
+ ;; Boxes contain the address of a pair.
+ ;; The first value in the pair contains
  ;; a type designator, the second value contains the address of a block in the
  ;; blockstore.  The pair referenced by a block value is the owner of the block
  ;; in the blockstore, and every block has exactly one such owner.  Some blocks
  ;; may be empty -- such as a vector of length zero -- in which case the block
  ;; address will be $null.  Type designators are a small enumeration which
- ;; includes values for bytearrays, numbers, strings, and vectors.
+ ;; includes values for bytevectors, numbers, strings, and vectors.
  ;;
  ;; Boxes contain the address of a pair, similar to blocks.  They also have a
  ;; type designator in the first value and an address in the second.  Currently,
  ;; the only purpose envisioned for these is to hold a weak reference.  Another
  ;; possibility would be an opaque 32-bit value from an external source.  This
  ;; would be unsafe to put in an ordinary pair, and much less efficient to store
- ;; in a bytearray. Small strings or bytearrays could also fit, packed as
+ ;; in a bytevector. Small strings or bytevectors could also fit, packed as
  ;;
  ;;     0               1                | 0               1
  ;;     0123456789abcdef0123456789abcdef | 0123456789abcdef0123456789abcdef

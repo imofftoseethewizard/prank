@@ -16,7 +16,7 @@
  ;; A block can be relocated, but pairs cannot, so these are stable addresses.
  ;; Each block that is referenced in a procedurally managed pair must have
  ;; exactly one block value associated with it.  Since blocks are used to
- ;; represent bytearrays, strings, and vectors, the value used to represent them
+ ;; represent bytevectors, strings, and vectors, the value used to represent them
  ;; in pairs is a the block-tagged address of the corresponding block value.
  ;;
  ;; For example, a one element list referencing a string in its car would have
@@ -56,7 +56,7 @@
    (param $value i32)
    (call $set-pair-cdr (local.get $box) (local.get $value)))
 
- (func $alloc-block-value (export "alloc-block-value")
+ (func $alloc-boxed-block (export "alloc-boxed-block")
    (param $block-type i32)
    (param $length i32)
    (result i32)
@@ -64,14 +64,14 @@
    (local $pair-addr i32)
    (local.set $pair-addr (call $alloc-pair))
 
-   (call $init-block-value
+   (call $init-boxed-block
          (local.get $pair-addr)
          (local.get $block-type)
          (local.get $length))
 
    (i32.or (local.get $pair-addr) (global.get $tag-block)))
 
- (func $init-block-value (export "init-block-value")
+ (func $init-boxed-block (export "init-boxed-block")
    (param $pair-addr i32)
    (param $block-type i32)
    (param $length i32)
@@ -81,25 +81,24 @@
          (local.get $pair-addr)
          (call $alloc-block (local.get $pair-addr) (local.get $length))))
 
- (func $dealloc-block-value (export "dealloc-block-value")
-   (param $block-value i32)
+ (func $dealloc-boxed-block (export "dealloc-boxed-block")
+   (param $boxed-block i32)
 
    (local $block i32)
 
-   (local.set $block (call $get-block-value-block (local.get $block-value)))
+   (local.set $block (call $get-boxed-value (local.get $boxed-block)))
 
    (if (i32.ne (local.get $block) (global.get $null))
        (then
         (call $dealloc-block (local.get $block))))
-   (call $dealloc-pair (local.get $block-value)))
-
+   (call $dealloc-pair (local.get $boxed-block)))
 
  (func $is-pair-block-owner (export "is-pair-block-owner")
    (param $pair i32)
    (result i32)
    (call $is-block-type (call $get-pair-car (local.get $pair))))
 
-(func $is-block-type (export "is-block-type")
+ (func $is-block-type (export "is-block-type")
    (param $value i32)
    (result i32)
    (i32.eq (i32.and (local.get $value)

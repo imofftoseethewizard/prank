@@ -482,6 +482,10 @@
                      (local.get $block)
                      (call $get-block-size (local.get $block)))
 
+        (call $set-pair-cdr
+              (call $get-block-owner (local.get $block))
+              (local.get $block))
+
         (local.set $free-block (call $get-next-block (local.get $block-dest)))
 
         (call $make-free-block

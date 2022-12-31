@@ -10,15 +10,15 @@
 
  (func $init-pair-flags (export "init-pair-flags")
 
-   (call $init-bytearray-value
+   (call $init-bytevector-value
          (global.get $root-pair-flags)
          (global.get $initial-pair-flags-size))
 
-   (call $init-bytearray-value
+   (call $init-bytevector-value
          (global.get $root-stale-pair-group-flags)
          (global.get $initial-pair-group-flags-size))
 
-   (call $init-bytearray-value
+   (call $init-bytevector-value
          (global.get $root-uncertain-pair-group-flags)
          (global.get $initial-pair-group-flags-size))
 
@@ -560,15 +560,15 @@
 
  (func $init-pair-flags (export "init-pair-flags")
 
-   (call $init-bytearray-value
+   (call $init-bytevector-value
          (global.get $root-pair-flags)
          (global.get $initial-pair-flags-size))
 
-   (call $init-bytearray-value
+   (call $init-bytevector-value
          (global.get $root-stale-pair-group-flags)
          (global.get $initial-pair-group-flags-size))
 
-   (call $init-bytearray-value
+   (call $init-bytevector-value
          (global.get $root-uncertain-pair-group-flags)
          (global.get $initial-pair-group-flags-size))
 
