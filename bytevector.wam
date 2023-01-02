@@ -18,9 +18,11 @@
  (func $is-bytevector (export "is-bytevector")
    (param $value i32)
    (result i32)
-   (if (i32.eq (call $get-value-tag (local.get $value)) (global.get $tag-box))
-       (then
-        (i32.eq (call $get-pair-car (local.get $value) (global.get $type-bytevector))))
+   (if (result i32) (i32.eq (call $get-value-tag (local.get $value)) (global.get $tag-box))
+     (then
+      (i32.eq (i32.and (call $get-box-type (local.get $value))
+                       (global.get $value-type-mask))
+              (global.get $type-bytevector)))
      (else
       (i32.const 0))))
 
@@ -28,39 +30,22 @@
    (param $length i32)
    (result i32)
 
-   (local $block i32)
    (local $bv i32)
 
    (local.set $bv
               (call $alloc-boxed-block
-                    (global.get $type-bytevector)
-                    (call $calc-bytevector-block-length (local.get $length))))
-
-   (local.set $block (call $get-box-value (local.get $bv)))
-
-   (call $set-block-element
-         (local.get $block)
-         (i32.sub (call $get-block-length (local.get $block) (i32.const 1)))
-         (local.get $length))
+                    (global.get $type-block-bytevector)
+                    (local.get $length)))
 
    (local.get $bv))
 
- (func $calc-bytevector-block-length (export "calc-bytevector-block-length")
-   (param $length i32)
-   (result i32)
-
-   (if (result i32) (i32.eqz (local.get $length))
-     (then
-      (global.get $value-size))
-     (else
-      (i32.add (i32.shr_u (i32.sub (local.get $length)
-                                   (i32.const 1))
-                          (global.get $value-size-bits))
-               (i32.const 2)))))
+ (func $dealloc-bytevector (export "dealloc-bytevector")
+   (param $bv i32)
+   (call $dealloc-box (local.get $bv)))
 
  (func $make-bytevector (export "make-bytevector")
    (param $length i32)
-   (param $fill i32)
+   (param $fill-value i32)
    (result i32)
 
    (local.set $bv (call $alloc-bytevector (local.get $length)))
@@ -69,7 +54,7 @@
          (call $get-box-value $bv)
          (i32.const 0)
          (local.get $length)
-         (local.get $fill))
+         (local.get $fill-value))
 
    (local.get $bv))
 
@@ -104,21 +89,20 @@
    (param $bv i32)
    (result i32)
 
-   (local $block i32)
-   (local.set $block (call $get-box-value (local.get $bv)))
-
-   (call $get-block-element
-         (local.get $block)
-         (i32.sub (call $get-block-length (local.get $block) (i32.const 1)))))
+   (call $get-block-length (call $get-box-value (local.get $bv))))
 
  (func $get-bytevector-element (export "get-bytevector-element")
    (param $bv i32)
    (param $idx i32)
    (result i32)
 
-   (if (result i32) (i32.lt_u (local.get $idx) (call $get-bytevector-length (local.get $bv)))
-     (then
-      (call $get-block-i8-element (local.get $block) (local.get $idx)))
+   (local $block i32)
+
+   (local.set $block (call $get-box-value (local.get $bv)))
+
+   (if (i32.lt_u (local.get $idx) (call $get-block-length (local.get $block)))
+       (then
+        (call $get-block-i8-element (local.get $block) (local.get $idx)))
      (else
       (global.get $null))))
 
@@ -127,9 +111,13 @@
    (param $idx i32)
    (param $byte i32)
 
-   (if (i32.lt_u (local.get $idx) (call $get-bytevector-length (local.get $bv)))
-     (then
-      (call $set-block-i8-element (local.get $block) (local.get $idx) (local.get $byte)))))
+   (local.set $block (call $get-box-value (local.get $bv)))
+
+   (if (i32.lt_u (local.get $idx) (call $get-block-length (local.get $block)))
+       (then
+        (call $set-block-i8-element (local.get $block) (local.get $idx) (local.get $byte)))
+     (else
+      (global.get $null))))
 
  (func $make-bytevector-copy (export "make-bytevector-copy")
    (param $bv i32)

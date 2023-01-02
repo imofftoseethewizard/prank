@@ -1,6 +1,6 @@
-;; This file contains a fragment of a module which is included in most
-;; modules in this project.  It should only contain non-mutable
-;; globals which are used in more than one module.
+;; This file contains a fragment of a module which is included in most modules
+;; in this project.  It should only contain non-mutable globals which are used
+;; in more than one module.
 
 (global $value-size  (export "value-size")  i32 (i32.const 4))
 (global $pair-size   (export "pair-size")   i32 (i32.const 8))
@@ -9,27 +9,30 @@
 (global $value-size-bits  (export "value-size-bits")  i32 (i32.const 2))
 (global $pair-size-bits   (export "pair-size-bits")   i32 (i32.const 3))
 (global $page-size-bits   (export "page-size-bits")   i32 (i32.const 16))
+(global $tag-size-bits    (export "tag-size-bits")    i32 (i32.const 3))
 
 (global $tag-small-integer (export "tag-small-integer") i32 (i32.const 0x00))
 (global $tag-box           (export "tag-box")           i32 (i32.const 0x01))
 (global $tag-char          (export "tag-char")          i32 (i32.const 0x02))
 (global $tag-pair          (export "tag-pair")          i32 (i32.const 0x03))
 (global $tag-procedure     (export "tag-procedure")     i32 (i32.const 0x04))
-(global $tag-symbol        (export "tag-symbol")        i32 (i32.const 0x05))
+(global $tag-string        (export "tag-string")        i32 (i32.const 0x05))
+(global $tag-symbol        (export "tag-symbol")        i32 (i32.const 0x06))
 (global $tag-singleton     (export "tag-singleton")     i32 (i32.const 0x07))
 
-(global $eof             (export "#eof-object")     i32 (i32.const 0xeee00fff))
-(global $false           (export "#false")          i32 (i32.const 0x00000007))
-(global $null            (export "#null")           i32 (i32.const 0xffffffff))
-(global $true            (export "#true")           i32 (i32.const 0x0000000f))
-(global $type-bytevector (export "type-bytevector") i32 (i32.const 0x00010007))
-(global $type-number     (export "type-number")     i32 (i32.const 0x00010017))
-(global $type-string     (export "type-string")     i32 (i32.const 0x00010027))
-(global $type-vector     (export "type-vector")     i32 (i32.const 0x0001003f))
-(global $type-weakref    (export "type-weakref")    i32 (i32.const 0x00010047))
+(global $eof                 (export "#eof-object")         i32 (i32.const 0x00000e0f))
+(global $false               (export "#false")              i32 (i32.const 0x00000007))
+(global $null                (export "#null")               i32 (i32.const 0xffffffff))
+(global $true                (export "#true")               i32 (i32.const 0x0000000f))
+(global $box-type-bytevector (export "box-type-bytevector") i32 (i32.const 0x00000107))
+(global $box-type-number     (export "box-type-number")     i32 (i32.const 0x0000010f))
+(global $box-type-string     (export "box-type-string")     i32 (i32.const 0x00000117))
+(global $box-type-vector     (export "box-type-vector")     i32 (i32.const 0x0000011f))
+(global $box-type-weakref    (export "box-type-weakref")    i32 (i32.const 0x00000207))
 
-(global $singleton-type-mask       (export "singleton-type-mask")       i32 (i32.const 0xffff0007))
-(global $singleton-type-null       (export "singleton-type-null")       i32 (i32.const 0xffff0007))
-(global $singleton-type-boolean    (export "singleton-type-boolean")    i32 (i32.const 0x00000007))
-(global $singleton-type-eof        (export "singleton-type-eof")        i32 (i32.const 0xeee00007))
-(global $singleton-type-block-type (export "singleton-type-block-type") i32 (i32.const 0x00010007))
+(global $singleton-type-mask (export "singleton-type-mask") i32 (i32.const 0x00000f07))
+(global $type-null           (export "type-null")           i32 (i32.const 0x00000f07))
+(global $type-boolean        (export "type-boolean")        i32 (i32.const 0x00000007))
+(global $type-eof            (export "type-eof")            i32 (i32.const 0x00000e07))
+(global $type-block          (export "type-block")          i32 (i32.const 0x00000107))
+(global $type-box            (export "type-box")            i32 (i32.const 0x00000207))

@@ -1,0 +1,19 @@
+(module
+  (import "pairs" "get-pair-cdr" (func $get-pair-cdr (param i32) (result i32)))
+
+  (func $get-list-length (export "get-list-length")
+    (param $list i32)
+
+    (local $idx i32)
+    (local.set $idx (i32.const 0))
+
+    (loop $again
+      (if (i32.ne (local.get $list) (global.get $null))
+          (then
+           (local.set $idx (i32.add (local.get $idx) (i32.const 1)))
+           (local.set $list (call $get-pair-cdr (local.get $list)))
+           (br $again))))
+
+    (local.get $idx))
+
+ )

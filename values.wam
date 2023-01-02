@@ -55,15 +55,27 @@
  (global $value-tag-mask  (export "tag-mask")  i32 (i32.const 0x00000007))
  (global $value-data-mask (export "data-mask") i32 (i32.const 0xfffffff8))
 
- (func $get-value-tag (export "value-tag")
+ (func $get-value-data (export "get-value-data")
+   (param $value i32)
+   (result i32)
+   (i32.and (local.get $value) (global.get $value-data-mask)))
+
+ (func $get-value-tag (export "get-value-tag")
    (param $value i32)
    (result i32)
    (i32.and (local.get $value) (global.get $value-tag-mask)))
 
- (func $get-value-data (export "value-data")
+ (func $set-value-data (export "set-value-data")
    (param $value i32)
-   (result i32)
-   (i32.and (local.get $value) (global.get $value-data-mask)))
+   (param $data i32)
+   (i32.or (call $get-value-tag (local.get $value))
+           (local.get $data)))
+
+ (func $set-value-tag (export "set-value-tag")
+   (param $value i32)
+   (param $tag i32)
+   (i32.or (call $get-value-data (local.get $value))
+           (local.get $tag)))
 
  (func $make-value (export "make-value")
    (param $tag i32)

@@ -4,6 +4,20 @@
  (type $lexical-rule-func (func (param i32 i32 i32) (result i32 i32)))
  (table $lexical-rules 200 funcref)
 
+ (table $lex-interface (export "lex-interface") 1 funcref)
+ (global $lex-load-char (export "lex-load-char") i32 (i32.const 0))
+
+ (type $lex-load-char-sig (func (param i32) (result i32)))
+
+ (func $load-char (export "load-char")
+   (param $idx i32)
+   (result i32)
+
+   (call_indirect $lex-interface
+                  (type $lex-load-char-sig)
+                  (global.get $lex-load-char)
+                  (local.get $idx)))
+
  (func $ascii-lower (export "ascii-lower")
    (param $x i32)
 
@@ -69,7 +83,7 @@
         (i32.const -1)
         (return)))
 
-   (local.set $c (i32.load8_u (local.get $text)))
+   (local.set $c (call $load-char (local.get $text)))
 
    (if (result i32 i32) (i32.eq (local.get $char) (local.get $c))
      (then
@@ -95,7 +109,7 @@
         (i32.const -1)
         (return)))
 
-   (local.set $c (i32.load8_u (local.get $text)))
+   (local.set $c (call $load-char (local.get $text)))
 
    (if (result i32 i32) (call $char-eq/ascii-ci (local.get $char) (local.get $c))
      (then
@@ -122,7 +136,7 @@
         (i32.const -1)
         (return)))
 
-   (local.set $c (i32.load8_u (local.get $text)))
+   (local.set $c (call $load-char (local.get $text)))
 
    (if (result i32 i32)
        (i32.and (i32.ne (local.get $first-char) (local.get $c))
@@ -151,7 +165,7 @@
         (i32.const -1)
         (return)))
 
-   (local.set $c (i32.load8_u (local.get $text)))
+   (local.set $c (call $load-char (local.get $text)))
 
    (if (result i32 i32)
        (i32.and
@@ -181,7 +195,7 @@
         (i32.const -1)
         (return)))
 
-   (local.set $c (i32.load8_u (local.get $text)))
+   (local.set $c (call $load-char (local.get $text)))
 
    (local.set $s (local.get $str))
    (local.set $s-end (i32.add (local.get $s) (local.get $length)))
@@ -189,7 +203,7 @@
    (loop $again
      (if (i32.lt_u (local.get $s) (local.get $s-end))
          (then
-          (if (i32.eq (local.get $c) (i32.load8_u (local.get $s)))
+          (if (i32.eq (local.get $c) (call $load-char (local.get $s)))
               (then
                (i32.add (i32.const 1) (local.get $text))
                (return))
@@ -210,7 +224,7 @@
    (local.get $rule-id)
    (call $match-charset
          (i32.add (i32.const 1) (local.get $str))
-         (i32.load8_u (local.get $str))
+         (call $load-char (local.get $str))
          (local.get $text)
          (local.get $end)))
 
@@ -241,8 +255,8 @@
      (if (i32.lt_u (local.get $s) (local.get $s-end))
          (then
           (if (i32.eq
-               (i32.load8_u (local.get $s))
-               (i32.load8_u (local.get $t)))
+               (call $load-char (local.get $s))
+               (call $load-char (local.get $t)))
               (then
                (local.set $s (i32.add (local.get $s) (i32.const 1)))
                (local.set $t (i32.add (local.get $t) (i32.const 1)))
@@ -263,7 +277,7 @@
    (local.get $rule-id)
    (call $match-static-string
          (i32.add (i32.const 1) (local.get $str))
-         (i32.load8_u (local.get $str))
+         (call $load-char (local.get $str))
          (local.get $text)
          (local.get $end)))
 
@@ -294,8 +308,8 @@
      (if (i32.lt_u (local.get $s) (local.get $s-end))
          (then
           (if (call $char-eq/ascii-ci
-                    (i32.load8_u (local.get $s))
-                    (i32.load8_u (local.get $t)))
+                    (call $load-char (local.get $s))
+                    (call $load-char (local.get $t)))
               (then
                (local.set $s (i32.add (local.get $s) (i32.const 1)))
                (local.set $t (i32.add (local.get $t) (i32.const 1)))
@@ -316,7 +330,7 @@
    (local.get $rule-id)
    (call $match-static-string/ascii-ci
          (i32.add (i32.const 1) (local.get $str))
-         (i32.load8_u (local.get $str))
+         (call $load-char (local.get $str))
          (local.get $text)
          (local.get $end)))
 
@@ -337,7 +351,7 @@
    (local.set $end-match
               (call $match-static-string
                     (i32.add (i32.const 1) (local.get $first-str))
-                    (i32.load8_u (local.get $first-str))
+                    (call $load-char (local.get $first-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -348,7 +362,7 @@
    (local.set $end-match
               (call $match-static-string
                     (i32.add (i32.const 1) (local.get $second-str))
-                    (i32.load8_u (local.get $second-str))
+                    (call $load-char (local.get $second-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -376,7 +390,7 @@
    (local.set $end-match
               (call $match-static-string/ascii-ci
                     (i32.add (i32.const 1) (local.get $first-str))
-                    (i32.load8_u (local.get $first-str))
+                    (call $load-char (local.get $first-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -387,7 +401,7 @@
    (local.set $end-match
               (call $match-static-string/ascii-ci
                     (i32.add (i32.const 1) (local.get $second-str))
-                    (i32.load8_u (local.get $second-str))
+                    (call $load-char (local.get $second-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -416,7 +430,7 @@
    (local.set $end-match
               (call $match-static-string
                     (i32.add (i32.const 1) (local.get $first-str))
-                    (i32.load8_u (local.get $first-str))
+                    (call $load-char (local.get $first-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -427,7 +441,7 @@
    (local.set $end-match
               (call $match-static-string
                     (i32.add (i32.const 1) (local.get $second-str))
-                    (i32.load8_u (local.get $second-str))
+                    (call $load-char (local.get $second-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -438,7 +452,7 @@
    (local.set $end-match
               (call $match-static-string
                     (i32.add (i32.const 1) (local.get $third-str))
-                    (i32.load8_u (local.get $third-str))
+                    (call $load-char (local.get $third-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -467,7 +481,7 @@
    (local.set $end-match
               (call $match-static-string/ascii-ci
                     (i32.add (i32.const 1) (local.get $first-str))
-                    (i32.load8_u (local.get $first-str))
+                    (call $load-char (local.get $first-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -478,7 +492,7 @@
    (local.set $end-match
               (call $match-static-string/ascii-ci
                     (i32.add (i32.const 1) (local.get $second-str))
-                    (i32.load8_u (local.get $second-str))
+                    (call $load-char (local.get $second-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -489,7 +503,7 @@
    (local.set $end-match
               (call $match-static-string/ascii-ci
                     (i32.add (i32.const 1) (local.get $third-str))
-                    (i32.load8_u (local.get $third-str))
+                    (call $load-char (local.get $third-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -519,7 +533,7 @@
    (local.set $end-match
               (call $match-static-string
                     (i32.add (i32.const 1) (local.get $first-str))
-                    (i32.load8_u (local.get $first-str))
+                    (call $load-char (local.get $first-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -530,7 +544,7 @@
    (local.set $end-match
               (call $match-static-string
                     (i32.add (i32.const 1) (local.get $second-str))
-                    (i32.load8_u (local.get $second-str))
+                    (call $load-char (local.get $second-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -541,7 +555,7 @@
    (local.set $end-match
               (call $match-static-string
                     (i32.add (i32.const 1) (local.get $third-str))
-                    (i32.load8_u (local.get $third-str))
+                    (call $load-char (local.get $third-str))
                     (local.get $text)
                     (local.get $end)))
 
@@ -552,7 +566,7 @@
    (local.set $end-match
               (call $match-static-string
                     (i32.add (i32.const 1) (local.get $fourth-str))
-                    (i32.load8_u (local.get $fourth-str))
+                    (call $load-char (local.get $fourth-str))
                     (local.get $text)
                     (local.get $end)))
 

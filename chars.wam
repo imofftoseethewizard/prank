@@ -1,0 +1,134 @@
+(module
+
+ ;; There are three representations of characters:
+ ;;
+ ;;   1. encoded as utf-8 in a local variable or in block memory
+ ;;   2. a code point stored in a local variable as an i32
+ ;;   3. a code point stored in a "char" tagged value in a local variable, in a
+ ;;      pair, or a vector.
+ ;;
+ ;; In particular code points are never stored in memory without a tag value
+ ;; applied.
+ ;;
+
+ (import "values" "get-value-data" (func $get-value-data (param i32)     (result i32)))
+ (import "values" "make-value"     (func $make-value     (param i32 i32) (result i32)))
+
+ (include "./globals.wam")
+
+ (func $get-char-code-point (export "get-char-code-point")
+   (local $char i32)
+   (result i32)
+   (i32.shr_u (call $get-value-data (local.get $char))
+              (global.get $tag-size-bits)))
+
+ (func $make-char (export "make-char")
+   (local $code-point i32)
+   (result i32)
+   (call $make-value
+         (i32.or (i32.shl (local.get $code-point )
+                          (global.get $tag-size-bits)))
+         (global.get $tag-char)))
+
+ (func $calc-char-width (export "calc-char-width")
+   (if (result i32) (i32.lt_u (local.get $char) (i32.const 0x80))
+     (then (32.const 1))
+     (else
+      (if (result i32) (i32.lt_u (local.get $char) (i32.const 0x800))
+        (then (32.const 2))
+        (else
+         (if (result i32) (i32.lt_u (local.get $char) (i32.const 0x10000))
+           (then (32.const 3))
+           (else (32.const 4))))))))
+
+ (func $encode-char (export "encode-char")
+   (param $char i32)
+   (result i32)
+   (call $encode-code-point (call $get-char-code-point (local.get $char))))
+
+ (func $encode-code-point (export "encode-code-point")
+   (param $code-point i32)
+   (result i32)
+   (if (result i32) (i32.lt_u (local.get $code-point) (i32.const 0x80))
+     (then (local.get $code-point))
+     (else
+      (if (result i32) (i32.lt_u (local.get $code-point) (i32.const 0x800))
+        (then
+         (i32.or (i32.const 0x80c0)
+                 (i32.or (i32.shr_u (i32.and (local.get $code-point)
+                                             (i32.const 0x07c0))
+                                    (i32.const 6))
+                         (i32.shl (i32.and (local.get $code-point)
+                                           (i32.const 0x003f))
+                                  (i32.const 8)))))
+        (else
+         (if (result i32) (i32.lt_u (local.get $code-point) (i32.const 0x10000))
+           (then
+            (i32.or (i32.const 0x8080e0)
+                    (i32.or (i32.shr_u (i32.and (local.get $code-point)
+                                                (i32.const 0xf000))
+                                       (i32.const 12))
+                            (i32.or (i32.shl (i32.and (local.get $code-point)
+                                                      (i32.const 0x0fc0))
+                                             (i32.const 2))
+                                    (i32.shl (i32.and (local.get $code-point)
+                                                      (i32.const 0x003f))
+                                             (i32.const 16))))))
+           (else
+            (i32.or (i32.const 0x808080f0)
+                    (i32.or (i32.shr_u (i32.and (local.get $code-point)
+                                                (i32.const 0x1c0000))
+                                       (i32.const 18))
+                            (i32.or (i32.shr_u (i32.and (local.get $code-point)
+                                                        (i32.const 0x3f000))
+                                               (i32.const 12))
+                                    (i32.or (i32.shr_u (i32.and (local.get $code-point)
+                                                                (i32.const 0x0fc0))
+                                                       (i32.const 6))
+                                            (i32.shl (i32.and (local.get $code-point)
+                                                              (i32.const 0x003f))
+                                                     (i32.const 24)))))))))))))
+
+ (func $decode-utf-8 (export "encode-utf-8")
+   (param $utf-8 i32)
+   (result i32)
+   (if (result i32) (i32.eqz (i32.and (local.get $utf-8) (i32.const 0x80)))
+     (then
+      (i32.and (local.get $utf-8) (i32.const 0x7f)))
+     (else
+      (if (result i32) (i32.eq (i32.and (local.get $utf-8) (i32.const 0xe0))
+                               (i32.const 0xc0))
+        (then
+         (i32.or (i32.shl (i32.and (local.get $utf-8)
+                                   (i32.const 0x1f))
+                          (i32.const 6))
+                 (i32.shr_u (i32.and (local.get $utf-8)
+                                     (i32.const 0x3f00))
+                            (i32.const 8))))
+        (else
+         (if (result i32) (i32.eq (i32.and (local.get $utf-8) (i32.const 0xf0))
+                                  (i32.const 0xe0))
+           (then
+            (i32.or (i32.shl (i32.and (local.get $utf-8)
+                                      (i32.const 0x0f))
+                             (i32.const 12))
+                    (i32.or (i32.shr_u (i32.and (local.get $utf-8)
+                                                (i32.const 0x3f00))
+                                       (i32.const 2))
+                            (i32.shr_u (i32.and (local.get $utf-8)
+                                                (i32.const 0x3f0000))
+                                       (i32.const 16)))))
+           (else
+            (i32.or (i32.shl (i32.and (local.get $utf-8)
+                                      (i32.const 0x07))
+                             (i32.const 18))
+                    (i32.or (i32.shl (i32.and (local.get $utf-8)
+                                              (i32.const 0x3f00))
+                                     (i32.const 12))
+                            (i32.or (i32.shl (i32.and (local.get $utf-8)
+                                                      (i32.const 0x3f0000))
+                                             (i32.const 6))
+                                    (i32.shr_u (i32.and (local.get $utf-8)
+                                                        (i32.const 0x3f000000))
+                                               (i32.const 24))))))))))))
+ )

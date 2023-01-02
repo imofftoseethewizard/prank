@@ -56,52 +56,45 @@
    (param $value i32)
    (call $set-pair-cdr (local.get $box) (local.get $value)))
 
+ (func $alloc-box (export "alloc-box")
+   (param $box-type)
+   (result i32)
+   (local $box i32)
+   (local.set $box (call $alloc-pair))
+
+   (call $set-box-type (local.get $box) (local.get $box-type))
+   (local.get $box))
+
  (func $alloc-boxed-block (export "alloc-boxed-block")
-   (param $block-type i32)
+   (param $box-type i32)
    (param $length i32)
    (result i32)
 
-   (local $pair-addr i32)
-   (local.set $pair-addr (call $alloc-pair))
+   (local $box i32)
 
-   (call $init-boxed-block
-         (local.get $pair-addr)
-         (local.get $block-type)
-         (local.get $length))
+   (local.set $box (call $alloc-box (local.get $box-type)))
 
-   (i32.or (local.get $pair-addr) (global.get $tag-block)))
-
- (func $init-boxed-block (export "init-boxed-block")
-   (param $pair-addr i32)
-   (param $block-type i32)
-   (param $length i32)
-
-   (call $set-pair-car (local.get $pair-addr) (local.get $block-type))
    (call $set-pair-cdr
-         (local.get $pair-addr)
-         (call $alloc-block (local.get $pair-addr) (local.get $length))))
+         (local.get $box)
+         (call $alloc-block
+               (local.get $box)
+               (local.get $length))))
 
- (func $dealloc-boxed-block (export "dealloc-boxed-block")
-   (param $boxed-block i32)
+ (func $dealloc-box (export "dealloc-box")
+   (param $b i32)
 
-   (local $block i32)
-
-   (local.set $block (call $get-boxed-value (local.get $boxed-block)))
-
-   (if (i32.ne (local.get $block) (global.get $null))
+   (if (call $is-boxed-block (local.get $b))
        (then
-        (call $dealloc-block (local.get $block))))
-   (call $dealloc-pair (local.get $boxed-block)))
+        (call $dealloc-block (call $get-boxed-value (local.get $b)))))
 
- (func $is-pair-block-owner (export "is-pair-block-owner")
-   (param $pair i32)
-   (result i32)
-   (call $is-block-type (call $get-pair-car (local.get $pair))))
+   (call $dealloc-pair (local.get $b)))
 
- (func $is-block-type (export "is-block-type")
-   (param $value i32)
+ (func $is-boxed-block (export "is-boxed-block")
+   (param $b i32)
    (result i32)
-   (i32.eq (i32.and (local.get $value)
-                    (global.get $singleton-type-mask))
-           (global.get $singleton-type-block-type)))
+   (i32.eq (i32.and (call $get-box-type (local.get $b))
+                    (global.get $type-mask))
+           (global.get $type-block)))
+
+
 )
