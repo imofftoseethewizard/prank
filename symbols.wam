@@ -1,0 +1,168 @@
+(module
+
+ (import "algorthrms" "parameters" (table $algorithm-parameters))
+
+ (import "algorithms" "bisect-left-i32xi32-indirect" (func $bisect-left-i32xi32-indirect (param i32 i32) (result i32)))
+ (import "blocks" "copy-block-i32-range"             (func $copy-block-i32-range         (param i32 i32 i32 i32 i32)))
+ (import "blocks" "get-block-data-size"              (func $get-block-data-size          (param i32)     (result i32)))
+ (import "blocks" "get-block-i32-element"            (func $get-block-i32-element        (param i32 i32) (result i32)))
+ (import "blocks" "resize-block"                     (func $resize-block                 (param i32)     (result i32)))
+ (import "blocks" "set-block-i32-element"            (func $set-block-i32-element        (param i32 i32 i32)))
+ (import "boxes" "alloc-boxed-block"                 (func $alloc-boxed-block            (param i32 i32) (result i32)))
+ (import "boxes" "get-box-value"                     (func $get-box-value                (param i32)     (result i32)))
+ (import "strings" "string-compare"                  (func $string-compare               (param i32 i32) (result i32)))
+ (import "values" "get-value-data"                   (func $get-value-data               (param i32)     (result i32)))
+ (import "values" "make-value"                       (func $make-value                   (param i32 i32) (result i32)))
+
+ (include "./globals.wam")
+
+ (global $symbol-count (export "symbol-count") (mut i32) (i32.const 0))
+ (global $symbol-index-box (export "symbol-index-box") (mut i32) (i32.const 0))
+ (global $symbol-table-box (export "symbol-table-box") (mut i32) (i32.const 0))
+
+ (func $init-symbols (export "init-symbols")
+   (param $initial-capacity i32)
+
+   (global.set $symbol-count (i32.const 0))
+
+   (global.set $symbol-index-box
+               (call $alloc-boxed-block
+                     (global.get $type-bytevector)
+                     (i32.shl (local.get $initial-capacity)
+                              (global.get $index-entry-size))))
+
+   (global.set $symbol-table-box
+               (call $alloc-boxed-block
+                     (global.get $type-bytevector)
+                     (i32.shl (local.get $initial-capacity)
+                              (global.get $value-size)))))
+
+ (func $get-symbol-name (export "get-symbol-name")
+   (param $symbol i32)
+   (result i32)
+
+   (call $get-block-i32-element
+         (call $get-symbol-table)
+         (i32.shr_u (call $get-value-data (local.get $symbol))
+                    (global.get $tag-size-bits))))
+
+ (func $inter-symbol (export "inter-symbol")
+   (param $name i32)
+   (result i32)
+
+   (local $candidate i32)
+   (local $idx i32)
+   (local $symbol i32)
+
+   (local.set $symbol (global.get $null))
+
+   (table.set $algorithm-parameters
+              (global.get $bisect-left-i32-indirect-compare)
+              (ref.func $string-compare))
+
+   (local.set $idx (call $bisect-left-i32xi32-indirect
+                         (call $get-symbol-index)
+                         (local.get $name)))
+
+   (if (i32.lt_u (local.get $idx) (global.get $symbol-count))
+       (then
+        (local.set $candidate (call $get-symbol-index-entry-value (local.get $idx)))
+        (if (i32.eqz (call $string-compare
+                           (local.get $name)
+                           (call $get-symbol-name (local.get $candidate))))
+            (then
+             (local.set $symbol (local.get $candidate))))))
+
+   (if (i32.eq (local.get $symbol) (global.get $null))
+       (then
+        (local.set $symbol (call $make-symbol (local.get $name)))
+
+        (call $insert-symbol-index-entry
+              (local.get $idx)
+              (local.get $symbol)
+              (local.get $name))))
+
+   (local.get $symbol))
+
+ (func $get-symbol-index (export "get-symbol-index")
+   (result i32)
+   (call $get-box-value (global.get $symbol-index-box)))
+
+ (func $get-symbol-index-entry-value (export "get-symbol-index-entry-value")
+   (param $idx i32)
+   (result i32)
+   (call $get-block-i32-element
+         (call $get-symbol-index)
+         (i32.add (i32.shl (local.get $idx) (i32.const 1))
+                  (i32.const 1))))
+
+ (func $make-symbol (export "make-symbol")
+   (param $name i32)
+   (result i32)
+
+   (local $symbol i32)
+   (local $symbol-table i32)
+
+   (local.set $symbol-table (call $get-symbol-table))
+
+   (if (i32.eq (i32.shl (global.get $symbol-count)
+                        (global.get $value-size-bits))
+               (call $get-block-data-size (local.get $symbol-table)))
+       (then
+        (local.set $symbol-table
+                   (call $resize-block
+                         (local.get $symbol-table)
+                         (i32.shl (call $get-block-data-size
+                                        (local.get $symbol-table))
+                                  (i32.const 1))))))
+
+   (local.set $symbol (call $make-value
+                            (global.get $symbol-count)
+                            (global.get $tag-symbol)))
+
+   (call $set-block-i32-element
+         (local.get $symbol-table)
+         (global.get $symbol-count)
+         (local.get $name))
+
+   (global.set $symbol-count (i32.add (global.get $symbol-count)
+                                      (i32.const 1)))
+
+   (local.get $symbol))
+
+ (func $insert-symbol-index-entry (export "insert-symbol-index-entry")
+   (param $idx i32)
+   (param $symbol i32)
+   (param $name i32)
+
+   (local $symbol-index i32)
+
+   (local.set $symbol-index (call $get-symbol-index))
+
+   (if (i32.eq (i32.shl (global.get $symbol-count)
+                        (global.get $index-entry-size-bits))
+               (call $get-block-data-size (local.get $symbol-index)))
+       (then
+        (local.set $symbol-index
+                   (call $resize-block
+                         (local.get $symbol-index)
+                         (i32.shl (call $get-block-data-size
+                                        (local.get $symbol-index))
+                                  (i32.const 1))))))
+
+   (call $copy-block-i32-range
+         (local.get $symbol-index) ;; from
+         (local.get $idx)
+         (global.get $symbol-count)
+         (local.get $symbol-index)
+         (i32.add (local.get $idx) (i32.const 1)))
+
+   (call $set-block-i32-element
+         (local.get $block)
+         (local.get $idx)
+         (local.get $name))
+
+   (call $set-block-i32-element
+         (local.get $block)
+         (i32.add (local.get $idx) (i32.const 1))
+         (local.get $symbol))))
