@@ -175,3 +175,68 @@ project organization
     kernel
       data representation
   kernel.wat
+
+number encoding
+  small integer as tagged value (up to 29 bits)
+  boxed number
+    f32 and i32 (for 32 bits) stored as boxed value
+    box flags indicate exact/inexact, real only
+  block number
+    box flags indicate storage type
+      double format 00xxxxxx xxxxxxxx
+      small format  01xxxxxx xxxxxxxx
+      medium format 10xxxxxx xxxxxxxx
+      large format  11xxxxxx xxxxxxxx
+
+      double format
+        00cxxxxx xxxxxxxx
+        c = 0 => imag part is not present, block is one 64 bit float
+        c = 1 => imag part is present, block is two 64 bit floats
+
+      small format
+        01RCxxxx xxxxxxxx
+        RC = 00 => real integer
+          0100rrrr rrrrrrrr
+          12 bits for count of 32 bit words = 131040 binary digits
+          good enough for all pre-quantum crypto
+
+        RC = 11 => rationals
+          0011nnnn nndddddd
+          6 bits each for the num and denom = 2016 binary digits each
+
+        RC = 01 => gaussian integers
+          0010rrrr rriiiiii
+          6 bits each for counts of 32-bit units for real/imag parts = 2016 binary digits each
+
+        RC = 11 => gaussian rationals
+          0011aaab bbcccddd
+          3 bits each for counts of 32-bit units for real/image parts and num/denoms
+          7 * 32 = 224 binary digits for each
+
+      large format
+        01xxxxxx xxxxxxxx
+        1st 128 bits of block provide lengths (in 64 bit units) of num/denom for real/imag parts
+          each 64 bits, providing more digits than the wasm address space allows
+        unlikely to have a practical use, probably for testing only.
+
+      exact/inexact flag. inexact => small format
+      small flag => 3 bit sizes for num/denom for real/imag (12 bits)
+      real flag set =>
+      small flag clear + med flag set
+
+        => 1st value allocates
+  value
+    exact
+      integer (length)
+      rational (num length, denom length)
+    inexact
+      f32/f64
+  real part value
+  imag part value
+
+  value flags
+    real exact/inexact
+    imag exact/inexact
+
+  real denom/float size (in 32 bit chunks, inexact => 1 or 2)
+  real denom size (in 32 bit chunks) (0 => integer, inexact => 0)
