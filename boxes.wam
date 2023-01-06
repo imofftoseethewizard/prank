@@ -43,8 +43,13 @@
 
  (func $get-box-value (export "get-box-value")
    (param $box i32)
-  (result i32)
+   (result i32)
    (call $get-pair-cdr (local.get $box)))
+
+ (func $get-box-value-f32 (export "get-box-value-f32")
+   (param $box i32)
+   (result f32)
+   (call $get-pair-cdr-f32 (local.get $box)))
 
  (func $set-box-type (export "set-box-type")
    (param $box i32)
@@ -55,6 +60,11 @@
    (param $box i32)
    (param $value i32)
    (call $set-pair-cdr (local.get $box) (local.get $value)))
+
+ (func $set-box-value-f32 (export "set-box-value-f32")
+   (param $box i32)
+   (param $value f32)
+   (call $set-pair-cdr-f32 (local.get $box) (local.get $value)))
 
  (func $alloc-box (export "alloc-box")
    (param $box-type)
@@ -95,6 +105,26 @@
    (i32.eq (i32.and (call $get-box-type (local.get $b))
                     (global.get $type-mask))
            (global.get $type-block)))
+
+ (func $make-box (export "make-box")
+   (param $box-type i32)
+   (param $value i32)
+   (result i32)
+   (local $box i32)
+
+   (local.set $box (call $alloc-box (local.get $box-type)))
+   (call $set-box-value (local.get $box) (local.get $value))
+   (local.get $box))
+
+(func $make-box-f32 (export "make-box-f32")
+   (param $box-type i32)
+   (param $value i32)
+   (result i32)
+   (local $box i32)
+
+   (local.set $box (call $alloc-box (local.get $box-type)))
+   (call $set-box-value-f32 (local.get $box) (local.get $value))
+   (local.get $box))
 
 
 )

@@ -121,6 +121,12 @@
    (i32.load (i32.add (local.get $pair)
                       (global.get $value-size))))
 
+ (func $get-pair-cdr-f32 (export "get-pair-cdr-f32")
+   (param $pair i32)
+   (result f32)
+   (f32.load (i32.add (local.get $pair)
+                      (global.get $value-size))))
+
  (func $get-pair-values (export "get-pair-values")
    (param $pair i32)
    (result i32 i32)
@@ -149,6 +155,13 @@
    (param $pair i32)
    (param $value i32)
    (i32.store (i32.add (local.get $pair)
+                       (global.get $value-size))
+              (local.get $value)))
+
+ (func $set-pair-cdr-f32 (export "set-pair-cdr-f32")
+   (param $pair i32)
+   (param $value f32)
+   (f32.store (i32.add (local.get $pair)
                        (global.get $value-size))
               (local.get $value)))
 

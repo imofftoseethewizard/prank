@@ -185,7 +185,7 @@ number encoding
     box flags indicate storage type
       double format 00xxxxxx xxxxxxxx
       small format  01xxxxxx xxxxxxxx
-      medium format 10xxxxxx xxxxxxxx
+      [ medium format 10xxxxxx xxxxxxxx ]
       large format  11xxxxxx xxxxxxxx
 
       double format
@@ -200,7 +200,7 @@ number encoding
           12 bits for count of 32 bit words = 131040 binary digits
           good enough for all pre-quantum crypto
 
-        RC = 11 => rationals
+        RC = 10 => rationals
           0011nnnn nndddddd
           6 bits each for the num and denom = 2016 binary digits each
 
@@ -214,10 +214,11 @@ number encoding
           7 * 32 = 224 binary digits for each
 
       large format
-        01xxxxxx xxxxxxxx
-        1st 128 bits of block provide lengths (in 64 bit units) of num/denom for real/imag parts
-          each 64 bits, providing more digits than the wasm address space allows
-        unlikely to have a practical use, probably for testing only.
+        11xxxxxx xxxxxxxx
+        1st 128 bits of block provide lengths (in 32 bit units) of num/denom for real/imag parts
+          each 32 bits, providing more digits than the wasm address space allows
+        unlikely to have a practical use
+        probably for testing only.
 
       exact/inexact flag. inexact => small format
       small flag => 3 bit sizes for num/denom for real/imag (12 bits)
@@ -240,3 +241,31 @@ number encoding
 
   real denom/float size (in 32 bit chunks, inexact => 1 or 2)
   real denom size (in 32 bit chunks) (0 => integer, inexact => 0)
+
+
+new block design
+  objective: create block mgr w/o own memory
+  owner, length not stored in block memory
+  block list ->
+    ( ( addr . length ) ... )
+  box ->
+    ( box-flags addr . length )
+
+  block mgr
+    ( block-list free-list free-area . top )
+    indirect call tables
+      memory-size
+      memory-grow
+      memory-copy
+
+    indexed by module-id
+
+
+  block list
+    list of ( addr . length )
+
+  block
+    sublist of block list with ( addr . length ) of memory at head
+
+  free list
+    list of free blocks (wh block is as above)
