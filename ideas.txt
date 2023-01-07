@@ -269,3 +269,14 @@ new block design
 
   free list
     list of free blocks (wh block is as above)
+
+  leave 0 length free list entries on move
+    cost 2 free list steps per 0 length entry for each end allocation
+    each memory compaction step creates another one
+    start from block list head if free list head has a length 0 block
+    otherwise start from last free list item with non-zero length block\
+
+    every step process block k list entries, for some function
+      k = k(#blocks, #free-blocks, #0-length free blocks)
+
+    which minimizes total work

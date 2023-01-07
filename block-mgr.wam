@@ -21,22 +21,36 @@
  ;;
 
  (func $make-block-mgr (export "make-block-mgr")
-   (param i32 $free-area)
-   (param i32 $top)
+   (param i32 $service-id)
    (result i32)
-   ;; TODO add service id
 
-   (make-pair (global.get $null) ;; block-list
-              (make-pair (global.get $null) ;; free-list
-                         (make-pair (local.get $free-area)
-                                    (local.get $top)))))
+   (call $make-pair
+         (call $make-pair
+               (call $make-pair
+                     (local.get $service-id)
+                     (call $make-pair
+                           (global.get $null)   ;; end
+                           (global.get $null))) ;; defrag cursor
+               (call $make-pair
+                     (i32.const 0)              ;; free-area
+                     (i32.cosnt 0)))            ;; top
+         (call $make-pair
+               (call $make-pair
+                     (global.get $null)         ;; block-list
+                     (i32.const 0))             ;; block-count
+               (call $make-pair
+                     (global.get $null)         ;; free-list
+                     (i32.const 0)))))          ;; free-count
 
  ;;-----------------------------------------------------------------------------
  ;;
  ;; Blockset Accessors
  ;;
 
- ;; TODO add service id
+ ;; extant: block list, free area, free list, top, end
+ ;; TODO add service id, block count, free block count, defrag cursor
+ ;; 9 properties -> 7 of cxxxr plus 2 of cxxxx
+ r
  (func $get-block-list (export "get-block-list")
    (param $blockset i32)
    (result i32)
@@ -105,6 +119,22 @@
 
  ;;-----------------------------------------------------------------------------
  ;;
+ ;; Block Utilities
+ ;;
+
+ (func $get-next-block-addr (export "get-next-block-addr")
+   (param $block i32)
+   (result i32)
+   (i32.add (call $get-block-addr (local.get $block))
+            (call $get-block-size (local.get $block))))
+
+ (func $make-block (export "make-block")
+   (param $addr i32)
+   (param $length i32)
+   (call $make-pair (local.get $addr) (local.get $length)))
+
+ ;;-----------------------------------------------------------------------------
+ ;;
  ;; Allocation
  ;;
 
@@ -155,6 +185,7 @@
              (call $set-block-free-list
                    (local.get $blockset)
                    (call $get-pair-cdr (local.get $head)))
+             (call $decr-free-block-count (local.get $blockset))
              (local.set $new-block-ref (local.get $free-block-ref)))
           (else
            (loop $again
@@ -168,16 +199,11 @@
                       (then
                        (call $set-pair-cdr (local.get $head) (call $get-pair-cdr
                                                                    (local.get $next)))
+                       (call $decr-free-block-count (local.get $blockset))
                        (local.set $new-block-ref (local.get $free-block-ref)))
                     (else
                      (local.set $head (local.get $next))
                      (br $again))))))))))
-
-   (if (i32.ne (local.get $new-block-ref) (global.get $null))
-       (then
-        (call $set-block-size
-              (call $get-pair-car (local.get $new-block-ref))
-              (local.get $data-size))))
 
    (local.get $new-block-ref))
 
@@ -202,14 +228,11 @@
                                                        (local.get $free-block-ref))))
           (if (i32.gt_u (local.get $size) (local.get $data-size))
               (then
-               ;; TODO handle last block case
+               (call $incr-block-count (local.get $blockset))
                (local.set $new-block-ref
                           (call $split-free-block
                                 (local.get $free-block-ref)
-                                (local.get $data-size)))
-               (call $set-block-size
-                     (call $get-pair-car (local.get $new-block-ref))
-                     (local.get $data-size)))
+                                (local.get $data-size))))
             (else
              (local.set $head (call $get-pair-cdr (local.get $head)))
              (br $again))))))
@@ -218,25 +241,24 @@
 
  (func $split-free-block (export "split-free-block")
    (param $free-block-ref i32)
-   (param $split-size i32)
+   (param $new-block-size i32)
    (result i32)
 
    (local $free-block i32)
    (local $new-block i32)
    (local $new-block-ref i32)
-   (local $new-block-size i32)
 
    (local.set $free-block (call $get-pair-car (local.get $free-block-ref)))
 
-   (local.set $new-block-size
+   (local.set $remainder-size
               (i32.sub (call $get-block-size (local.get $free-block))
-                       (local.get $split-size)))
+                       (local.get $new-block-size)))
 
-   (call $set-block-size (local.get $free-block) (local.get $split-size))
+   (call $set-block-size (local.get $free-block) (local.get $remainder-size))
 
-   (local.set $new-block (call $make-pair
+   (local.set $new-block (call $make-block
                                (i32.add (call $get-free-block-addr (local.get $free-block))
-                                        (local.get $split-size))
+                                        (local.get $remainder-size))
                                (local.get $new-block-size)))
 
    (local.set $new-block-ref (call $make-pair
@@ -245,7 +267,7 @@
 
    (call $set-pair-cdr (local.get $free-block-ref) (local.get $new-block-ref))
 
-   (local.get $free-block-ref))
+   (local.get $new-block-ref))
 
  (func $alloc-end-block (export "alloc-end-block")
    (param $blockset i32)
@@ -261,7 +283,9 @@
    (local.set $new-block-end (i32.add (local.get $new-block-addr)
                                       (local.get $data-size)))
 
-   (local.set $new-block (call $make-pair
+   (call $incr-block-count (local.get $blockset))
+
+   (local.set $new-block (call $make-block
                                (local.get $new-block-addr)
                                (local.get $data-size)))
 
@@ -327,9 +351,9 @@
    (param $blockset i32)
    (param $block-ref i32)
 
+   (call $incr-free-block-count (local.get $blockset))
    (call $add-free-block (local.get $blockset) (local.get $block-ref))
-   (call $compact-block-free-list (local.get $blockset))
-   (call $step-defragment-free-blocks (local.get $blockset)))
+   (call $step-defragment-blocks (local.get $blockset)))
 
  (func $add-free-block (export "add-free-block")
    (param $blockset i32)
@@ -340,75 +364,32 @@
    (local $head i32)
    (local $next i32)
 
-   (if (i32.eq (local.get $block-ref)
-               (call $get-block-list-end (local.get $blockset)))
-       (then
-        (local.set $block (call $get-pair-car (local.get $block-ref)))
-        (call $set-block-size (local.get $block) (i32.const 0))
-        (call $set-blockset-free-area
-              (local.get $blockset)
-              (call $get-block-addr (local.get $block))))
-     (else
-      (local.set $block-addr (call $get-block-addr (call $get-pair-car (local.get $block-ref))))
-      (local.set $head (call $get-block-free-list (local.get $blockset)))
-
-      (if (i32.eq (local.get $head) (global.get $null))
-          (then
-           (call $set-block-free-list
-                 (local.get $blockset)
-                 (call $make-pair (local.get $block-ref) (global.get $null))))
-        (else
-         (loop $again
-           (local.set $next (call $get-pair-cdr (local.get $head)))
-           (if (i32.ne (global.get $null) (global.get $null))
-               (then
-                (if (i32.gt_u (local.get $block-addr)
-                              (call $get-block-addr
-                                    (call $get-pair-caar (local.get $next))))
-                    (then
-                     (local.set $head (local.get $next))
-                     (br $again))))))
-
-         (call $set-pair-cdr
-               (local.get $head)
-               (call $make-pair (local.get $block-ref) (local.get $next))))))))
-
- (func $compact-block-free-list (export "compact-block-free-list")
-   (param $blockset i32)
-
-   (local $block i32)
-   (local $head i32)
-   (local $next i32)
-   (local $next-block i32)
-
+   (local.set $block (call $get-pair-car (local.get $block-ref)))
+   (local.set $block-addr (call $get-block-addr (local.get $block)))
    (local.set $head (call $get-block-free-list (local.get $blockset)))
 
-   (if (i32.ne (local.get $head) (global.get $null))
+   (if (i32.eq (local.get $head) (global.get $null))
        (then
-        (local.set $block (call $get-pair-car (local.get $head)))
-        (loop $again
-          (local.set $next (call $get-pair-cdr (local.get $head)))
-          (if (i32.ne (local.get $next) (global.get $null))
-              (then
-               ;; handle 0 length free blocks
-               (local.set $next-block (call $get-pair-car (local.get $next)))
-               (if (i32.eq (local.get $next-block)
-                           ;; TODO
-                           (call $get-next-block (local.get $block)))
-                   (then
-                    (call $set-block-size
-                          (local.get $block)
-                          (i32.add (call $get-block-size (local.get $block))
-                                   (call $get-block-size (local.get $next-block))))
-                    (call $set-pair-cdr (local.get $head) (call $get-pair-cdr (local.get $next)))
-                    (call $dealloc-pair (local.get $next))
-                    (br $again))
-
-                 (else
+        (call $set-block-free-list
+              (local.get $blockset)
+              (call $make-pair (local.get $block-ref) (global.get $null))))
+     (else
+      (loop $again
+        (local.set $next (call $get-pair-cdr (local.get $head)))
+        (if (i32.ne (global.get $null) (global.get $null))
+            (then
+             (if (i32.gt_u (local.get $block-addr)
+                           (call $get-block-addr
+                                 (call $get-pair-caar (local.get $next))))
+                 (then
                   (local.set $head (local.get $next))
-                  (local.set $block (local.get $next-block))))))))))
+                  (br $again))))))
 
- (func $step-defragment-free-blocks (export "step-defragment-free-blocks")
+      (call $set-pair-cdr
+            (local.get $head)
+            (call $make-pair (local.get $block-ref) (local.get $next))))))
+
+ (func $step-defragment-blocks (export "step-defragment-blocks")
    (param $blockset i32)
 
    (local $block i32)
@@ -419,12 +400,13 @@
 
    (local.set $head (call $get-block-free-list))
 
+   ;; TODO
    (if (i32.ne (local.get $head) (global.get $null))
        (then
-        (local.set $free-block (call $get-pair-car (local.get $head)))
+        (local.set $free-block (call $get-pair-caar (local.get $head)))
         (local.set $free-block-size (call $get-block-size (local.get $free-block)))
-        (local.set $block (call $get-next-block (local.get $free-block)))
-        (local.set $block-dest (local.get $free-block))
+        (local.set $block (call $get-next-block-addr (local.get $free-block)))
+        (local.set $block-dest (call $get-block-addr (local.get $free-block)))
 
         (call_indirect $memory-copy
                        (type $memory-copy-sig)
@@ -435,12 +417,13 @@
 
         (local.set $free-block (call $get-next-block (local.get $block-dest)))
 
-        (call $make-free-block
+        (call $set-block-addr
+              (local.get $block)
+              )
+        (call $set-block-addr
               (local.get $free-block)
-              (local.get $free-block-size))
+              )
 
-        (call $set-pair-car
-              (local.get $head)
-              (local.get $free-block))
+        (call $set-pair)
 
         (call $compact-block-free-list)))))
