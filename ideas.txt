@@ -280,3 +280,47 @@ new block design
       k = k(#blocks, #free-blocks, #0-length free blocks)
 
     which minimizes total work
+
+  block allocator
+    max heap
+    head = root
+    if head > size
+      if left is unused, bury left
+      if right is unused, bury right
+      if left and right < size then split head
+      if left and right >= size then recur with head = min of left or right
+      otherwise recur with head = left or right, whichever is >= size
+
+    if head = size
+      search free list for pred of head
+      remove head from free list
+      replace head with last element of heap
+    else
+      split head, sift down
+
+    defrag
+      scan free list for minimum separation pair (where high block is not last free block)
+      move high free block to low, merge, set high block to unused
+
+    unused free block
+      addr = (unsigned) -1 => free block
+      not in free list => separate heap count and free count
+      when heap encounters unused free block, bury block
+
+    bury block
+      set block size to 0
+      sift down
+
+    insert k v h
+
+      if target parent is size 0 and unused
+         then replace, do not incr count
+         else add as appropriate
+
+      sift up
+
+      if k == 0 add to left
+      if k == 1 add to right
+      if k & 1
+        then insert k >> 1, v, right
+        else insert k >> 1, v, left
