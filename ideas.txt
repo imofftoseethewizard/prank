@@ -298,10 +298,6 @@ new block design
     else
       split head, sift down
 
-    defrag
-      scan free list for minimum separation pair (where high block is not last free block)
-      move high free block to low, merge, set high block to unused
-
     unused free block
       addr = (unsigned) -1 => free block
       not in free list => separate heap count and free count
@@ -324,3 +320,34 @@ new block design
       if k & 1
         then insert k >> 1, v, right
         else insert k >> 1, v, left
+
+blocks defragmentation
+  incremental => cursor that runs along block list, persistent in blockset
+  general idea:
+    merge free blocks as cursor sweeps up through memory, copying allocated blocks down
+  algo:
+    terms
+      cursor
+      base free block
+      lower free block
+      upper free block
+    find free block before first free block above cursor
+      max of addr <= next block after cursor
+        top (log2 (sqrt heap size)) levels of heap
+          approx with (32-clz((32-clz)/2)
+        early exit for equality
+        otherwise scan forward from there until free block addr >= next block after cursor
+    find next free block after that
+      next in list
+      if none, reset cursor
+    move allocated blocks between down to addr of lower free block
+      move memory as a block
+      traverse block list
+        subtract size of lower block from each address
+      set cursor to addr of last allocated block moved
+    merge upper free block into lower
+      rm upper free block from the block list
+      rm upper free block from the free list
+      if upper free block is end block, set end block to lower free block
+      set upper free block addr to -1 to mark that it is unused
+      set lower free block addr to top of last allocated block moved
