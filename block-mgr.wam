@@ -220,17 +220,13 @@
  ;;
 
  (func $init-blockset (export "init-blockset")
-   (result i32)
+   (param $blockset-id i32)
 
    (local $blockset i32)
-   (local $blockset-id i32)
-
-   (local.set $blockset-id (call $get-blockset-count))
 
    (local.set $blockset (call $get-blockset (local.get $blockset-id)))
 
-   (call $incr-blockset-count)
-   (local.get $blockset-id))
+   )
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -1046,7 +1042,7 @@
 
    (local.set $block-addr
               (call_indirect $memory-grow
-n                             (type $memory-grow-sig)
+                             (type $memory-grow-sig)
                              (local.get $client-id)
                              (local.get $page-count)))
 
