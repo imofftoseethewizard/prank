@@ -13,7 +13,22 @@
  (import "pairs" "get-pair-cdr"          (func $get-pair-cdr         (param i32)                 (result i32)))
  (import "values" "get-value-tag"        (func $get-value-tag        (param i32)                 (result i32)))
 
+ (import "block-mgr" "memory-copy" (table $block-mgr-memory-copy))
+ (import "block-mgr" "memory-grow" (table $block-mgr-memory-grow))
+ (import "block-mgr" "memory-size" (table $block-mgr-memory-size))
+
+ (memory $memory (export "memory") 1)
+
  (include "./globals.wam")
+
+ (func $init-bytevectors (export "init-bytevectors")
+   (call $init-blockset (global.get $bytevectors-blockset-id))
+
+   (table.set $block-mgr-memory-copy (global.get $bytevectors-blockset-id) (ref.func $memory-copy))
+   (table.set $block-mgr-memory-grow (global.get $bytevectors-blockset-id) (ref.func $memory-grow))
+   (table.set $block-mgr-memory-size (global.get $bytevectors-blockset-id) (ref.func $memory-size)))
+
+ (include "./memory-proxies.wam")
 
  (func $is-bytevector (export "is-bytevector")
    (param $value i32)
@@ -27,34 +42,40 @@
       (i32.const 0))))
 
  (func $alloc-bytevector (export "make-bytevector")
-   (param $length i32)
+   (param $size i32)
    (result i32)
 
    (local $bv i32)
 
    (local.set $bv
-              (call $alloc-boxed-block
+              (call $make-box
                     (global.get $type-block-bytevector)
-                    (local.get $length)))
-
+                    (call $alloc-block
+                          (global.get $bytevectors-blockset-id)
+                          (local.get $size))))
    (local.get $bv))
 
  (func $dealloc-bytevector (export "dealloc-bytevector")
    (param $bv i32)
+
+   (call $dealloc-block
+         (global.get $bytevectors-blockset-id)
+         (call $get-box-value (local.get $bv)))
+
    (call $dealloc-box (local.get $bv)))
 
  (func $make-bytevector (export "make-bytevector")
-   (param $length i32)
+   (param $size i32)
    (param $fill-value i32)
    (result i32)
 
-   (local.set $bv (call $alloc-bytevector (local.get $length)))
+   (local.set $bv (call $alloc-bytevector (local.get $size)))
 
-   (call $fill-block-i8
-         (call $get-box-value $bv)
-         (i32.const 0)
-         (local.get $length)
-         (local.get $fill-value))
+   (memory.fill
+    (call $get-bytevector-addr $bv)
+    (i32.const 0)
+    (local.get $size)
+    (local.get $fill-value))
 
    (local.get $bv))
 
@@ -62,34 +83,37 @@
    (param $list)
    (result i32)
 
-   (local $block i32)
+   (local $block-addr i32)
    (local $bv i32)
    (local $head i32)
    (local $idx i32)
 
    (local.set $bv (call $alloc-bytevector (call $get-list-length (local.get $list))))
 
+   (local.set $byte-addr (call $get-bytevector-addr (local.get $bv)))
    (local.set $head (local.get $list))
-   (local.set $idx (i32.const 0))
 
    (loop $again
      (if (i32.ne (local.get $head) (global.get $null))
          (then
-          (call $set-block-i8-element
-                (local.get $block)
-                (local.get $idx)
-                (call $get-pair-car (local.get $head)))
-          (local.set $idx (i32.add (local.get $idx) (i32.const 1)))
+          (i32.store8 (local.get $byte-addr) (call $get-pair-car (local.get $head)))
+          (local.set $byte-addr (i32.add (local.get $byte-addr) (i32.const 1)))
           (local.set $head (call $get-pair-cdr (local.get $head)))
           (br $again))))
 
    (local.get $bv))
 
- (func $get-bytevector-length (export "get-bytevector-length")
+ (func $get-bytevector-size (export "get-bytevector-size")
    (param $bv i32)
    (result i32)
 
-   (call $get-block-length (call $get-box-value (local.get $bv))))
+   (call $get-block-size (call $get-box-value (local.get $bv))))
+
+ (func $get-bytevector-addr (export "get-bytevector-addr")
+   (param $bv i32)
+   (result i32)
+
+   (call $get-block-addr (call $get-box-value (local.get $bv))))
 
  (func $get-bytevector-element (export "get-bytevector-element")
    (param $bv i32)
@@ -100,9 +124,10 @@
 
    (local.set $block (call $get-box-value (local.get $bv)))
 
-   (if (i32.lt_u (local.get $idx) (call $get-block-length (local.get $block)))
+   (if (i32.lt_u (local.get $idx) (call $get-block-size (local.get $block)))
        (then
-        (call $get-block-i8-element (local.get $block) (local.get $idx)))
+        (i32.load8_u (i32.add (local.get $get-block-addr (local.get $block))
+                              (local.get $idx))))
      (else
       (global.get $null))))
 
@@ -111,13 +136,15 @@
    (param $idx i32)
    (param $byte i32)
 
+   (local $block i32)
+
    (local.set $block (call $get-box-value (local.get $bv)))
 
-   (if (i32.lt_u (local.get $idx) (call $get-block-length (local.get $block)))
+   (if (i32.lt_u (local.get $idx) (call $get-block-size (local.get $block)))
        (then
-        (call $set-block-i8-element (local.get $block) (local.get $idx) (local.get $byte)))
-     (else
-      (global.get $null))))
+        (i32.store8 (i32.add (local.get $get-block-addr (local.get $block))
+                             (local.get $idx))
+                    (local.get $byte)))))
 
  (func $make-bytevector-copy (export "make-bytevector-copy")
    (param $bv i32)
@@ -127,16 +154,13 @@
 
    (local $new-bv i32)
 
-   (local.set $length )
-
    (local.set $new-bv (call $alloc-bytevector (i32.sub (local.get $end)
                                                        (local.get $start))))
-   (call $copy-block-i8-range
-         (call $get-box-value (local.get $bv))
-         (local.get $start)
-         (local.get $end)
-         (call $get-box-value (local.get $new-bv))
-         (i32.const 0))
+
+   (memory.copy (call $get-bytevector-addr (local.get $new-bv))
+                (i32.add (call $get-bytevector-addr (local.get $bv))
+                         (local.get $start))
+                (local.get $size))
 
    (local.get $new-bv))
 
@@ -148,7 +172,7 @@
 
    (local $new-bv i32)
 
-   (i32.and (i32.lt_u (local.get $end) (call $get-bytevector-length (local.get $bv)))
+   (i32.and (i32.lt_u (local.get $end) (call $get-bytevector-size (local.get $bv)))
             (i32.le_u (local.get $start) (local.get $end))))
 
  (func $copy-bytevector-range (export "copy-bytevector-range")
@@ -158,12 +182,11 @@
    (param $start i32)
    (param $end i32)
 
-   (call $copy-block-i8-range
-         (call $get-box-value (local.get $bv-from))
-         (local.get $start)
-         (local.get $end)
-         (call $get-box-value (local.get $bv-to))
-         (local.get $at)))
+   (memory.copy (i32.add (call $get-bytevector-addr (local.get $bv-to))
+                         (local.get $at))
+                (i32.add (call $get-bytevector-addr (local.get $bv-from))
+                         (local.get $start))
+                (i32.sub (local.get $end) (local.get $start))))
 
  (func $can-copy-bytevector-range (export "can-copy-bytevector-range")
    (param $bv-to i32)
@@ -173,15 +196,15 @@
    (param $end i32)
    (result i32)
 
-   (local $to-length i32)
-   (local.set $to-length (call $get-bytevector-length (local.get $to)))
+   (local $to-size i32)
+   (local.set $to-size (call $get-bytevector-size (local.get $bv-to)))
 
    (i32.and (call $can-make-bytevector-copy
                   (local.get $bv-from)
                   (local.get $start)
                   (local.get $end))
-            (i32.and (i32.ge_u (local.get $to-length) (local.get $at))
-                     (i32.ge_u (i32.sub (local.get $to-length) (local.get $at))
+            (i32.and (i32.ge_u (local.get $to-size) (local.get $at))
+                     (i32.ge_u (i32.sub (local.get $to-size) (local.get $at))
                                (i32.sub (local.get $end) (local.get $start))))))
 
  (func $append-bytevectors (export "append-bytevectors")
@@ -189,29 +212,28 @@
    (param $bv-2 i32)
    (result i32)
 
+   (local $block-addr i32)
    (local $bv i32)
-   (local $length-1 i32)
-   (local $length-2 i32)
+   (local $size-1 i32)
+   (local $size-2 i32)
 
-   (local.set $length-1 (call $get-bytevector-length (local.get $bv-1)))
-   (local.set $length-2 (call $get-bytevector-length (local.get $bv-2)))
+   (local.set $size-1 (call $get-bytevector-size (local.get $bv-1)))
+   (local.set $size-2 (call $get-bytevector-size (local.get $bv-2)))
 
    (local.set $bv (call $alloc-bytevector
-                        (i32.add (local.get $length-1) (local.get $length-2))))
+                        (i32.add (local.get $size-1) (local.get $size-2))))
 
-   (call $copy-bytevector-range
-         (local.get $bv)
-         (i32.const 0)
-         (local.get $bv-1)
-         (i32.const 0)
-         (local.get $length-1))
+   (local.set $block-addr (call $get-bytevector-addr (local.get $bv)))
 
-   (call $copy-bytevector-range
-         (local.get $bv)
-         (local.get $length-1)
-         (local.get $bv-2)
-         (i32.const 0)
-         (local.get $length-2))
+   (memory.copy
+    (local.get $block-addr)
+    (call $get-bytevector-addr (local.get $bv-1))
+    (local.get $size-1))
+
+   (memory.copy
+    (i32.add (local.get $block-addr) (local.get $size-1))
+    (call $get-bytevector-addr (local.get $bv-2))
+    (local.get $size-2))
 
    (local.get $bv))
 

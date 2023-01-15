@@ -15,22 +15,8 @@
    (table.set $block-mgr-memory-grow (global.get $numbers-blockset-id) (ref.func $memory-grow))
    (table.set $block-mgr-memory-size (global.get $numbers-blockset-id) (ref.func $memory-size)))
 
- (func $memory-copy (export "memory-copy")
-   (param $dest-addr i32)
-   (param $source-addr i32)
-   (param $size i32)
-   (memory.copy (local.get $dest-addr)
-                (local.get $source-addr)
-                (local.get $size)))
-
- (func $memory-grow (export "memory-grow")
-   (param $page-count i32)
-   (result i32)
-   (memory.grow (local.get $page-count)))
-
- (func $memory-size (export "memory-size")
-   (result i32)
-   (memory.size))
+ ;; defines $memory-copy $memory-grow $memory-size
+ (include "./memory-proxies.wam")
 
  (func $make-small-integer (export "make-small-integer")
    (param $x i32)
