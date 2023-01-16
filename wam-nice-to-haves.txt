@@ -1,0 +1,69 @@
+wam -- web assembly macro format
+
+include -- includes text verbatim.
+debug -- enclosed items only included in debug builds
+
+some sort of template/macro capability to abstract similar code bodies
+that can't/shouldn't be WASM funcs. see $estimate-free-entry-infremum
+in block-mgr.wam: this isn't easily functionalized due to the number
+of parameters/results it would require, and it's really just a call
+and a conditional. It could be turned into a loop, but a loop that's
+always just two iterations -- one for left, one for right -- just seems
+artificial and weird, better would be something like
+
+ (func $estimate-free-entry-infremum (export "estimate-free-entry-infremum")
+   (param $heap i32)
+   (param $max-addr i32)
+   (param $depth i32)
+   (result i32 i32)
+
+   (local $block-addr i32)
+   (local $free-entry i32)
+   (local $infr-block-addr i32)
+   (local $infr-free-entry i32)
+
+   (local.set $free-entry (call $get-heap-element-entry (local.get $heap)))
+   (local.set $block-addr (call $get-free-entry-addr (local.get $free-entry)))
+
+   (if (i32.le_u (local.get $block-addr) (local.get $max-addr))
+       (then
+        (local.set $infr-free-entry (local.get $free-entry))
+        (local.set $infr-block-addr (local.get $block-addr)))
+     (else
+      (local.set $infr-free-entry (global.get $null))
+      (local.set $infr-block-addr (global.get $null))))
+
+   (if (local.get $depth)
+       (then
+        (local.set $left (call $get-left-heap (local.get $heap)))
+        (local.set $right (call $get-right-heap (local.get $heap)))
+        (expand $recur-estimate-free-entry-infremum $left)
+        (expand $recur-estimate-free-entry-infremum $right)))
+
+   ;; Return values
+
+   (local.get $infr-free-entry)
+   (local.get $infr-block-addr))
+
+ (macro $recur-estimate-free-entry-infremum
+   (label $heap) ;; syntactically in the (expand ...) form, this should be a label
+                 ;; to prevent multiple evaluation
+
+   (if (i32.neq (local.get $heap) (global.get $null))
+       (then
+        (local.set $free-entry
+                   (local.set $block-addr
+                              (call $estimate-free-entry-infremum
+                                    (local.get $heap)
+                                    (local.get $max-addr)
+                                    (i32.sub (local.get $depth)
+                                             (i32.const 1)))))
+
+        (if (i32.neq (local.get $free-entry) (local.get $null))
+            (then
+             (if (i32.or (i32.eq (local.get $infr-free-entry (global.get $null)))
+                         (i32.gt_u (local.get $block-addr)
+                                   (local.get $infr-block-addr)))
+                 (then
+                  (local.set $infr-free-entry (local.get $free-entry))
+                  (local.set $infr-block-addr (local.get $block-addr)))))))))

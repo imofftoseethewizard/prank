@@ -1,0 +1,3 @@
+(import "block-mgr" "memory-copy" (table $block-mgr-memory-copy))
+(import "block-mgr" "memory-grow" (table $block-mgr-memory-grow))
+(import "block-mgr" "memory-size" (table $block-mgr-memory-size))
