@@ -4,14 +4,14 @@ include -- includes text verbatim.
 debug -- enclosed items only included in debug builds
 
 some sort of template/macro capability to abstract similar code bodies
-that can't/shouldn't be WASM funcs. see $estimate-free-entry-infremum
+that can't/shouldn't be WASM funcs. see $estimate-free-entry-infimum
 in block-mgr.wam: this isn't easily functionalized due to the number
 of parameters/results it would require, and it's really just a call
 and a conditional. It could be turned into a loop, but a loop that's
 always just two iterations -- one for left, one for right -- just seems
 artificial and weird, better would be something like
 
- (func $estimate-free-entry-infremum (export "estimate-free-entry-infremum")
+ (func $estimate-free-entry-infimum (export "estimate-free-entry-infimum")
    (param $heap i32)
    (param $max-addr i32)
    (param $depth i32)
@@ -35,17 +35,17 @@ artificial and weird, better would be something like
 
    (if (local.get $depth)
        (then
-        (local.set $left (call $get-left-heap (local.get $heap)))
-        (local.set $right (call $get-right-heap (local.get $heap)))
-        (expand $recur-estimate-free-entry-infremum $left)
-        (expand $recur-estimate-free-entry-infremum $right)))
+        (local.set $left (call $get-heap-left (local.get $heap)))
+        (local.set $right (call $get-heap-right (local.get $heap)))
+        (expand $recur-estimate-free-entry-infimum $left)
+        (expand $recur-estimate-free-entry-infimum $right)))
 
    ;; Return values
 
    (local.get $infr-free-entry)
    (local.get $infr-block-addr))
 
- (macro $recur-estimate-free-entry-infremum
+ (macro $recur-estimate-free-entry-infimum
    (label $heap) ;; syntactically in the (expand ...) form, this should be a label
                  ;; to prevent multiple evaluation
 
@@ -53,7 +53,7 @@ artificial and weird, better would be something like
        (then
         (local.set $free-entry
                    (local.set $block-addr
-                              (call $estimate-free-entry-infremum
+                              (call $estimate-free-entry-infimum
                                     (local.get $heap)
                                     (local.get $max-addr)
                                     (i32.sub (local.get $depth)

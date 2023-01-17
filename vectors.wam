@@ -11,13 +11,19 @@
  (import "pairs" "get-pair-cdr"         (func $get-pair-cdr        (param i32)     (result i32)))
  (import "values" "get-value-tag"       (func $get-value-tag       (param i32)     (result i32)))
 
+ (include "./block-mgr-memory-proxy-imports.wam")
+
  (include "./globals.wam")
  (include "./gc-client.wam")
+ (include "./block-mgr-memory-proxies.wam")
 
- ;;=============================================================================
- ;;
- ;; Vectors
- ;;
+ (memory $memory (export "memory") 1)
+
+ (func $init-vectors (export "init-vectors")
+   (call $init-blockset (global.get $vector-blockset-id))
+
+   ;; defined in block-mgr-memory-proxies.wam
+   (call $init-blockset-memory-proxies (global.get $vector-blockset-id)))
 
  (func $is-vector (export "is-vector")
    (param $value i32)
@@ -31,9 +37,11 @@
  (func $alloc-vector (export "alloc-vector")
    (param $length i32)
    (result i32)
-   (call $alloc-boxed-block
+   (call $make-box
          (global.get $type-vector)
-         (call $calc-vector-size (local.get $length))))
+         (call $alloc-block
+               (global.get $vector-blockset-id)
+               (call $calc-vector-size (local.get $length)))))
 
  (func $calc-vector-size (export "calc-vector-size")
    (param $length i32)
@@ -42,7 +50,12 @@
 
  (func $dealloc-vector (export "dealloc-vector")
    (param $v i32)
-   (call $dealloc-boxed-block (local.get $v)))
+
+   (call $dealloc-block
+         (global.get $vector-blockset-id)
+         (call $get-box-value (local.get $v)))
+
+   (call $dealloc-box (local.get $v)))
 
  (func $make-vector (export "make-vector")
    (param $length i32)
@@ -54,14 +67,19 @@
    (local $v i32)
 
    (local.set $v (call $alloc-vector (local.get $length)))
-   (local.set $block (call $get-box-value (local.get $v)))
+   (local.set $value-addr (call $get-vector-addr (local.get $v)))
+
+   (local.set $idx (i32.const 0))
 
    (loop $again
-     (call $set-block-element (local.get $block) (local.get $idx) (local.get $value))
+     (i32.store (local.get $value-addr) (local.get $value))
+
      (call $add-ref (local.get $v) (local.get $value))
+
      (if (i32.lt_u (local.get $idx) (local.get $length))
          (then
           (local.set (i32.add (local.get $idx) (i32.const 1)))
+          (local.set (i32.add (local.get $value-addr) (global.get $value-size)))
           (br $again))))
 
    (local.get $v))
@@ -79,18 +97,17 @@
    (local $value i32)
 
    (local.set $v (call $alloc-vector (call $get-list-length (local.get $list))))
-   (local.set $block (call $get-box-value (local.get $v)))
 
+   (local.set $value-addr (call $get-vector-addr (local.get $v)))
    (local.set $head (local.get $list))
-   (local.set $idx (i32.const 0))
 
    (loop $again
      (if (i32.ne (local.get $head) (global.get $null))
          (then
           (local.set $value (call $get-pair-car (local.get $list)))
-          (call $set-block-element (local.get $block) (local.get $idx) (local.get $value))
+          (i32.store (local.get $value-addr) (local.get $value))
           (call $add-ref (local.get $v) (local.get $value))
-          (local.set $idx (i32.add (local.get $idx) (i32.const 1)))
+          (local.set $value-addr (i32.add (local.get $value-addr) (global.get $value-size)))
           (local.set $head (call $get-pair-cdr (local.get $head)))
           (br $again))))
 
@@ -99,14 +116,16 @@
  (func $get-vector-length (export "get-vector-length")
    (param $v i32)
    (result i32)
-   (call $get-block-data-size (i32.shr_u (call $get-box-value (local.get $v))
-                                         (global.get $value-size-bits))))
+   (call $get-block-size (i32.shr_u (call $get-box-value (local.get $v))
+                                    (global.get $value-size-bits))))
 
  (func $get-vector-element (export "get-vector-element")
    (param $v i32)
    (param $idx i32)
    (result i32)
-   (call $get-block-element (call $get-box-value (local.get $v)) (local.get $idx)))
+   (i32.load (i32.add (call $get-vector-address (local.get $v))
+                      (i32.shl (local.get $idx)
+                               (global.get $value-size-bits)))))
 
 
 )

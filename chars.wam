@@ -44,6 +44,30 @@
            (then (32.const 3))
            (else (32.const 4))))))))
 
+ (func $calc-encoded-length (export "calc-encoded-length")
+   (param $byte i32)
+   (result i32)
+   (if (result i32) (i32.eqz (i32.and (local.get $byte) (i32.const 0x80)))
+     (then
+      (i32.const 1)
+      (else
+       (if (result i32) (i32.eq (i32.and (local.get $byte) (i32.const 0xe0))
+                                (i32.const 0xc0))
+         (then
+          (i32.const 2))
+         (else
+          (if (result i32) (i32.eq (i32.and (local.get $byte) (i32.const 0xf0))
+                                   (i32.const 0xe0))
+            (then
+             (i32.const 3))
+            (else
+             (if (result i32) (i32.eq (i32.and (local.get $byte) (i32.const 0xf8))
+                                      (i32.const 0xf0))
+               (then
+                (i32.const 4))
+               (else
+                (i32.const -1)))))))))))
+
  (func $encode-char (export "encode-char")
    (param $char i32)
    (result i32)

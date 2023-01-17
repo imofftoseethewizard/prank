@@ -351,3 +351,20 @@ blocks defragmentation
       if upper free block is end block, set end block to lower free block
       set upper free block addr to -1 to mark that it is unused
       set lower free block addr to top of last allocated block moved
+
+TODO:
+  string repr choices
+    ucs-4 ... wasteful for most common cases
+    utf-8 efficient, but slow to index
+    emacs: unibyte, multibyte types
+    index for utf-8
+     each string has a most common character length. in some languages,
+       that may be 2 -- many asian languages, for example
+     what would an index look like that had a max 10% memory overhead budget? 20%?
+     ... ie. a 256 byte string gets 24 bytes of index
+     entry only for multibyte chars => most indexes would be 0.
+     also, perhaps only store index entries for some subset of multibyte chars,
+     say every 16 or more.
+     index fmt (sorted array):
+     short strings (n <256 bytes) -- idx byte offset
+     medium strings (256 <= n < 65536 bytes) -- idx

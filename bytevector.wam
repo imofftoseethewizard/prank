@@ -13,22 +13,16 @@
  (import "pairs" "get-pair-cdr"          (func $get-pair-cdr         (param i32)                 (result i32)))
  (import "values" "get-value-tag"        (func $get-value-tag        (param i32)                 (result i32)))
 
- (import "block-mgr" "memory-copy" (table $block-mgr-memory-copy))
- (import "block-mgr" "memory-grow" (table $block-mgr-memory-grow))
- (import "block-mgr" "memory-size" (table $block-mgr-memory-size))
+ (include "./block-mgr-memory-proxy-imports.wam")
+
+ (include "./globals.wam")
+ (include "./block-mgr-memory-proxies.wam")
 
  (memory $memory (export "memory") 1)
 
- (include "./globals.wam")
-
  (func $init-bytevectors (export "init-bytevectors")
    (call $init-blockset (global.get $bytevectors-blockset-id))
-
-   (table.set $block-mgr-memory-copy (global.get $bytevectors-blockset-id) (ref.func $memory-copy))
-   (table.set $block-mgr-memory-grow (global.get $bytevectors-blockset-id) (ref.func $memory-grow))
-   (table.set $block-mgr-memory-size (global.get $bytevectors-blockset-id) (ref.func $memory-size)))
-
- (include "./memory-proxies.wam")
+   (call $init-blockset-memory-proxies (global.get $bytevectors-blockset-id)))
 
  (func $is-bytevector (export "is-bytevector")
    (param $value i32)
