@@ -6,7 +6,7 @@
 
 SOURCES = \
 	algorithms.wam \
-	blocks.wam \
+	block-mgr.wam \
 	boxes.wam \
 	globals.wam \
 	kernel.wam \
@@ -18,7 +18,7 @@ SOURCES = \
 
 OBJECTS = \
 	algorithms.wasm \
-	blocks.wasm \
+	block-mgr.wasm \
 	boxes.wasm \
 	kernel.wasm \
 	lex.wasm \
