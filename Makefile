@@ -16,20 +16,39 @@ SOURCES = \
 	values.wam \
 	vectors.wam
 
+# OBJECTS = \
+# 	algorithms.wasm \
+# 	block-mgr.wasm \
+# 	boxes.wasm \
+# 	kernel.wasm \
+# 	lex.wasm \
+# 	memory.wasm \
+# 	pairs.wasm \
+# 	values.wasm \
+# 	vectors.wasm
+
 OBJECTS = \
-	algorithms.wasm \
 	block-mgr.wasm \
-	boxes.wasm \
-	kernel.wasm \
-	lex.wasm \
-	memory.wasm \
+	block-mgr-test-client.wasm \
+	lists.wasm \
 	pairs.wasm \
-	values.wasm \
-	vectors.wasm
+	values.wasm
+
+block-mgr.wat: globals.wam
+
+block-mgr-stub-client.wat: \
+	block-mgr-memory-proxies.wam \
+	block-mgr-memory-proxy-imports.wam \
+	block-mgr-stub-client.wam \
+	globals.wam
+
+pairs.wat: pairs.wam globals.wam gc-client.wam
+
+values.wat: values.wam globals.wam
 
 all: test
 
-objects: ${OBJECTS}
+wasm: ${OBJECTS}
 
 test: ${SOURCES}
 	WAM_DEBUG=1 make objects

@@ -68,12 +68,14 @@
  (func $set-value-data (export "set-value-data")
    (param $value i32)
    (param $data i32)
+   (result i32)
    (i32.or (call $get-value-tag (local.get $value))
            (local.get $data)))
 
  (func $set-value-tag (export "set-value-tag")
    (param $value i32)
    (param $tag i32)
+   (result i32)
    (i32.or (call $get-value-data (local.get $value))
            (local.get $tag)))
 

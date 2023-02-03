@@ -191,27 +191,27 @@
 
 (module
 
- (import "pairs" "dealloc-pair"    (func $dealloc-pair    (param i32)))
- (import "pairs" "get-pair-caaar"   (func $get-pair-caaar   (param i32)     (result i32)))
- (import "pairs" "get-pair-caadr"   (func $get-pair-caadr   (param i32)     (result i32)))
- (import "pairs" "get-pair-caar"   (func $get-pair-caar   (param i32)     (result i32)))
- (import "pairs" "get-pair-cadr"   (func $get-pair-cadr   (param i32)     (result i32)))
- (import "pairs" "get-pair-car"    (func $get-pair-car    (param i32)     (result i32)))
- (import "pairs" "get-pair-cdr"    (func $get-pair-cdr    (param i32)     (result i32)))
- (import "pairs" "get-pair-cdar"   (func $get-pair-cdar   (param i32)     (result i32)))
- (import "pairs" "get-pair-cddar"   (func $get-pair-cddar   (param i32)     (result i32)))
- (import "pairs" "get-pair-cddr"   (func $get-pair-cddr   (param i32)     (result i32)))
- (import "pairs" "get-pair-cdddr"   (func $get-pair-cdddr   (param i32)     (result i32)))
- (import "pairs" "make-pair"       (func $make-pair       (param i32 i32) (result i32)))
- (import "pairs" "set-pair-caar"   (func $set-pair-caar   (param i32 i32)))
- (import "pairs" "set-pair-caaar"   (func $set-pair-caaar   (param i32 i32)))
- (import "pairs" "set-pair-cadr"   (func $set-pair-cadr   (param i32 i32)))
- (import "pairs" "set-pair-cdar"   (func $set-pair-cdar   (param i32 i32)))
- (import "pairs" "set-pair-cddar"   (func $set-pair-cddar   (param i32 i32)))
- (import "pairs" "set-pair-cdddr"   (func $set-pair-cdddr   (param i32 i32)))
- (import "pairs" "set-pair-car"    (func $set-pair-car    (param i32 i32)))
- (import "pairs" "set-pair-cdr"    (func $set-pair-cdr    (param i32 i32)))
- (import "values" "get-value-tag"  (func $get-value-tag   (param i32)     (result i32)))
+ (import "pairs" "dealloc-pair"   (func $dealloc-pair   (param i32)))
+ (import "pairs" "get-pair-caaar" (func $get-pair-caaar (param i32)     (result i32)))
+ (import "pairs" "get-pair-caadr" (func $get-pair-caadr (param i32)     (result i32)))
+ (import "pairs" "get-pair-caar"  (func $get-pair-caar  (param i32)     (result i32)))
+ (import "pairs" "get-pair-cadr"  (func $get-pair-cadr  (param i32)     (result i32)))
+ (import "pairs" "get-pair-car"   (func $get-pair-car   (param i32)     (result i32)))
+ (import "pairs" "get-pair-cdar"  (func $get-pair-cdar  (param i32)     (result i32)))
+ (import "pairs" "get-pair-cddar" (func $get-pair-cddar (param i32)     (result i32)))
+ (import "pairs" "get-pair-cdddr" (func $get-pair-cdddr (param i32)     (result i32)))
+ (import "pairs" "get-pair-cddr"  (func $get-pair-cddr  (param i32)     (result i32)))
+ (import "pairs" "get-pair-cdr"   (func $get-pair-cdr   (param i32)     (result i32)))
+ (import "pairs" "make-pair"      (func $make-pair      (param i32 i32) (result i32)))
+ (import "pairs" "set-pair-caaar" (func $set-pair-caaar (param i32 i32)))
+ (import "pairs" "set-pair-caar"  (func $set-pair-caar  (param i32 i32)))
+ (import "pairs" "set-pair-cadr"  (func $set-pair-cadr  (param i32 i32)))
+ (import "pairs" "set-pair-car"   (func $set-pair-car   (param i32 i32)))
+ (import "pairs" "set-pair-cdar"  (func $set-pair-cdar  (param i32 i32)))
+ (import "pairs" "set-pair-cddar" (func $set-pair-cddar (param i32 i32)))
+ (import "pairs" "set-pair-cdddr" (func $set-pair-cdddr (param i32 i32)))
+ (import "pairs" "set-pair-cdr"   (func $set-pair-cdr   (param i32 i32)))
+ (import "values" "get-value-tag" (func $get-value-tag  (param i32)     (result i32)))
 
  (include "./globals.wam")
 
@@ -434,37 +434,54 @@
    (param $blockset i32)
    (local $addr i32)
    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-block-count)))
-   (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr) (i32.const 1)))))
+   (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
 
  (func $decr-blockset-heap-size (export "decr-blockset-heap-size")
    (param $blockset i32)
    (local $addr i32)
    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-heap-size)))
-   (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr) (i32.const 1)))))
+   (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
 
  (func $decr-blockset-free-list-length (export "decr-blockset-free-list-length")
    (param $blockset i32)
    (local $addr i32)
    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-free-list-length)))
-   (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr) (i32.const 1)))))
+   (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
 
  (func $incr-blockset-block-count (export "incr-blockset-block-count")
    (param $blockset i32)
    (local $addr i32)
    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-block-count)))
-   (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr) (i32.const 1)))))
+   (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1))))
 
  (func $incr-blockset-heap-size (export "incr-blockset-heap-size")
    (param $blockset i32)
    (local $addr i32)
    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-heap-size)))
-   (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr) (i32.const 1)))))
+   (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1))))
 
  (func $incr-blockset-free-list-length (export "incr-blockset-free-list-length")
    (param $blockset i32)
    (local $addr i32)
    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-free-list-length)))
-   (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr) (i32.const 1)))))
+   (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1))))
+
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Block Utilities
+ ;;
+
+ (func $make-block (export "make-block")
+   (param $addr i32)
+   (param $length i32)
+   (result i32)
+   (call $make-pair (local.get $addr) (local.get $length)))
+
+ (func $get-next-block-addr (export "get-next-block-addr")
+   (param $block i32)
+   (result i32)
+   (i32.add (call $get-block-addr (local.get $block))
+            (call $get-block-size (local.get $block))))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -490,23 +507,6 @@
    (param $block i32)
    (param $size i32)
    (call $set-pair-cdr (local.get $block) (local.get $size)))
-
- ;;-----------------------------------------------------------------------------
- ;;
- ;; Block Utilities
- ;;
-
- (func $get-next-block-addr (export "get-next-block-addr")
-   (param $block i32)
-   (result i32)
-   (i32.add (call $get-block-addr (local.get $block))
-            (call $get-block-size (local.get $block))))
-
- (func $make-block (export "make-block")
-   (param $addr i32)
-   (param $length i32)
-   (result i32)
-   (call $make-pair (local.get $addr) (local.get $length)))
 
  ;;-----------------------------------------------------------------------------
  ;;

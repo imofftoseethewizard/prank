@@ -1,2 +1,6 @@
 *.wasm
 *.wat
+*.log
+venv/
+__pycache__/
+setup.rc

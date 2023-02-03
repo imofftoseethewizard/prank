@@ -1,9 +1,9 @@
 (func $init-blockset-memory-proxies (export "init-blockset-memory-proxies")
   (param $blockset-id i32)
 
-  (table.set $block-mgr-memory-copy (global.get $blockset-id) (ref.func $memory-copy))
-  (table.set $block-mgr-memory-grow (global.get $blockset-id) (ref.func $memory-grow))
-  (table.set $block-mgr-memory-size (global.get $blockset-id) (ref.func $memory-size)))
+  (table.set $block-mgr-memory-copy (local.get $blockset-id) (ref.func $memory-copy))
+  (table.set $block-mgr-memory-grow (local.get $blockset-id) (ref.func $memory-grow))
+  (table.set $block-mgr-memory-size (local.get $blockset-id) (ref.func $memory-size)))
 
 (func $memory-copy (export "memory-copy")
   (param $dest-addr i32)

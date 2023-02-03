@@ -368,3 +368,20 @@ TODO:
      index fmt (sorted array):
      short strings (n <256 bytes) -- idx byte offset
      medium strings (256 <= n < 65536 bytes) -- idx
+
+block-mgr testing
+  test values, pairs first
+  create js test module
+  initialization
+    check separation of blocksets
+    run tests on blockset id > 0
+  tests of aux func with empty block list
+  test provision
+    small
+    multi-page
+    when memory.grow not necessary
+    near page boundary
+
+  test infrastructure
+    file watcher
+    add test to makefile
