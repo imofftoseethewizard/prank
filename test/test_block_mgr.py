@@ -720,3 +720,55 @@ def test_defrag_many_1k_blocks():
 
     assert count < k/4
     assert block_mgr.get_blockset_free_list_length(blockset) == 1
+
+def test_relocation():
+
+    N = 1024
+    k = 96
+
+    pairs.init_pairs()
+    block_mgr_test_client.init(blockset_id)
+
+    validate_blockset()
+
+    bs = [
+        block_mgr.alloc_block(blockset_id, N)
+        for i in range(k)
+    ]
+
+    for i, b in enumerate(bs):
+        block_mgr_test_client.fill(b, i)
+
+    for i, b in enumerate(bs):
+        assert block_mgr_test_client.check_fill(b, i)
+
+    assert not block_mgr_test_client.check_fill(bs[0], 1)
+
+    remaining_blocks = []
+    for i, b in enumerate(bs):
+        if i % 2:
+            block_mgr.dealloc_block(blockset_id, b)
+            validate_blockset()
+        else:
+            remaining_blocks.append(b)
+
+    block_mgr.step_defragment_blockset(blockset)
+
+    validate_blockset()
+
+    count = 0
+
+    while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
+
+        block_mgr.step_defragment_blockset(blockset)
+
+        validate_blockset()
+
+        count += 1
+
+    assert count < k
+    assert block_mgr.get_blockset_free_list_length(blockset) == 1
+
+    for i, b in enumerate(bs):
+        if b in remaining_blocks:
+            assert block_mgr_test_client.check_fill(b, i)
