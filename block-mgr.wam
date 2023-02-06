@@ -1602,7 +1602,9 @@
         (if (call $is-unused-heap-block (local.get $heap))
             (then
              (call $dealloc-free-list-entry (call $get-heap-node-entry (local.get $heap)))
-             (call $set-heap-node-entry (local.get $heap) (local.get $free-list-entry)))
+             (call $set-heap-node-entry (local.get $heap) (local.get $free-list-entry))
+             ;; There's no child node to swap with.
+             (return))
           (else
 
            (local.set $child-node (call $make-heap-node (local.get $free-list-entry)))
