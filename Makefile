@@ -1,5 +1,5 @@
 %.wasm: %.wat
-	${WAT2WASM} $*.wat -o $@
+	${WAT2WASM} $*.wat -o $@ --debug-names
 
 %.wat: %.wam
 	${WAM} $*.wam >$@
@@ -36,10 +36,10 @@ OBJECTS = \
 
 block-mgr.wat: globals.wam
 
-block-mgr-stub-client.wat: \
+block-mgr-test-client.wat: \
 	block-mgr-memory-proxies.wam \
 	block-mgr-memory-proxy-imports.wam \
-	block-mgr-stub-client.wam \
+	block-mgr-test-client.wam \
 	globals.wam
 
 pairs.wat: pairs.wam globals.wam gc-client.wam

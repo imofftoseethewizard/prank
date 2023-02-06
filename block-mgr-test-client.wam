@@ -8,12 +8,12 @@
 
  (memory (export "memory") 1)
 
- (start $init)
  (func $init (export "init")
+   (param $blockset-id i32)
 
    ;; init blockset 0 st during defrag blocks >8KB are immobile, single blocks
    ;; between 4-8KB can be moved, and groups of blocks in aggregate < 4KB can be
    ;; moved.
-   (call $init-blockset (i32.const 0) (i32.const 0x2000) (i32.const 0x1000))
+   (call $init-blockset (local.get $blockset-id) (i32.const 0x2000) (i32.const 0x1000))
 
-   (call $init-blockset-memory-proxies (i32.const 0))))
+   (call $init-blockset-memory-proxies (local.get $blockset-id))))

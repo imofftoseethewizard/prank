@@ -385,3 +385,24 @@ block-mgr testing
   test infrastructure
     file watcher
     add test to makefile
+
+defragmentation
+  policy trigger
+    # free vs # allocated
+    total size free vs total size allocated
+
+  compact free list: merge memory-adjacent free blocks
+     adjust add-free-block to ensure that adjacent free blocks are merged
+
+  two phases
+    1. move blocks from after the top of the heap block to after lower heap blocks
+       until there are no blocks after the top of the heap block, or the block
+       after the top of the heap block is bigger than any other free block
+       or it is immobile
+    2. sweep from bottom to top, moving allocated blocks down
+       if heap root changes during phase 2, reset and resume phase 1
+
+  change split block to use the end of the block instead
+  move allocated blocks after larger free blocks
+    to the end of smaller free blocks
+    use the heap
