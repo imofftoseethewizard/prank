@@ -696,6 +696,12 @@
  ;; Allocation
  ;;
 
+ (func $stub-alloc-block (export "stub-alloc-block")
+   (param $blockset-id i32)
+   (param $size i32)
+   (result i32)
+   (global.get $null))
+
  (func $alloc-block (export "alloc-block")
    (param $blockset-id i32)
    (param $size i32)
@@ -897,6 +903,10 @@
  ;;
  ;; Deallocation
  ;;
+
+ (func $stub-dealloc-block (export "stub-dealloc-block")
+   (param $blockset-id i32)
+   (param $block-ref i32))
 
  (func $dealloc-block (export "dealloc-block")
    (param $blockset-id i32)

@@ -1,4 +1,5 @@
 import random
+import time
 
 from itertools import zip_longest
 
@@ -701,7 +702,7 @@ def test_defrag_many_1k_blocks():
 
     count = 0
 
-    while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
+    while block_mgr.get_blockset_free_list_length(blockset) > 1 and count < k:
 
         block_mgr.step_defragment_blockset_free_list(blockset)
 
@@ -726,7 +727,7 @@ def test_defrag_many_1k_blocks():
 
     count = 0
 
-    while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
+    while block_mgr.get_blockset_free_list_length(blockset) > 1 and count < k:
 
         block_mgr.step_defragment_blockset_free_list(blockset)
 
@@ -747,7 +748,7 @@ def test_defrag_many_1k_blocks():
 
     count = 0
 
-    while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
+    while block_mgr.get_blockset_free_list_length(blockset) > 1 and count < k:
 
         block_mgr.step_defragment_blockset_free_list(blockset)
 
@@ -793,7 +794,7 @@ def test_relocation():
 
     count = 0
 
-    while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
+    while block_mgr.get_blockset_free_list_length(blockset) > 1 and count < k:
 
         block_mgr.step_defragment_blockset_free_list(blockset)
 
@@ -961,8 +962,24 @@ def test_stochastic():
     # a linear envelope, starting at 95% at 0 total allocated, dropping
     # to 50% at M, and then falling to 0 by M * 1.25.
 
-    problem_step = 478030
-    log_action_min = 477900
+    problem_step = 4780300
+    log_action_min = 4779000
+
+    elapsed_ns = 0
+    allocs = 0
+    deallocs = 0
+
+    block_mgr.stub_alloc_block(blockset, 1)
+    tic = time.perf_counter_ns()
+    block_mgr.stub_alloc_block(blockset, 1)
+    toc = time.perf_counter_ns()
+    alloc_overhead_ns = toc - tic
+
+    block_mgr.stub_dealloc_block(blockset, 1)
+    tic = time.perf_counter_ns()
+    block_mgr.stub_dealloc_block(blockset, 1)
+    toc = time.perf_counter_ns()
+    dealloc_overhead_ns = toc - tic
 
     def step_action_linear(i):
         r = total_allocated / M
@@ -993,13 +1010,22 @@ def test_stochastic():
 
     def alloc_block(i):
         nonlocal total_allocated
+        nonlocal allocs
+        allocs += 1
         size = w * distribution(L)
-        blocks.append(block_mgr.alloc_block(blockset_id, size))
+        tic = time.perf_counter_ns()
+        b = block_mgr.alloc_block(blockset_id, size)
+        toc = time.perf_counter_ns()
+        nonlocal elapsed_ns
+        elapsed_ns += toc - tic
+        blocks.append(b)
         total_allocated += size
 
     def dealloc_block(i):
         nonlocal blocks
         nonlocal total_allocated
+        nonlocal deallocs
+        deallocs += 1
         b_i = random.randrange(len(blocks))
         b = blocks[b_i]
         if i == problem_step:
@@ -1047,10 +1073,14 @@ def test_stochastic():
             # # print(format_addr(rl), rsz)
             # block_mgr.step_defragment_blockset_free_list(blockset)
         else:
+            tic = time.perf_counter_ns()
             block_mgr.dealloc_block(blockset_id, b)
+            toc = time.perf_counter_ns()
+            nonlocal elapsed_ns
+            elapsed_ns += toc - tic
 
     # Total number of simulation steps
-    N = 100000
+    N = 500000
     # N = 46040 -- hangs
     #N = 46042
 
@@ -1081,8 +1111,12 @@ def test_stochastic():
             raise
 
     print_block_mgr_state()
-    print(total_allocated)
-    print(i)
-    # validate_blockset()
-    print('done')
-    assert False
+    print(f'raw allocator time: {elapsed_ns/1_000_000_000:0.4f}')
+    adjusted_elapsed_ns = elapsed_ns - allocs * alloc_overhead_ns - deallocs * dealloc_overhead_ns
+    print(f'adjusted allocator time: {adjusted_elapsed_ns/1_000_000_000:0.4f}')
+    print(alloc_overhead_ns, dealloc_overhead_ns)
+    print(allocs, deallocs)
+    # print(i)
+    # # validate_blockset()
+    # print('done')
+    # assert False
