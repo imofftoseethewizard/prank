@@ -1,5 +1,6 @@
 import os
 import subprocess
+import threading
 import time
 
 from datetime import datetime
@@ -32,20 +33,18 @@ def make_wasm(e):
     f.close()
 
 def test_wasm(e):
-    p = subprocess.run(['pytest'], capture_output=True, cwd=project_root, text=True)
-    f = test_log_file.open('a')
+    subprocess.run(['pkill', 'pytest'])
+    threading.Thread(target=start_test, args=(e,)).start()
+
+def start_test(e):
+    f = test_log_file.open('ab', buffering=0)
 
     rel_path = str(Path(e.src_path).relative_to(project_root))
     timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    f.write(f'\n{timestamp} {rel_path} {e.event_type}\n'.encode())
 
-    f.write(f'\n{timestamp} {rel_path} {e.event_type}\n')
-
-    f.write('stdout:\n')
-    f.write(p.stdout)
-
-    if p.stderr:
-        f.write('\nstderr:\n')
-        f.write(p.stderr)
+    p = subprocess.run(['stdbuf', '-i0', '-o0', '-e0', 'pytest'],
+                       stdout=f, stderr=f, cwd=project_root)
 
     f.close()
 

@@ -219,17 +219,21 @@
  (memory (export "memory") 1)
 
  (global $blockset-size-bits (export "blockset-size-bits") i32 (i32.const 6))
+ (global $debug (export "#debug") (mut i32) (i32.const 0))
 
- (global $blockset-block-count           (export "blockset-block-count")           i32 (i32.const 0x00))
- (global $blockset-block-list            (export "blockset-block-list")            i32 (i32.const 0x04))
- (global $blockset-defrag-cursor         (export "blockset-defrag-cursor")         i32 (i32.const 0x08))
- (global $blockset-end-block-ref         (export "blockset-end-block-ref")         i32 (i32.const 0x0c))
- (global $blockset-heap                  (export "blockset-heap")                  i32 (i32.const 0x10))
- (global $blockset-heap-size             (export "blockset-heap-size")             i32 (i32.const 0x14))
- (global $blockset-free-list             (export "blockset-free-list")             i32 (i32.const 0x18))
- (global $blockset-free-list-length      (export "blockset-free-list-length")      i32 (i32.const 0x1c))
- (global $blockset-immobile-block-size   (export "blockset-immobile-block-size")   i32 (i32.const 0x20))
- (global $blockset-relocation-size-limit (export "blockset-relocation-size-limit") i32 (i32.const 0x24))
+ (global $blockset-block-count                (export "blockset-block-count")                i32 (i32.const 0x00))
+ (global $blockset-block-list                 (export "blockset-block-list")                 i32 (i32.const 0x04))
+ (global $blockset-defrag-cursor              (export "blockset-defrag-cursor")              i32 (i32.const 0x08))
+ (global $blockset-end-block-ref              (export "blockset-end-block-ref")              i32 (i32.const 0x0c))
+ (global $blockset-heap                       (export "blockset-heap")                       i32 (i32.const 0x10))
+ (global $blockset-heap-size                  (export "blockset-heap-size")                  i32 (i32.const 0x14))
+ (global $blockset-free-list                  (export "blockset-free-list")                  i32 (i32.const 0x18))
+ (global $blockset-free-list-length           (export "blockset-free-list-length")           i32 (i32.const 0x1c))
+ (global $blockset-immobile-block-size        (export "blockset-immobile-block-size")        i32 (i32.const 0x20))
+ (global $blockset-relocation-size-limit      (export "blockset-relocation-size-limit")      i32 (i32.const 0x24))
+ (global $blockset-free-space                 (export "blockset-free-space")                 i32 (i32.const 0x28))
+ (global $blockset-heap-ratio-coefficient     (export "blockset-heap-ratio-coefficient")     i32 (i32.const 0x2c))
+ (global $blockset-inactive-ratio-coefficient (export "blockset-inactive-ratio-coefficient") i32 (i32.const 0x30))
 
  (type $memory-copy-sig (func (param i32 i32 i32)))
  (type $memory-grow-sig (func (param i32) (result i32)))
@@ -238,6 +242,9 @@
  (table $memory-copy (export "memory-copy") 16 funcref)
  (table $memory-grow (export "memory-grow") 16 funcref)
  (table $memory-size (export "memory-size") 16 funcref)
+
+ ;; Coefficients are stored as integers n, but represent the value n/2^16.
+ (global $blockset-coefficient-log2-denominator (export "blockset-coefficient-log2-denominator") i32 (i32.const 8))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -271,6 +278,12 @@
          (local.get $blockset)
          (local.get $relocation-size-limit))
 
+   ;; default off
+   (call $set-blockset-heap-ratio-coefficient (local.get $blockset) (i32.const 0))
+
+   ;; default off
+   (call $set-blockset-inactive-ratio-coefficient (local.get $blockset) (i32.const 0x100))
+
    (call $set-blockset-block-count      (local.get $blockset) (i32.const 0))
    (call $set-blockset-block-list       (local.get $blockset) (global.get $null))
    (call $set-blockset-defrag-cursor    (local.get $blockset) (global.get $null))
@@ -278,7 +291,8 @@
    (call $set-blockset-heap             (local.get $blockset) (global.get $null))
    (call $set-blockset-heap-size        (local.get $blockset) (i32.const 0))
    (call $set-blockset-free-list        (local.get $blockset) (global.get $null))
-   (call $set-blockset-free-list-length (local.get $blockset) (i32.const 0)))
+   (call $set-blockset-free-list-length (local.get $blockset) (i32.const 0))
+   (call $set-blockset-free-space       (local.get $blockset) (i32.const 0)))
 
  (func $get-blockset (export "get-blockset")
    (param $blockset-id i32)
@@ -355,6 +369,24 @@
    (i32.load (i32.add (local.get $blockset)
                       (global.get $blockset-relocation-size-limit))))
 
+ (func $get-blockset-heap-ratio-coefficient (export "get-blockset-heap-ratio-coefficient")
+   (param $blockset i32)
+   (result i32)
+   (i32.load (i32.add (local.get $blockset)
+                      (global.get $blockset-heap-ratio-coefficient))))
+
+ (func $get-blockset-inactive-ratio-coefficient (export "get-blockset-inactive-ratio-coefficient")
+   (param $blockset i32)
+   (result i32)
+   (i32.load (i32.add (local.get $blockset)
+                      (global.get $blockset-inactive-ratio-coefficient))))
+
+ (func $get-blockset-free-space (export "get-blockset-free-space")
+   (param $blockset i32)
+   (result i32)
+   (i32.load (i32.add (local.get $blockset)
+                      (global.get $blockset-free-space))))
+
  (func $set-blockset-block-count (export "set-blockset-block-count")
    (param $blockset i32)
    (param $block-count i32)
@@ -424,6 +456,27 @@
    (i32.store (i32.add (local.get $blockset)
                        (global.get $blockset-relocation-size-limit))
               (local.get $relocation-size-limit)))
+
+ (func $set-blockset-heap-ratio-coefficient (export "set-blockset-heap-ratio-coefficient")
+   (param $blockset i32)
+   (param $heap-ratio-coefficient i32)
+   (i32.store (i32.add (local.get $blockset)
+                       (global.get $blockset-heap-ratio-coefficient))
+              (local.get $heap-ratio-coefficient)))
+
+ (func $set-blockset-inactive-ratio-coefficient (export "set-blockset-inactive-ratio-coefficient")
+   (param $blockset i32)
+   (param $inactive-ratio-coefficient i32)
+   (i32.store (i32.add (local.get $blockset)
+                       (global.get $blockset-inactive-ratio-coefficient))
+              (local.get $inactive-ratio-coefficient)))
+
+ (func $set-blockset-free-space (export "set-blockset-free-space")
+   (param $blockset i32)
+   (param $free-space i32)
+   (i32.store (i32.add (local.get $blockset)
+                       (global.get $blockset-free-space))
+              (local.get $free-space)))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -657,7 +710,11 @@
 
    (call $provision-blockset-heap (local.get $blockset) (local.get $size))
 
-   (local.set $heap (call $get-blockset-heap (local.get $blockset)))
+   (local.set $heap (call $get-blockset-heap-root (local.get $blockset)))
+
+   (if (call $is-unused-heap-block (local.get $heap))
+       (then
+        (unreachable)))
 
    (if (i32.eq (local.get $size)
                (call $get-heap-block-size (local.get $heap)))
@@ -672,6 +729,11 @@
                        (local.get $heap)
                        (local.get $size)))
       (call $sink-heap-node (local.get $heap))))
+
+   (call $set-blockset-free-space (local.get $blockset)
+         (i32.sub (call $get-blockset-free-space (local.get $blockset))
+                  (local.get $size)))
+
    (local.get $new-block-ref))
 
  (func $provision-blockset-heap (export "provision-blockset-heap")
@@ -765,6 +827,22 @@
 
    (call $add-free-block (local.get $blockset) (local.get $block-ref)))
 
+ (func $get-blockset-heap-root (export "get-blockset-heap-root")
+   (param $blockset i32)
+   (result i32)
+
+   (local $heap i32)
+   (if (call $get-blockset-free-list-length (local.get $blockset))
+       (then
+        (loop $again
+          (local.set $heap (call $get-blockset-heap (local.get $blockset)))
+          (if (call $is-unused-heap-block (local.get $heap))
+              (then
+               (call $sink-heap-node (local.get $heap))
+               (br $again))))))
+
+   (local.get $heap))
+
  (func $split-heap-node (export "split-heap-node")
    (param $blockset i32)
    (param $heap i32)
@@ -801,9 +879,6 @@
 
    (call $set-block-ref-size (local.get $block-ref) (local.get $split-size))
 
-   (call $set-pair-car (local.get $free-entry) (local.get $new-block-ref))
-   (call $set-heap-block (local.get $heap) (local.get $new-block))
-
    (call $incr-blockset-block-count (local.get $blockset))
 
    (if (i32.eq (local.get $next-block-ref) (global.get $null))
@@ -811,6 +886,10 @@
         (call $set-blockset-end-block-ref
               (local.get $blockset)
               (local.get $new-block-ref))))
+
+   (call $set-pair-car (local.get $free-entry) (local.get $new-block-ref))
+   (call $set-heap-block (local.get $heap) (local.get $new-block))
+   (call $sink-heap-node (local.get $heap))
 
    (local.get $block-ref))
 
@@ -823,12 +902,19 @@
    (param $blockset-id i32)
    (param $block-ref i32)
 
-   (call $add-free-block
-         (call $get-blockset (local.get $blockset-id))
-         (local.get $block-ref))
+   (local $blockset i32)
 
-;;   (call $step-defragment-blockset (local.get $blockset))
-   )
+   (local.set $blockset (call $get-blockset (local.get $blockset-id)))
+
+   (call $add-free-block (local.get $blockset) (local.get $block-ref))
+
+   (if (call $should-compact-blockset-heap (local.get $blockset))
+       (then
+        (call $step-compact-blockset-heap (local.get $blockset))))
+
+   (if (call $should-defragment-blockset-free-list (local.get $blockset))
+       (then
+        (call $step-defragment-blockset-free-list (local.get $blockset)))))
 
  (func $add-free-block (export "add-free-block")
    (param $blockset i32)
@@ -858,7 +944,295 @@
 
    (call $insert-blockset-heap-node-entry
          (local.get $blockset)
-         (local.get $entry)))
+         (local.get $entry))
+
+   (call $set-blockset-free-space (local.get $blockset)
+         (i32.add (call $get-blockset-free-space (local.get $blockset))
+                  (call $get-block-ref-size (local.get $block-ref)))))
+
+ (func $should-compact-blockset-heap (export "should-compact-blockset-heap")
+   (param $blockset i32)
+   (result i32)
+
+   ;; ratio of heap root size to heap free space < threshold
+
+   (i32.lt_u (call $get-heap-block-size (call $get-blockset-heap (local.get $blockset)))
+             (i32.mul (call $get-blockset-heap-ratio-coefficient (local.get $blockset))
+                      (i32.shr_u (call $get-blockset-free-space (local.get $blockset))
+                                 (global.get $blockset-coefficient-log2-denominator)))))
+
+ (func $should-defragment-blockset-free-list (export "should-defragment-blockset-free-list")
+   (param $blockset i32)
+   (result i32)
+
+   ;; ratio of (free list pairs bytes + non-root heap space) to total allocated bytes > threshold
+   ;; ratio of
+   (local $c i32)
+
+   (local.set $c (call $get-blockset-inactive-ratio-coefficient (local.get $blockset)))
+
+   (if (result i32) (i32.eq (local.get $c)
+                            (i32.shl (i32.const 1)
+                                     (global.get $blockset-coefficient-log2-denominator)))
+     (then
+      (i32.const 0))
+     (else
+      (i32.gt_u (call $get-blockset-inactive-free-memory (local.get $blockset))
+                (i32.mul (local.get $c)
+                         (i32.shr_u (call $get-blockset-total-size (local.get $blockset))
+                                    (global.get $blockset-coefficient-log2-denominator)))))))
+
+ (func $get-blockset-inactive-free-memory (export "get-blockset-inactive-free-memory")
+   (param $blockset i32)
+   (result i32)
+   (i32.add (i32.mul (call $get-blockset-free-list-length (local.get $blockset))
+                     (i32.const 48))
+            (i32.sub (call $get-blockset-free-space (local.get $blockset))
+                     (call $get-heap-block-size (call $get-blockset-heap (local.get $blockset))))))
+
+ (func $get-blockset-total-size (export "get-blockset-total-size")
+   (param $blockset i32)
+   (result i32)
+   (i32.sub (call $get-block-ref-addr (call $get-blockset-end-block-ref (local.get $blockset)))
+            (call $get-block-ref-addr (call $get-blockset-block-list (local.get $blockset)))))
+
+
+ ;; ## Heap Compaction
+ ;;
+ ;; Compaction is the process of relocating allocated blocks from the end of the
+ ;; heap root to the end of either of its child nodes.  The blocks and child node are
+ ;; chosen to minimize the free space in the altered node.
+
+ (func $step-compact-blockset-heap (export "step-compact-blockset-heap")
+   (param $blockset i32)
+   ;; verify pre-conditions
+   ;; heap size of 3 or more, top three nodes not unused
+
+   (local $child i32)
+   (local $child-ref i32)
+   (local $free-entry i32)
+   (local $free-ref i32)
+   (local $head i32)
+   (local $heap i32)
+   (local $left i32)
+   (local $left-size i32)
+   (local $next i32)
+   (local $next-free-entry i32)
+   (local $next-free-ref i32)
+   (local $prior-free-entry i32)
+   (local $relo-end i32)
+   (local $relo-last i32)
+   (local $relo-size i32)
+   (local $relo-start i32)
+   (local $right i32)
+   (local $right-size i32)
+   (local $size-limit i32)
+
+   ;; This guarantees that $heap, $left, and $right below are all non-null.
+   ;; It simplifies the code to check this and quit early.
+   (if (i32.lt_u (call $get-blockset-heap-size (local.get $blockset))
+                 (i32.const 3))
+       (then
+        (return)))
+
+   (call $coalesce-blockset-heap (local.get $blockset))
+
+   (local.set $heap (call $get-blockset-heap-root (local.get $blockset)))
+   (local.set $free-entry (call $get-heap-node-entry (local.get $heap)))
+   (local.set $free-ref (call $get-pair-car (local.get $free-entry)))
+   (local.set $relo-start (call $get-pair-cdr (local.get $free-ref)))
+
+   ;; The heap root has no blocks after it, nothing to be done here.
+   (if (i32.eq (local.get $relo-start) (global.get $null))
+       (then
+        (return)))
+
+   (local.set $next-free-entry (call $get-pair-cdr (local.get $free-entry)))
+   (local.set $next-free-ref
+              (if (result i32) (i32.eq (local.get $next-free-entry) (global.get $null))
+                (then
+                 (global.get $null))
+                (else
+                 (call $get-pair-car (local.get $next-free-entry)))))
+
+   (local.set $heap (call $get-blockset-heap (local.get $blockset)))
+   (local.set $left (call $get-heap-left (local.get $heap)))
+   (local.set $right (call $get-heap-right (local.get $heap)))
+
+   (if (call $is-unused-heap-block (local.get $left))
+     (then
+      (call $sink-heap-node (local.get $left))
+      (local.set $left (call $get-heap-left (local.get $heap)))))
+
+   (if (call $is-unused-heap-block (local.get $right))
+     (then
+      (call $sink-heap-node (local.get $right))
+      (local.set $right (call $get-heap-right (local.get $heap)))))
+
+   (if (call $is-unused-heap-block (local.get $left))
+       (then
+        (local.set $left-size (i32.const 0)))
+     (else
+      (local.set $left-size (call $get-heap-block-size (local.get $left)))))
+
+   (if (call $is-unused-heap-block (local.get $right))
+       (then
+        (local.set $right-size (i32.const 0)))
+     (else
+      (local.set $right-size (call $get-heap-block-size (local.get $right)))))
+
+   (if (i32.gt_u (local.get $right-size) (local.get $left-size))
+     (then
+      (local.set $child (local.get $right))
+      (local.set $size-limit (local.get $right-size)))
+     (else
+      (local.set $child (local.get $left))
+      (local.set $size-limit (local.get $left-size))))
+
+   (local.set $child-ref (call $get-pair-car
+                               (call $get-heap-node-entry (local.get $child))))
+
+   (local.set $relo-last
+              (local.set $relo-size
+                         (call $scan-relocatable-blocks
+                               (local.get $blockset)
+                               (local.get $relo-start)
+                               (local.get $next-free-ref)
+                               (local.get $size-limit)
+                               (local.get $size-limit))))
+
+   (if (local.get $relo-size)
+       (then
+        (local.set $relo-end (call $get-pair-cdr (local.get $relo-last)))
+
+        (call $relocate-blocks
+              (local.get $blockset)
+              (i32.sub (call $get-next-block-addr
+                             (call $get-pair-car (local.get $child-ref)))
+                       (local.get $relo-size))
+              (local.get $relo-start)
+              (local.get $relo-end)
+              (local.get $relo-size))
+
+        (if (i32.lt_u (local.get $relo-size) (local.get $size-limit))
+            (then
+             (call $set-pair-cdr
+                   (local.get $relo-last)
+                   (call $get-pair-cdr (local.get $child-ref)))
+
+             (call $set-pair-cdr (local.get $child-ref) (local.get $relo-start)))
+
+          (else
+           ;; find prev free entry, remove
+           (local.set $prior-free-entry (call $find-predecessor-free-list-entry
+                                              (local.get $blockset)
+                                              (local.get $child-ref)))
+
+           (if (i32.eq (local.get $prior-free-entry) (global.get $null))
+               (then
+                (call $set-blockset-free-list
+                      (local.get $blockset)
+                      (call $get-pair-cdr (call $get-heap-node-entry (local.get $child))))
+
+                (local.set $head (call $get-blockset-block-list (local.get $blockset))))
+
+             (else
+              (call $set-pair-cdr
+                    (local.get $prior-free-entry)
+                    (call $get-pair-cdr (call $get-heap-node-entry (local.get $child))))
+
+              (local.set $head (call $get-pair-car (local.get $prior-free-entry)))))
+
+           (loop $again
+             (local.set $next (call $get-pair-cdr (local.get $head)))
+             (if (i32.ne (local.get $next) (local.get $child-ref))
+                 (then
+                  (local.set $head (local.get $next))
+                  (br $again))))
+
+           (call $set-pair-cdr (local.get $head) (local.get $relo-start))
+
+           (call $set-pair-cdr
+              (local.get $relo-last)
+              (call $get-pair-cdr (local.get $child-ref)))
+
+           (call $set-block-ref-addr (local.get $child-ref) (global.get $null))
+
+           (call $decr-blockset-block-count (local.get $blockset))
+           (call $decr-blockset-free-list-length (local.get $blockset))))
+
+        (call $set-pair-cdr (local.get $free-ref) (local.get $relo-end))
+
+        (call $set-block-ref-size
+              (local.get $child-ref)
+              (i32.sub (call $get-block-ref-size (local.get $child-ref))
+                       (local.get $relo-size)))
+
+        (call $set-block-ref-size
+              (local.get $free-ref)
+              (i32.add (call $get-block-ref-size (local.get $free-ref))
+                       (local.get $relo-size)))
+
+        (if (i32.eq (local.get $relo-end) (global.get $null))
+            (then
+             (call $set-blockset-end-block-ref (local.get $blockset) (local.get $free-ref))))
+
+        (if (i32.eq (call $get-pair-cdr (local.get $relo-last)) (global.get $null))
+            (then
+             (call $set-blockset-end-block-ref (local.get $blockset) (local.get $relo-last))))
+
+        (call $sink-heap-node (local.get $child)))))
+
+ (func $coalesce-blockset-heap (export "coalesce-blockset-heap")
+   (param $blockset i32)
+   ;; detect and merge free blocks contiguous with and after the heap root
+
+   (local $end-addr i32)
+   (local $free-entry i32)
+   (local $free-ref i32)
+   (local $heap i32)
+   (local $next-free-entry i32)
+   (local $next-free-ref i32)
+   (local $size i32)
+
+   (if (i32.eq (local.get $heap) (global.get $null))
+       (then
+        (return)))
+
+   (local.set $heap (call $get-blockset-heap (local.get $blockset)))
+   (local.set $free-entry (call $get-heap-node-entry (local.get $heap)))
+   (local.set $free-ref (call $get-pair-car (local.get $free-entry)))
+   (local.set $end-addr (call $get-next-block-addr (call $get-pair-car (local.get $free-ref))))
+   (local.set $size (call $get-block-ref-size (local.get $free-ref)))
+
+   (loop $again
+     (local.set $next-free-entry (call $get-pair-cdr (local.get $free-entry)))
+     (if (i32.ne (local.get $next-free-entry) (global.get $null))
+         (then
+          (local.set $next-free-ref (call $get-pair-car (local.get $next-free-entry)))
+          (if (i32.eq (call $get-pair-cdr (local.get $free-ref))
+                      (local.get $next-free-ref))
+              (then
+               (local.set $size (call $get-block-ref-size (local.get $next-free-ref)))
+               (local.set $end-addr (i32.add (local.get $end-addr) (local.get $size)))
+               (call $set-block-ref-addr (local.get $next-free-ref) (global.get $null))
+               (call $set-pair-cdr
+                     (local.get $free-ref)
+                     (call $get-pair-cdr (local.get $next-free-ref)))
+               (call $set-pair-cdr
+                     (local.get $free-entry)
+                     (call $get-pair-cdr (local.get $next-free-entry)))
+               (call $decr-blockset-block-count (local.get $blockset))
+               (call $decr-blockset-free-list-length (local.get $blockset))
+               (br $again))))))
+
+   (if (i32.eq (call $get-pair-cdr (local.get $free-ref)) (global.get $null))
+       (then
+        (call $set-blockset-end-block-ref (local.get $blockset) (local.get $free-ref))))
+
+   (call $set-block-ref-size (local.get $free-ref)
+         (i32.sub (local.get $end-addr)
+                  (call $get-block-ref-addr (local.get $free-ref)))))
 
  ;; ## Defragmentation
  ;;
@@ -965,7 +1339,7 @@
  ;;    d. set the cursor to the last relocated block.
  ;;
 
- (func $step-defragment-blockset (export "step-defragment-blockset")
+ (func $step-defragment-blockset-free-list (export "step-defragment-blockset-free-list")
    (param $blockset i32)
 
    (local $cursor i32)
@@ -979,6 +1353,11 @@
    (local $relo-last i32)
    (local $relo-size i32)
    (local $relo-start i32)
+
+   (if (i32.lt_u (call $get-blockset-free-list-length (local.get $blockset))
+                 (i32.const 2))
+       (then
+        (return)))
 
    ;; Get three free list entries where the defragmentation cursor will
    ;; be below the block in free entry, but above or at the one in prior
@@ -1007,6 +1386,10 @@
 
    (local.set $relo-start (call $get-pair-cdr (local.get $free-ref)))
 
+   (if (global.get $debug)
+       (then
+        (unreachable)))
+
    (if (i32.eq (local.get $relo-start) (local.get $next-free-ref))
        (then
         ;; We found two adjacent free entries. Merge them.
@@ -1025,7 +1408,9 @@
                          (call $scan-relocatable-blocks
                                (local.get $blockset)
                                (local.get $relo-start)
-                               (local.get $next-free-ref))))
+                               (local.get $next-free-ref)
+                               (call $get-blockset-relocation-size-limit (local.get $blockset))
+                               (call $get-blockset-immobile-block-size (local.get $blockset)))))
 
    (local.set $relo-end (call $get-pair-cdr (local.get $relo-last)))
 
@@ -1035,6 +1420,10 @@
         ;; See $get-blockset-immobile-block-size below.
         (call $set-blockset-defrag-cursor (local.get $blockset) (local.get $relo-end))
         (return)))
+
+   (if (global.get $debug)
+       (then
+        (unreachable)))
 
    ;; Shift the blocks down in memory, adjusting their addresses.
    (call $relocate-blocks
@@ -1067,8 +1456,13 @@
               (local.get $next-free-entry)))
      (else
       ;; insert free-ref after relo-end
-      (call $set-pair-cdr (local.get $free-ref) (call $get-pair-cdr (local.get $relo-end)))
-      (call $set-pair-cdr (local.get $relo-end) (local.get $free-ref))
+      (call $set-pair-cdr (local.get $free-ref) (local.get $relo-end))
+      (call $set-pair-cdr (local.get $relo-last) (local.get $free-ref))
+
+      (call $set-block-ref-addr
+            (local.get $free-ref)
+            (i32.add (call $get-block-ref-addr (local.get $free-ref))
+                     (local.get $relo-size)))
 
       ;; Check to see if the last moved block was the end block
       (if (i32.eq (call $get-pair-cdr (local.get $free-ref)) (global.get $null))
@@ -1129,6 +1523,14 @@
 
           (else
            ;; Otherwise, we'll try to merge free entry with its successor.
+
+           ;; In the case that the cursor points to a free block, treat that as
+           ;; the prior free entry.
+           (if (i32.eq (call $get-pair-car (local.get $free-entry)) (local.get $cursor))
+               (then
+                (local.set $prior-free-entry (local.get $free-entry))
+                (local.set $free-entry (call $get-pair-cdr (local.get $prior-free-entry)))))
+
            (local.set $next-free-entry (call $get-pair-cdr (local.get $free-entry)))
 
            (if (i32.eq (local.get $next-free-entry) (global.get $null))
@@ -1140,6 +1542,15 @@
              (else
               ;; At this point, the conditions for a defragmentation step are satisfied.
               ;; Scan the cursor forward so that its successor is the free entry.
+        (if (global.get $debug)
+            (then
+             (call $set-blockset-defrag-cursor (local.get $blockset) (local.get $cursor))
+             (local.get $prior-free-entry)
+             (local.get $free-entry)
+             (local.get $next-free-entry)
+
+             (return)))
+
               (local.set $free-ref (call $get-pair-car (local.get $free-entry)))
 
               (loop $again
@@ -1397,55 +1808,54 @@
 
  (func $scan-relocatable-blocks (export "scan-relocatable-blocks")
    (param $blockset i32)
-   (param $relo-start i32)
+   (param $start-ref i32)
    (param $next-free-ref i32)
+   (param $aggregate-size-limit i32)
+   (param $single-block-size-limit i32)
    (result i32 i32)
 
    (local $head i32)
    (local $last i32)
-   (local $relo-end i32)
-   (local $relo-count i32)
-   (local $relo-size-limit i32)
+   (local $count i32)
    (local $size i32)
+   (local $size-remaining i32)
 
-   (local.set $last (local.get $relo-start))
-   (local.set $head (local.get $relo-start))
-   (local.set $relo-count (i32.const 0))
+   (local.set $last (local.get $start-ref))
+   (local.set $head (local.get $start-ref))
+   (local.set $count (i32.const 0))
+   (local.set $size-remaining (local.get $aggregate-size-limit))
 
-   ;; The logic is simpler to start with the total number of bytes that can
-   ;; be moved and subtract from it the size of each block that will be
-   ;; moved.  Note that this is a signed value.
-   (local.set $relo-size-limit
-              (call $get-blockset-relocation-size-limit (local.get $blockset)))
+   ;; The logic is simpler to start with the total number of bytes that can be
+   ;; moved and subtract from it the size of each block that will be moved.
+   ;; Note that this is a signed value, unlike all other values in this module.
 
    (loop $again
      (if (i32.ne (local.get $head) (local.get $next-free-ref))
          (then
           (local.set $size (call $get-block-ref-size (local.get $head)))
-          (if (i32.le_s (local.get $size) (local.get $relo-size-limit))
+          (if (i32.le_s (local.get $size) (local.get $size-remaining))
               (then
                ;; The current block will fit with the remaining bytes available.
-               (local.set $relo-size-limit (i32.sub (local.get $relo-size-limit)
-                                                    (local.get $size)))
+               (local.set $size-remaining (i32.sub (local.get $size-remaining)
+                                                   (local.get $size)))
                (local.set $last (local.get $head))
                (local.set $head (call $get-pair-cdr (local.get $head)))
                (if (i32.ne (local.get $head) (global.get $null))
                    (then
-                    (local.set $relo-count (i32.add (local.get $relo-count) (i32.const 1)))
+                    (local.set $count (i32.add (local.get $count) (i32.const 1)))
                     (br $again))))
             (else
              ;; The current block won't fit. If this is the first block, then it is
              ;; be bigger than the size allowable for a sequence of blocks, but it might
-             ;; be relocatable if it's below the immutable block size limit.
-             (if (i32.and (i32.eqz (local.get $relo-count))
+             ;; be relocatable if it's below the single block size limit.
+             (if (i32.and (i32.eqz (local.get $count))
                           (i32.lt_u (local.get $size)
-                                    (call $get-blockset-immobile-block-size
-                                          (local.get $blockset))))
+                                    (local.get $single-block-size-limit)))
                  (then
-                  ;; This is the statement that requires relo size limit to be
+                  ;; This is the statement that requires aggregate size limit to be
                   ;; a signed value.
-                  (local.set $relo-size-limit (i32.sub (local.get $relo-size-limit)
-                                                       (local.get $size)))
+                  (local.set $size-remaining (i32.sub (local.get $size-remaining)
+                                                      (local.get $size)))
                   (local.set $last (local.get $head))
                   (local.set $head (call $get-pair-cdr (local.get $head))))))))))
 
@@ -1454,11 +1864,10 @@
    ;; Address of the block beyond the last block that can be moved
    (local.get $last)
 
-   ;; Relo size limit is the blockset size limit minus the size of each block
+   ;; The size remaining is the aggregate size limit minus the size of each block
    ;; that can be moved.  The difference below results in the sum of the sizes
    ;; of the blocks that can be moved.
-   (i32.sub (call $get-blockset-relocation-size-limit (local.get $blockset))
-            (local.get $relo-size-limit)))
+   (i32.sub (local.get $aggregate-size-limit) (local.get $size-remaining)))
 
  (func $merge-free-entries (export "merge-free-entries")
    (param $blockset i32)
@@ -1603,8 +2012,12 @@
             (then
              (call $dealloc-free-list-entry (call $get-heap-node-entry (local.get $heap)))
              (call $set-heap-node-entry (local.get $heap) (local.get $free-list-entry))
-             ;; There's no child node to swap with.
-             (return))
+             (if (i32.and (local.get $n) (local.get $mask))
+               (then
+                (local.set $child-node (call $get-heap-left (local.get $heap))))
+             (else
+              ;; There's no child node to swap with.
+              (return))))
           (else
 
            (local.set $child-node (call $make-heap-node (local.get $free-list-entry)))

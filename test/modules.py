@@ -6,10 +6,10 @@ engine = engine.Universal(Compiler)
 store = Store()
 
 def module_wasm_path(name):
-    return Path.home() / 'src' / 'crack' / f'{name}.wasm'
+    return Path.home() / 'src' / 'prank' / f'{name}.wasm'
 
 def module_wat_path(name):
-    return Path.home() / 'src' / 'crack' / f'{name}.wat'
+    return Path.home() / 'src' / 'prank' / f'{name}.wat'
 
 def read_wasm_module(name):
     return Module(store, module_wasm_path(name).read_bytes())

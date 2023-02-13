@@ -9,6 +9,6 @@ PYTHON=${PYTHON:-python}
 
 echo "Using $PYTHON to create virtual env in $VENV_DIR"
 
-${PYTHON} -m venv $VENV_DIR --prompt test-crack
+${PYTHON} -m venv $VENV_DIR --prompt test-prank
 . $VENV_DIR/bin/activate
 pip install -r $ROOT_DIR/test/requirements.txt

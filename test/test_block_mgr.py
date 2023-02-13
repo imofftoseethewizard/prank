@@ -1,6 +1,11 @@
+import random
+
 from itertools import zip_longest
 
+import pytest
+
 from modules import block_mgr, block_mgr_test_client, lists, pairs, values
+import util
 
 blockset_id = 7
 blockset = block_mgr.get_blockset(blockset_id)
@@ -34,6 +39,7 @@ def print_blockset():
     print('state:')
     print_block_mgr_state()
     print()
+    return
 
     print('block list:')
     print_block_list()
@@ -49,40 +55,41 @@ def print_blockset():
 
 def validate_blockset():
 
-    try:
-        validate_block_list()
-        validate_free_list()
-        validate_heap()
+    validate_block_list()
+    validate_free_list()
+    validate_heap()
 
-        block_count = block_mgr.get_blockset_block_count(blockset)
-        free_list_length = block_mgr.get_blockset_free_list_length(blockset)
-        heap_size = block_mgr.get_blockset_heap_size(blockset)
-        pair_count = pairs.pair_count.value
+    block_count = block_mgr.get_blockset_block_count(blockset)
+    free_list_length = block_mgr.get_blockset_free_list_length(blockset)
+    heap_size = block_mgr.get_blockset_heap_size(blockset)
+    pair_count = pairs.pair_count.value
 
-        assert pair_count == 6*heap_size + 2*(block_count - free_list_length)
-
-    except:
-        list_allocated_pairs()
-        print()
-        print_blockset()
-        raise
+    assert pair_count == 6*heap_size + 2*(block_count - free_list_length)
 
 def validate_block_list():
 
     block_count = block_mgr.get_blockset_block_count(blockset)
     block_list = block_mgr.get_blockset_block_list(blockset)
 
-    assert lists.get_list_length(block_list) == block_count
-
     last = NULL
     addr = 0
     ref = block_list
+    turtle = ref
+    count = 0
     while ref != NULL:
+        if block_mgr.get_block_ref_addr(ref) != addr:
+            print(format_addr(ref), format_addr(block_mgr.get_block_ref_addr(ref)), format_addr(addr))
         assert block_mgr.get_block_ref_addr(ref) == addr
         addr += block_mgr.get_block_ref_size(ref)
         last = ref
         ref = pairs.get_pair_cdr(ref)
+        count += 1
+        if count % 2 == 0:
+            turtle = pairs.get_pair_cdr(turtle)
+            assert turtle != ref
+        assert count <= block_count
 
+    assert count == block_count
     assert block_mgr.get_blockset_end_block_ref(blockset) == last
 
 def validate_free_list():
@@ -91,22 +98,36 @@ def validate_free_list():
     free_list = block_mgr.get_blockset_free_list(blockset)
     free_list_length = block_mgr.get_blockset_free_list_length(blockset)
 
-    assert lists.get_list_length(free_list) == free_list_length
-
-    refs = []
+    refs = set()
     ref = block_list
     while ref != NULL:
-        refs.append(ref)
+        refs.add(ref)
         ref = pairs.get_pair_cdr(ref)
+
+    defrag_cursor = block_mgr.get_blockset_defrag_cursor(blockset)
+    assert defrag_cursor == NULL or defrag_cursor in refs
 
     entry = free_list
     last_free_addr = -1
+    free_space = 0
+    turtle = entry
+    count = 0
     while entry != NULL:
         assert pairs.get_pair_car(entry) in refs
         free_addr = block_mgr.get_free_entry_addr(entry)
+        free_space += block_mgr.get_free_entry_size(entry)
         assert free_addr  > last_free_addr
         last_free_addr = free_addr
         entry = pairs.get_pair_cdr(entry)
+        count += 1
+        if count % 2 == 0:
+            turtle = pairs.get_pair_cdr(turtle)
+            assert turtle != entry
+
+        assert count <= free_list_length
+
+    assert count == free_list_length
+    assert free_space == block_mgr.get_blockset_free_space(blockset)
 
 def validate_heap():
 
@@ -126,6 +147,7 @@ def validate_heap():
         if node != NULL:
             nonlocal size
             size += 1
+            assert size <= heap_size
 
             assert (
                 block_mgr.get_heap_node_entry(node) in free_entries
@@ -149,29 +171,44 @@ def validate_heap():
     assert size == heap_size
 
 def print_block_mgr_state():
+    heap = block_mgr.get_blockset_heap(blockset)
+    inactive_free_memory = block_mgr.get_blockset_inactive_free_memory(blockset)
+    total_size = block_mgr.get_blockset_total_size(blockset)
+    free_space = block_mgr.get_blockset_free_space(blockset)
+    heap_root_size = 0 if heap == NULL else block_mgr.get_heap_block_size(heap)
+    defrag_cursor = block_mgr.get_blockset_defrag_cursor(blockset)
+
     print("get_blockset_block_count:", block_mgr.get_blockset_block_count(blockset))
     print("get_blockset_block_list:", format_addr(block_mgr.get_blockset_block_list(blockset)))
-    print("get_blockset_defrag_cursor:", format_addr(block_mgr.get_blockset_defrag_cursor(blockset)))
+    print("get_blockset_defrag_cursor:", format_addr(defrag_cursor), '' if defrag_cursor == NULL else f'@ {format_addr(block_mgr.get_block_ref_addr(defrag_cursor))}')
     print("get_blockset_end_block_ref:", format_addr(block_mgr.get_blockset_end_block_ref(blockset)))
-    print("get_blockset_heap:", format_addr(block_mgr.get_blockset_heap(blockset)))
+    print("get_blockset_heap:", format_addr(heap))
     print("get_blockset_heap_size:", block_mgr.get_blockset_heap_size(blockset))
     print("get_blockset_free_list:", format_addr(block_mgr.get_blockset_free_list(blockset)))
     print("get_blockset_free_list_length:", block_mgr.get_blockset_free_list_length(blockset))
+    print("get_blockset_free_space:", free_space)
+    print("get_blockset_inactive_free_memory:", inactive_free_memory)
 
-def print_heap():
-    for s in format_heap_node(block_mgr.get_blockset_heap(blockset)):
+    print("inactive free space ratio:", 0 if total_size == 0 else inactive_free_memory/total_size)
+    print("heap root ratio:", 0 if free_space == 0 else heap_root_size/free_space)
+    print("should compact heap:", block_mgr.should_compact_blockset_heap(blockset))
+    print("should defrag:", block_mgr.should_defragment_blockset_free_list(blockset))
+
+def print_heap(depth=None):
+    depth = depth or int(math.log2(block_mgr.get_blockset_heap_size(blockset)))+1
+    for s in format_heap_node(block_mgr.get_blockset_heap(blockset), depth):
         print(s)
     print()
 
 def format_addr(addr):
     return 'NULL' if addr == NULL else hex(addr)
 
-def format_heap_node(n):
-    if n == NULL:
+def format_heap_node(n, depth):
+    if n == NULL or depth == 0:
         return []
 
-    f_l = format_heap_node(block_mgr.get_heap_left(n))
-    f_r = format_heap_node(block_mgr.get_heap_right(n))
+    f_l = format_heap_node(block_mgr.get_heap_left(n), depth-1)
+    f_r = format_heap_node(block_mgr.get_heap_right(n), depth-1)
 
     width_l = len(f_l[0]) if f_l else 0
     width_r = len(f_r[0]) if f_r else 0
@@ -195,11 +232,11 @@ def format_heap_node(n):
         ]
     ]
 
-def print_block_list():
+def print_block_list(start=NULL, end=NULL):
 
-    ref = block_mgr.get_blockset_block_list(blockset)
+    ref = start if start != NULL else block_mgr.get_blockset_block_list(blockset)
 
-    while ref != NULL:
+    while ref != end:
 
         addr = block_mgr.get_block_ref_addr(ref)
         size = block_mgr.get_block_ref_size(ref)
@@ -208,11 +245,11 @@ def print_block_list():
 
         ref = pairs.get_pair_cdr(ref)
 
-def print_free_list():
+def print_free_list(start=NULL, end=NULL):
 
-    entry = block_mgr.get_blockset_free_list(blockset)
+    entry = start if start != NULL else block_mgr.get_blockset_free_list(blockset)
 
-    while entry != NULL:
+    while entry != end:
 
         addr = block_mgr.get_block_ref_addr(pairs.get_pair_car(entry))
         size = block_mgr.get_block_ref_size(pairs.get_pair_car(entry))
@@ -530,7 +567,7 @@ def test_defrag_empty():
     pairs.init_pairs()
     block_mgr_test_client.init(blockset_id)
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -539,7 +576,7 @@ def test_defrag_one_alloc_block():
     block_mgr_test_client.init(blockset_id)
 
     block_mgr.alloc_block(blockset_id, 1<<16)
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -548,7 +585,7 @@ def test_defrag_one_small_alloc_one_free_block():
     block_mgr_test_client.init(blockset_id)
 
     block_mgr.alloc_block(blockset_id, 48)
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -559,7 +596,7 @@ def test_defrag_two_free_blocks():
     b = block_mgr.alloc_block(blockset_id, 48)
     block_mgr.dealloc_block(blockset_id, b)
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -577,7 +614,7 @@ def test_defrag_two_small_alloc_three_free_blocks():
 
     validate_blockset()
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -595,11 +632,11 @@ def test_defrag_two_small_alloc_three_free_blocks():
 
     validate_blockset()
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -619,7 +656,7 @@ def test_defrag_several_deallocated_blocks():
     for b in bs:
         block_mgr.dealloc_block(blockset_id, b)
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -627,7 +664,7 @@ def test_defrag_several_deallocated_blocks():
 
     while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
 
-        block_mgr.step_defragment_blockset(blockset)
+        block_mgr.step_defragment_blockset_free_list(blockset)
 
         validate_blockset()
 
@@ -658,7 +695,7 @@ def test_defrag_many_1k_blocks():
         else:
             remaining_blocks.append(b)
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -666,7 +703,7 @@ def test_defrag_many_1k_blocks():
 
     while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
 
-        block_mgr.step_defragment_blockset(blockset)
+        block_mgr.step_defragment_blockset_free_list(blockset)
 
         validate_blockset()
 
@@ -683,7 +720,7 @@ def test_defrag_many_1k_blocks():
         else:
             last_blocks.append(b)
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -691,7 +728,7 @@ def test_defrag_many_1k_blocks():
 
     while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
 
-        block_mgr.step_defragment_blockset(blockset)
+        block_mgr.step_defragment_blockset_free_list(blockset)
 
         validate_blockset()
 
@@ -704,7 +741,7 @@ def test_defrag_many_1k_blocks():
         block_mgr.dealloc_block(blockset_id, b)
         validate_blockset()
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -712,7 +749,7 @@ def test_defrag_many_1k_blocks():
 
     while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
 
-        block_mgr.step_defragment_blockset(blockset)
+        block_mgr.step_defragment_blockset_free_list(blockset)
 
         validate_blockset()
 
@@ -728,8 +765,6 @@ def test_relocation():
 
     pairs.init_pairs()
     block_mgr_test_client.init(blockset_id)
-
-    validate_blockset()
 
     bs = [
         block_mgr.alloc_block(blockset_id, N)
@@ -752,7 +787,7 @@ def test_relocation():
         else:
             remaining_blocks.append(b)
 
-    block_mgr.step_defragment_blockset(blockset)
+    block_mgr.step_defragment_blockset_free_list(blockset)
 
     validate_blockset()
 
@@ -760,7 +795,7 @@ def test_relocation():
 
     while block_mgr.get_blockset_defrag_cursor(blockset) != NULL and count < k:
 
-        block_mgr.step_defragment_blockset(blockset)
+        block_mgr.step_defragment_blockset_free_list(blockset)
 
         validate_blockset()
 
@@ -772,3 +807,282 @@ def test_relocation():
     for i, b in enumerate(bs):
         if b in remaining_blocks:
             assert block_mgr_test_client.check_fill(b, i)
+
+def test_coalesce_heap_null():
+    pairs.init_pairs()
+    block_mgr_test_client.init(blockset_id)
+
+    block_mgr.coalesce_blockset_heap(blockset)
+    validate_blockset()
+
+def test_coalesce_heap_simple_do_nothing():
+    pairs.init_pairs()
+    block_mgr_test_client.init(blockset_id)
+
+    block_mgr.alloc_block(blockset_id, 48)
+    block_mgr.coalesce_blockset_heap(blockset)
+    validate_blockset()
+
+def test_coalesce_heap_simple():
+    pairs.init_pairs()
+    block_mgr_test_client.init(blockset_id)
+
+    b = block_mgr.alloc_block(blockset_id, (1<<15) + (1<<14))
+    block_mgr.dealloc_block(blockset_id, b)
+
+    block_mgr.coalesce_blockset_heap(blockset)
+    assert block_mgr.get_blockset_free_list_length(blockset) == 1
+    assert block_mgr.get_blockset_block_count(blockset) == 1
+    validate_blockset()
+
+def test_coalesce_heap_double():
+    pairs.init_pairs()
+    block_mgr_test_client.init(blockset_id)
+
+    b0 = block_mgr.alloc_block(blockset_id, 1<<15)
+    b1 = block_mgr.alloc_block(blockset_id, 1<<14)
+    block_mgr.dealloc_block(blockset_id, b0)
+    block_mgr.dealloc_block(blockset_id, b1)
+
+    block_mgr.coalesce_blockset_heap(blockset)
+    assert block_mgr.get_blockset_free_list_length(blockset) == 1
+    assert block_mgr.get_blockset_block_count(blockset) == 1
+    validate_blockset()
+
+def test_coalesce_heap_alloc_block_at_end():
+    pairs.init_pairs()
+    block_mgr_test_client.init(blockset_id)
+
+    b0 = block_mgr.alloc_block(blockset_id, 1<<15)
+    b1 = block_mgr.alloc_block(blockset_id, 1<<14)
+    b2 = block_mgr.alloc_block(blockset_id, 1<<13)
+    block_mgr.dealloc_block(blockset_id, b0)
+    block_mgr.dealloc_block(blockset_id, b1)
+
+    block_mgr.coalesce_blockset_heap(blockset)
+    assert block_mgr.get_blockset_free_list_length(blockset) == 2
+    assert block_mgr.get_blockset_block_count(blockset) == 3
+    validate_blockset()
+
+def test_compact_heap_simple():
+    # set up needs to have three free blocks, and the largest
+    # free block needs to have at least one allocated block after
+    # it that is small enough to fit in the largest of the free blocks
+
+    pairs.init_pairs()
+    block_mgr_test_client.init(blockset_id)
+
+    # this will be the largest free block
+    b0 = block_mgr.alloc_block(blockset_id, 1<<15)
+
+    # this is the block that will be moved
+    b1 = block_mgr.alloc_block(blockset_id, 256)
+    block_mgr_test_client.fill(b1, 17)
+
+    # this block won't move
+    b2 = block_mgr.alloc_block(blockset_id, 1<<14)
+
+    # this will be the third free block
+    b3 = block_mgr.alloc_block(blockset_id, 128)
+
+    # this block separates the b3 from the remaining free space
+    b4 = block_mgr.alloc_block(blockset_id, 128)
+
+    # the space occupied by b0 will not be the top of the heap
+    block_mgr.dealloc_block(blockset_id, b0)
+
+    # this creates a third free block, a requirement of the compaction algo
+    block_mgr.dealloc_block(blockset_id, b3)
+
+    # this should move b1 to the end of the page, the top
+    # of the 2nd largest free block
+    block_mgr.step_compact_blockset_heap(blockset)
+
+    validate_blockset()
+
+    root = block_mgr.get_blockset_heap(blockset)
+    assert block_mgr.get_heap_block_size(root) == (1<<15) + 256
+
+def test_compact_heap_extended():
+    pairs.init_pairs()
+    block_mgr_test_client.init(blockset_id)
+
+    b0 = block_mgr.alloc_block(blockset_id, 1<<15)
+    b1 = block_mgr.alloc_block(blockset_id, 256)
+    b2 = block_mgr.alloc_block(blockset_id, 1280)
+    b3 = block_mgr.alloc_block(blockset_id, 512)
+    b4 = block_mgr.alloc_block(blockset_id, 4096)
+    b5 = block_mgr.alloc_block(blockset_id, 1024)
+    b6 = block_mgr.alloc_block(blockset_id, 256)
+    b7 = block_mgr.alloc_block(blockset_id, 2048)
+    b8 = block_mgr.alloc_block(blockset_id, 1<<14)
+    b9 = block_mgr.alloc_block(blockset_id, 1<<12)
+    b9 = block_mgr.alloc_block(blockset_id, 1<<11)
+
+    block_mgr.dealloc_block(blockset_id, b0)
+    block_mgr.dealloc_block(blockset_id, b5)
+    block_mgr.dealloc_block(blockset_id, b7)
+
+    block_mgr.step_compact_blockset_heap(blockset)
+
+    validate_blockset()
+
+    root = block_mgr.get_blockset_heap(blockset)
+    assert block_mgr.get_heap_block_size(root) == (1<<15) + 2048
+
+def test_stochastic():
+
+    pairs.init_pairs()
+    block_mgr_test_client.init(blockset_id)
+
+    denom = 1 << block_mgr.blockset_coefficient_log2_denominator.value
+
+    # If the root block is less than 1/4 of the total free space, then compact
+    # the heap at each step.
+    block_mgr.set_blockset_heap_ratio_coefficient(blockset, int(0.25 * denom))
+
+    # Inactive free memory is the space consumed by non-root free blocks plus
+    # the pairs required to represent them. If the inactive free space is more
+    # than 10% of the total storage, then defragment the free list.
+    orig_inactive_ratio = block_mgr.get_blockset_inactive_ratio_coefficient(blockset)
+    block_mgr.set_blockset_inactive_ratio_coefficient(blockset, int(0.1 * denom))
+
+    # This will hold the blocks that have been allocated
+    blocks = []
+
+    # This tracks the total bytes allocated in `blocks`
+    total_allocated = 0
+
+    # Target 1 MB of allocations
+    M = 1_000_000
+
+    # When total_allocated == M, the probability of allocating a block at
+    # a step should be 50%. For simplicity, these probabilities will have
+    # a linear envelope, starting at 95% at 0 total allocated, dropping
+    # to 50% at M, and then falling to 0 by M * 1.25.
+
+    problem_step = 478030
+    log_action_min = 477900
+
+    def step_action_linear(i):
+        r = total_allocated / M
+
+        if r <= 1:
+            p = 0.95 * (1 - r) + 0.5 * r
+        else:
+            p = max(0.5 * (1 - 4*(r - 1)), 0)
+
+        c = random.random() < p
+
+        if i == problem_step or i > log_action_min:
+            print('alloc' if c else 'dealloc')
+
+        alloc_block(i) if c else dealloc_block(i)
+
+    # Ensure that this is repeatable
+    random.seed(0)
+
+    # average number of 4-byte words in each alloc_block request
+    L = 16
+
+    # Word size
+    w = 4
+
+    # distribution of alloc_block request sizes
+    distribution = util.sample_poisson
+
+    def alloc_block(i):
+        nonlocal total_allocated
+        size = w * distribution(L)
+        blocks.append(block_mgr.alloc_block(blockset_id, size))
+        total_allocated += size
+
+    def dealloc_block(i):
+        nonlocal blocks
+        nonlocal total_allocated
+        b_i = random.randrange(len(blocks))
+        b = blocks[b_i]
+        if i == problem_step:
+            print(format_addr(b))
+        blocks = blocks[:b_i] + blocks[b_i+1:]
+        total_allocated -= block_mgr.get_block_ref_size(b)
+        if i == problem_step:
+            block_mgr.DEBUG.value = 1
+            print('pre free')
+            print_blockset()
+            print_heap(2)
+            validate_blockset()
+            block_mgr.add_free_block(blockset, b)
+            print()
+            print('pre compact')
+            print_blockset()
+            print_heap(2)
+            validate_blockset()
+            block_mgr.step_compact_blockset_heap(blockset)
+            print()
+            print('post compact')
+            print_blockset()
+            print_heap(2)
+            validate_blockset()
+            assert False
+            # print()
+            # print('prepare')
+            # print_blockset()
+            # p, c, n = block_mgr.prepare_defragment_blockset(blockset)
+            # print(format_addr(p), format_addr(c), format_addr(n))
+            # print_blockset()
+            # print()
+            # print("relevant blocks:")
+            # print_block_list(block_mgr.get_blockset_defrag_cursor(blockset), pairs.get_pair_cdr(pairs.get_pair_car(n)))
+            # # print_block_list(pairs.get_pair_car(p), pairs.get_pair_cdr(pairs.get_pair_car(n)))
+            # print()
+            # print("relevant free entries:")
+            # print_free_list(p, pairs.get_pair_cdr(n))
+            # print()
+            # validate_blockset()
+            # # fr = pairs.get_pair_car(c)
+            # # rs = pairs.get_pair_cdr(fr)
+            # # nfr = pairs.get_pair_car(n)
+            # # rl, rsz = block_mgr.scan_relocatable_blocks(blockset, rs, nfr, 0x1000, 0x1000)
+            # # print(format_addr(rl), rsz)
+            # block_mgr.step_defragment_blockset_free_list(blockset)
+        else:
+            block_mgr.dealloc_block(blockset_id, b)
+
+    # Total number of simulation steps
+    N = 100000
+    # N = 46040 -- hangs
+    #N = 46042
+
+    # Validation interval (in simulation steps)
+    I = N
+
+    # Used for narrowing to identify the step that corrupts the blockset
+    v_min = N - I
+
+    for i in range(N):
+        # if i >= 46035:
+        #     print(f'{[i]}')
+        #     print_block_mgr_state()
+        #     print()
+        #     print('top of heap:')
+        #     print_heap(2)
+        #     print
+        try:
+            step_action_linear(i)
+            if i > v_min and (i+1) % I == 0:
+                validate_blockset()
+        except:
+            print_block_mgr_state()
+            print('top of heap:')
+            print_heap(2)
+            print(total_allocated)
+            print(i)
+            raise
+
+    print_block_mgr_state()
+    print(total_allocated)
+    print(i)
+    # validate_blockset()
+    print('done')
+    assert False

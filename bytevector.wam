@@ -1,10 +1,5 @@
 (module
 
- (import "blocks" "copy-block-i8-range"  (func $copy-block-i8-range  (param i32 i32 i32 i32 i32) (result)))
- (import "blocks" "get-block-element"    (func $get-block-element    (param i32 i32)             (result i32)))
- (import "blocks" "get-block-i8-element" (func $get-block-i8-element (param i32 i32)             (result i32)))
- (import "blocks" "set-block-element"    (func $set-block-element    (param i32 i32 i32)         (result)))
- (import "blocks" "set-block-i8-element" (func $set-block-i8-element (param i32 i32 i32)         (result)))
  (import "boxes" "alloc-boxed-block"     (func $alloc-boxed-block    (param i32 i32)             (result i32)))
  (import "boxes" "get-box-length"        (func $get-box-length       (param i32)                 (result i32)))
  (import "boxes" "get-box-value"         (func $get-box-value        (param i32)                 (result i32)))
