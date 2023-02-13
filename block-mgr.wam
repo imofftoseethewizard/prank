@@ -2047,12 +2047,18 @@
                 (else
                  (call $get-heap-left (local.get $heap)))))
 
-      (call $insert-blockset-heap-node-entry-recursive
+      (if (call $is-unused-heap-block (local.get $child-node))
+          (then
+           (call $dealloc-free-list-entry (call $get-heap-node-entry (local.get $child-node)))
+           (call $set-heap-node-entry (local.get $child-node) (local.get $free-list-entry))
+           (call $sink-heap-node (local.get $child-node)))
+        (else
+         (call $insert-blockset-heap-node-entry-recursive
             (local.get $blockset)
             (local.get $free-list-entry)
             (local.get $child-node)
             (local.get $n)
-            (i32.shr_u (local.get $mask) (i32.const 1)))))
+            (i32.shr_u (local.get $mask) (i32.const 1)))))))
 
    (if (i32.gt_u (call $get-heap-block-size (local.get $child-node))
                  (call $get-heap-block-size (local.get $heap)))
