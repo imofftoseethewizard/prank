@@ -1,4 +1,6 @@
+import math
 import random
+import sys
 import time
 
 from itertools import zip_longest
@@ -36,23 +38,27 @@ def print_all():
     print()
     print_blockset()
 
-def print_blockset():
+def print_blockset(depth=None):
     print('state:')
     print_block_mgr_state()
     print()
-    return
 
-    print('block list:')
-    print_block_list()
-    print()
+    if depth is None:
+        print('block list:')
+        print_block_list()
+        print()
 
-    print('free list:')
-    print_free_list()
-    print()
+        print('free list:')
+        print_free_list()
+        print()
 
-    print('heap:')
-    print_heap()
-    print()
+        print('heap:')
+        print_heap()
+        print()
+    else:
+        print('top of heap:')
+        print_heap(depth)
+        print()
 
 def validate_blockset():
 
@@ -135,6 +141,7 @@ def validate_heap():
     free_list = block_mgr.get_blockset_free_list(blockset)
     heap = block_mgr.get_blockset_heap(blockset)
     heap_size = block_mgr.get_blockset_heap_size(blockset)
+    visited = set()
 
     free_entries = []
     entry = free_list
@@ -144,9 +151,16 @@ def validate_heap():
 
     size = 0
 
-    def validate_node(node, parent_size=None):
+    pending = [(heap, None)]
+
+    while pending:
+        node, parent_size = pending.pop()
+
         if node != NULL:
-            nonlocal size
+
+            assert node not in visited
+            visited.add(node)
+
             size += 1
             assert size <= heap_size
 
@@ -164,12 +178,40 @@ def validate_heap():
             if parent_size is not None:
                 assert node_size <= parent_size
 
-            validate_node(block_mgr.get_heap_left(node), node_size)
-            validate_node(block_mgr.get_heap_right(node), node_size)
-
-    validate_node(heap)
+            pending.append((block_mgr.get_heap_left(node), node_size))
+            pending.append((block_mgr.get_heap_right(node), node_size))
 
     assert size == heap_size
+
+def calc_heap_max_depth():
+
+    heap = block_mgr.get_blockset_heap(blockset)
+
+    max_depth = 0
+
+    visited = set()
+    pending = [(heap, 1)]
+
+    while pending:
+        node, depth = pending.pop()
+
+        if node != NULL and node not in visited:
+            visited.add(node)
+
+            if depth > max_depth:
+                max_depth = depth
+
+            try:
+                pending.append((block_mgr.get_heap_left(node), depth+1))
+            except:
+                print("heap node corrupted:", format_addr(node))
+
+            try:
+                pending.append((block_mgr.get_heap_right(node), depth+1))
+            except:
+                print("heap node corrupted:", format_addr(node))
+
+    return max_depth
 
 def print_block_mgr_state():
     heap = block_mgr.get_blockset_heap(blockset)
@@ -194,9 +236,11 @@ def print_block_mgr_state():
     print("heap root ratio:", 0 if free_space == 0 else heap_root_size/free_space)
     print("should compact heap:", block_mgr.should_compact_blockset_heap(blockset))
     print("should defrag:", block_mgr.should_defragment_blockset_free_list(blockset))
+    print("max heap depth:", calc_heap_max_depth())
 
 def print_heap(depth=None):
-    depth = depth or int(math.log2(block_mgr.get_blockset_heap_size(blockset)))+1
+    heap_size = block_mgr.get_blockset_heap_size(blockset)
+    depth = depth or int(math.log2(heap_size or 1))+1
     for s in format_heap_node(block_mgr.get_blockset_heap(blockset), depth):
         print(s)
     print()
@@ -962,8 +1006,8 @@ def test_stochastic():
     # a linear envelope, starting at 95% at 0 total allocated, dropping
     # to 50% at M, and then falling to 0 by M * 1.25.
 
-    problem_step = 4780300
-    log_action_min = 4779000
+    problem_step = 1_827_0940
+    log_action_min = problem_step - 5
 
     elapsed_ns = 0
     allocs = 0
@@ -1013,6 +1057,10 @@ def test_stochastic():
         nonlocal allocs
         allocs += 1
         size = w * distribution(L)
+        if i == problem_step:
+            print_blockset(depth=2)
+            block_mgr.DEBUG.value = 1
+            print('size:', size)
         tic = time.perf_counter_ns()
         b = block_mgr.alloc_block(blockset_id, size)
         toc = time.perf_counter_ns()
@@ -1035,28 +1083,34 @@ def test_stochastic():
         if i == problem_step:
             block_mgr.DEBUG.value = 1
             print('pre free')
-            print_blockset()
+            print_blockset(depth=2)
             print_heap(2)
             validate_blockset()
             block_mgr.add_free_block(blockset, b)
             print()
             print('pre compact')
+            stdout = sys.stdout
+            sys.stdout = open('out1b.log', 'w')
             print_blockset()
-            print_heap(2)
+            sys.stdout = stdout
+            print_blockset(depth=2)
             validate_blockset()
             block_mgr.step_compact_blockset_heap(blockset)
             print()
             print('post compact')
+            stdout = sys.stdout
+            sys.stdout = open('out2b.log', 'w')
             print_blockset()
-            print_heap(2)
+            sys.stdout = stdout
+            print_blockset(depth=2)
             validate_blockset()
             assert False
             # print()
             # print('prepare')
-            # print_blockset()
+            # print_blockset(depth=2)
             # p, c, n = block_mgr.prepare_defragment_blockset(blockset)
             # print(format_addr(p), format_addr(c), format_addr(n))
-            # print_blockset()
+            # print_blockset(depth=2)
             # print()
             # print("relevant blocks:")
             # print_block_list(block_mgr.get_blockset_defrag_cursor(blockset), pairs.get_pair_cdr(pairs.get_pair_car(n)))
@@ -1080,32 +1134,28 @@ def test_stochastic():
             elapsed_ns += toc - tic
 
     # Total number of simulation steps
-    N = 500000
-    # N = 46040 -- hangs
-    #N = 46042
+    N = 2_000_000
+#    N = 1_827_100
 
     # Validation interval (in simulation steps)
     I = N
 
     # Used for narrowing to identify the step that corrupts the blockset
-    v_min = N - I
+    v_min = 0
+    l_min = N
+    default_depth = 2
 
     for i in range(N):
-        # if i >= 46035:
-        #     print(f'{[i]}')
-        #     print_block_mgr_state()
-        #     print()
-        #     print('top of heap:')
-        #     print_heap(2)
-        #     print
+        if i >= l_min:
+            print(f'{[i]}')
+            print_blockset(default_depth)
+            print
         try:
             step_action_linear(i)
             if i > v_min and (i+1) % I == 0:
                 validate_blockset()
         except:
-            print_block_mgr_state()
-            print('top of heap:')
-            print_heap(2)
+            print_blockset(depth=2)
             print(total_allocated)
             print(i)
             raise
@@ -1114,6 +1164,7 @@ def test_stochastic():
     print(f'raw allocator time: {elapsed_ns/1_000_000_000:0.4f}')
     adjusted_elapsed_ns = elapsed_ns - allocs * alloc_overhead_ns - deallocs * dealloc_overhead_ns
     print(f'adjusted allocator time: {adjusted_elapsed_ns/1_000_000_000:0.4f}')
+    print(f'amortized ns per alloc-dealloc pair:', adjusted_elapsed_ns/(N/2))
     print(alloc_overhead_ns, dealloc_overhead_ns)
     print(allocs, deallocs)
     # print(i)
