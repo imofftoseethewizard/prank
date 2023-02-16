@@ -370,6 +370,7 @@
    (param $pair i32)
 
    (call $set-pair-car (local.get $pair) (global.get $pair-free-list))
+   (call $set-pair-cdr (local.get $pair) (i32.const 0xdeadce11))
 
    (global.set $pair-free-list (local.get $pair))
 

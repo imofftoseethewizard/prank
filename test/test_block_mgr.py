@@ -226,6 +226,7 @@ def print_block_mgr_state():
     print("get_blockset_defrag_cursor:", format_addr(defrag_cursor), '' if defrag_cursor == NULL else f'@ {format_addr(block_mgr.get_block_ref_addr(defrag_cursor))}')
     print("get_blockset_end_block_ref:", format_addr(block_mgr.get_blockset_end_block_ref(blockset)))
     print("get_blockset_heap:", format_addr(heap))
+    print("get_blockset_heap_depth:", block_mgr.get_blockset_heap_depth(blockset))
     print("get_blockset_heap_size:", block_mgr.get_blockset_heap_size(blockset))
     print("get_blockset_free_list:", format_addr(block_mgr.get_blockset_free_list(blockset)))
     print("get_blockset_free_list_length:", block_mgr.get_blockset_free_list_length(blockset))
@@ -234,6 +235,7 @@ def print_block_mgr_state():
 
     print("inactive free space ratio:", 0 if total_size == 0 else inactive_free_memory/total_size)
     print("heap root ratio:", 0 if free_space == 0 else heap_root_size/free_space)
+    print("should rebuild heap:", block_mgr.should_rebuild_blockset_heap(blockset))
     print("should compact heap:", block_mgr.should_compact_blockset_heap(blockset))
     print("should defrag:", block_mgr.should_defragment_blockset_free_list(blockset))
     print("max heap depth:", calc_heap_max_depth())
@@ -982,15 +984,22 @@ def test_stochastic():
 
     denom = 1 << block_mgr.blockset_coefficient_log2_denominator.value
 
+    # If the ideal heap depth is less than 3/4 the actual heap depth, rebuild the heap
+    # block_mgr.set_blockset_depth_ratio_coefficient(blockset, int(0.75 * denom))
+    block_mgr.set_blockset_depth_ratio_coefficient(blockset, int(0.8 * denom))
+
+    # If less than 2/3 of the heap is used, then rebuild the heap.
+    block_mgr.set_blockset_unused_ratio_coefficient(blockset, int(0.90 * denom))
+
     # If the root block is less than 1/4 of the total free space, then compact
     # the heap at each step.
-    block_mgr.set_blockset_heap_ratio_coefficient(blockset, int(0.25 * denom))
+    block_mgr.set_blockset_heap_ratio_coefficient(blockset, int(1.0 * denom))
 
     # Inactive free memory is the space consumed by non-root free blocks plus
     # the pairs required to represent them. If the inactive free space is more
     # than 10% of the total storage, then defragment the free list.
     orig_inactive_ratio = block_mgr.get_blockset_inactive_ratio_coefficient(blockset)
-    block_mgr.set_blockset_inactive_ratio_coefficient(blockset, int(0.1 * denom))
+    block_mgr.set_blockset_inactive_ratio_coefficient(blockset, int(0 * denom))
 
     # This will hold the blocks that have been allocated
     blocks = []
@@ -1006,24 +1015,32 @@ def test_stochastic():
     # a linear envelope, starting at 95% at 0 total allocated, dropping
     # to 50% at M, and then falling to 0 by M * 1.25.
 
-    problem_step = 1_827_0940
+    problem_step = 66_912_000
     log_action_min = problem_step - 5
 
     elapsed_ns = 0
     allocs = 0
     deallocs = 0
 
-    block_mgr.stub_alloc_block(blockset, 1)
-    tic = time.perf_counter_ns()
-    block_mgr.stub_alloc_block(blockset, 1)
-    toc = time.perf_counter_ns()
-    alloc_overhead_ns = toc - tic
+    alloc_overhead_ns = 0
+    for i in range(1000):
+        block_mgr.stub_alloc_block(blockset, 1)
+        tic = time.perf_counter_ns()
+        block_mgr.stub_alloc_block(blockset, 1)
+        toc = time.perf_counter_ns()
+        alloc_overhead_ns += toc - tic
 
-    block_mgr.stub_dealloc_block(blockset, 1)
-    tic = time.perf_counter_ns()
-    block_mgr.stub_dealloc_block(blockset, 1)
-    toc = time.perf_counter_ns()
-    dealloc_overhead_ns = toc - tic
+    alloc_overhead_ns /= 1000
+
+    dealloc_overhead_ns = 0
+    for i in range(1000):
+        block_mgr.stub_dealloc_block(blockset, 1)
+        tic = time.perf_counter_ns()
+        block_mgr.stub_dealloc_block(blockset, 1)
+        toc = time.perf_counter_ns()
+        dealloc_overhead_ns += toc - tic
+
+    dealloc_overhead_ns /= 1000
 
     def step_action_linear(i):
         r = total_allocated / M
@@ -1134,7 +1151,7 @@ def test_stochastic():
             elapsed_ns += toc - tic
 
     # Total number of simulation steps
-    N = 2_000_000
+    N = 1_000_000
 #    N = 1_827_100
 
     # Validation interval (in simulation steps)
@@ -1155,7 +1172,7 @@ def test_stochastic():
             if i > v_min and (i+1) % I == 0:
                 validate_blockset()
         except:
-            print_blockset(depth=2)
+            print_blockset(default_depth)
             print(total_allocated)
             print(i)
             raise
