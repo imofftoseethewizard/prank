@@ -1001,6 +1001,9 @@ def test_stochastic():
     orig_inactive_ratio = block_mgr.get_blockset_inactive_ratio_coefficient(blockset)
     block_mgr.set_blockset_inactive_ratio_coefficient(blockset, int(0 * denom))
 
+    # default 0x1000
+    block_mgr.set_blockset_relocation_size_limit(blockset, 0x8000)
+
     # This will hold the blocks that have been allocated
     blocks = []
 
