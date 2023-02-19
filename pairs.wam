@@ -353,6 +353,7 @@
      (if (i32.lt_u (local.get $next-pair) (local.get $top))
          (then
           (i32.store (local.get $pair) (local.get $next-pair))
+          (i32.store (i32.add (local.get $pair) (global.get $value-size)) (i32.const 0xdeadce11))
           (local.set $pair (local.get $next-pair))
           (br $again))
        (else
