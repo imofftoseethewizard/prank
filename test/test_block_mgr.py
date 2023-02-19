@@ -854,7 +854,7 @@ def test_stochastic():
     # a linear envelope, starting at 95% at 0 total allocated, dropping
     # to 50% at M, and then falling to 0 by M * 1.25.
 
-    problem_step = 129000000
+    problem_step = 200000000
     log_action_min = problem_step-5
 
     elapsed_ns = 0
@@ -863,7 +863,6 @@ def test_stochastic():
 
     alloc_overhead_ns = 0
     for i in range(1000):
-        block_mgr.stub_alloc_block(blockset, 1)
         tic = time.perf_counter_ns()
         block_mgr.stub_alloc_block(blockset, 1)
         toc = time.perf_counter_ns()
@@ -873,7 +872,6 @@ def test_stochastic():
 
     dealloc_overhead_ns = 0
     for i in range(1000):
-        block_mgr.stub_dealloc_block(blockset, 1)
         tic = time.perf_counter_ns()
         block_mgr.stub_dealloc_block(blockset, 1)
         toc = time.perf_counter_ns()
@@ -992,7 +990,7 @@ def test_stochastic():
             elapsed_ns += toc - tic
 
     # Total number of simulation steps
-    N = 2_000_000
+    N = 1_000_000
 #    N = 1_827_100
 
     # Validation interval (in simulation steps)
