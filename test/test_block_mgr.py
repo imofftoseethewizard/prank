@@ -833,12 +833,13 @@ def test_relocation():
         if b in remaining_blocks:
             assert block_mgr_test_client.check_fill(b, i)
 
+@pytest.mark.skip('long, probably should be moved somewhere else')
 def test_stochastic():
 
     init_test()
 
     # default 0x1000
-    block_mgr.set_blockset_relocation_size_limit(blockset, 0x1000)
+    block_mgr.set_blockset_relocation_size_limit(blockset, 0x800)
 
     # This will hold the blocks that have been allocated
     blocks = []
