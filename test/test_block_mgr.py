@@ -833,13 +833,59 @@ def test_relocation():
         if b in remaining_blocks:
             assert block_mgr_test_client.check_fill(b, i)
 
-@pytest.mark.skip('long, probably should be moved somewhere else')
+def test_quantize_size():
+    for i in range(1, 16):
+        assert block_mgr.quantize_size(i) == i
+
+    for i in range(16, 32):
+        x = block_mgr.quantize_size(i)
+        assert i <= x <= i+1 and x % 2 == 0
+
+    for i in range(32, 64):
+        x = block_mgr.quantize_size(i)
+        assert i <= x <= i+3 and x % 4 == 0
+
+    for i in range(64, 128):
+        x = block_mgr.quantize_size(i)
+        assert i <= x <= i+7 and x % 8 == 0
+
+    for i in range(128, 256):
+        x = block_mgr.quantize_size(i)
+        assert i <= x <= i+15 and x % 16 == 0
+
+    for i in range(256, 512):
+        x = block_mgr.quantize_size(i)
+        assert i <= x <= i+31 and x % 32 == 0
+
+def test_calc_max_overage():
+    for i in range(1, 16):
+        assert block_mgr.calc_max_overage(i) == 4
+
+    for i in range(16, 32):
+        assert block_mgr.calc_max_overage(i) == 8
+
+    for i in range(32, 64):
+        assert block_mgr.calc_max_overage(i) == 16
+
+    for i in range(64, 128):
+        assert block_mgr.calc_max_overage(i) == 32
+
+    for i in range(128, 256):
+        assert block_mgr.calc_max_overage(i) == 64
+
+    for i in range(256, 512):
+        assert block_mgr.calc_max_overage(i) == 128
+
+#@pytest.mark.skip('long, probably should be moved somewhere else')
 def test_stochastic():
 
     init_test()
 
     # default 0x1000
-    block_mgr.set_blockset_relocation_size_limit(blockset, 0x800)
+    block_mgr.set_blockset_relocation_size_limit(blockset, 0x4000)
+
+    # default 0x1000
+    block_mgr.set_blockset_immobile_block_size(blockset, 0x8000)
 
     # This will hold the blocks that have been allocated
     blocks = []
@@ -855,7 +901,7 @@ def test_stochastic():
     # a linear envelope, starting at 95% at 0 total allocated, dropping
     # to 50% at M, and then falling to 0 by M * 1.25.
 
-    problem_step = 200000000
+    problem_step = 199_9930000
     log_action_min = problem_step-5
 
     elapsed_ns = 0
@@ -898,20 +944,21 @@ def test_stochastic():
     # Ensure that this is repeatable
     random.seed(0)
 
-    # average number of 4-byte words in each alloc_block request
-    L = 16
-
     # Word size
-    w = 4
+    w = 1
 
-    # distribution of alloc_block request sizes
+    # average number of w-byte words in each alloc_block request
+    L = 1<<10
+
+    # distribution of alloc_block request sizes (in units of w, with exp length L)
     distribution = util.sample_poisson
 
     def alloc_block(i):
         nonlocal total_allocated
         nonlocal allocs
         allocs += 1
-        size = w * distribution(L)
+        size = w * max(1, distribution(L))
+        assert size > 0
         if i == problem_step:
             print_blockset(blockset, depth=2)
             block_mgr.DEBUG.value = 1
@@ -933,13 +980,19 @@ def test_stochastic():
         deallocs += 1
         b_i = random.randrange(len(blocks))
         b = blocks[b_i]
+        blocks[b_i] = blocks[-1]
+        blocks.pop()
         if i == problem_step:
             print(format_addr(b))
-        blocks = blocks[:b_i] + blocks[b_i+1:]
+        #blocks = blocks[:b_i] + blocks[b_i+1:]
         total_allocated -= block_mgr.get_block_ref_size(b)
         if i == problem_step:
             block_mgr.DEBUG.value = 1
             print('pre free')
+            stdout = sys.stdout
+            sys.stdout = open('out1b.log', 'w')
+            print_blockset(blockset)
+            sys.stdout = stdout
             print_blockset(blockset, depth=2)
             print_heap(blockset, 2)
             validate_blockset(blockset)
@@ -947,7 +1000,7 @@ def test_stochastic():
             print()
             print('pre clean')
             stdout = sys.stdout
-            sys.stdout = open('out1b.log', 'w')
+            sys.stdout = open('out2b.log', 'w')
             print_blockset(blockset)
             sys.stdout = stdout
             print_blockset(blockset, depth=2)
@@ -955,10 +1008,6 @@ def test_stochastic():
             block_mgr.step_clean_heap(blockset)
             print()
             print('post clean')
-            stdout = sys.stdout
-            sys.stdout = open('out2b.log', 'w')
-            print_blockset(blockset)
-            sys.stdout = stdout
             print_blockset(blockset, depth=2)
             validate_blockset(blockset)
             assert False

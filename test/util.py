@@ -14,7 +14,7 @@ def sample_poisson(expected_value):
     n += 1
     x *= random.random()
 
-  return n
+  return max(1, n)
 
 def sample_power_law(x_min, alpha):
   # x_min = 5
