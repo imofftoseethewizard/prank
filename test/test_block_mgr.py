@@ -939,16 +939,17 @@ def test_stochastic():
         if i == problem_step or i > log_action_min:
             print('alloc' if c else 'dealloc')
 
-        alloc_block(i) if c else dealloc_block(i)
+        alloc_block(i) if c or len(blocks) == 0 else dealloc_block(i)
 
     # Ensure that this is repeatable
     random.seed(0)
+    # random.seed(time.time_ns())
 
     # Word size
-    w = 1
+    w = 4
 
     # average number of w-byte words in each alloc_block request
-    L = 1<<10
+    L = 5
 
     # distribution of alloc_block request sizes (in units of w, with exp length L)
     distribution = util.sample_poisson
@@ -1040,7 +1041,7 @@ def test_stochastic():
             elapsed_ns += toc - tic
 
     # Total number of simulation steps
-    N = 1_000_000
+    N = 10_000_000
 #    N = 1_827_100
 
     # Validation interval (in simulation steps)

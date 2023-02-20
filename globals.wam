@@ -26,11 +26,11 @@
 (global $false                 (export "#false")                i32 (i32.const 0x00000007))
 (global $null                  (export "#null")                 i32 (i32.const 0xffffffff))
 (global $true                  (export "#true")                 i32 (i32.const 0x0000000f))
-(global $box-type-bytevector   (export "box-type-bytevector")   i32 (i32.const 0x00000107))
-(global $box-type-number       (export "box-type-number")       i32 (i32.const 0x0000010f))
-(global $box-type-string       (export "box-type-string")       i32 (i32.const 0x00000117))
-(global $box-type-vector       (export "box-type-vector")       i32 (i32.const 0x0000011f))
-(global $box-type-weakref      (export "box-type-weakref")      i32 (i32.const 0x00000207))
+(global $type-bytevector       (export "type-bytevector")       i32 (i32.const 0x00000107))
+(global $type-number           (export "type-number")           i32 (i32.const 0x0000010f))
+(global $type-string           (export "type-string")           i32 (i32.const 0x00000117))
+(global $type-vector           (export "type-vector")           i32 (i32.const 0x0000011f))
+(global $type-weakref          (export "typevalue-weakref")     i32 (i32.const 0x00000207))
 
 (global $singleton-type-mask   (export "singleton-type-mask")   i32 (i32.const 0x00000f07))
 (global $type-null             (export "type-null")             i32 (i32.const 0x00000f07))
@@ -41,3 +41,5 @@
 
 ;; "parameter" table entry ids for algorithms.wam
 (global $bisect-left-i32-indirect-compare (export "bisect-left-i32-indirect-compare") i32 (i32.const 0))
+
+(global $bytevectors-blockset-id (export "bytevectors-blockset-id") i32 (i32.const 1))

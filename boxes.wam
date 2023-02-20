@@ -1,9 +1,13 @@
 (module
 
+ (import "pairs" "dealloc-pair"   (func $dealloc-pair  (param i32)))
+ (import "pairs" "alloc-pair"   (func $alloc-pair      (result i32)))
  (import "pairs" "get-pair-car"   (func $get-pair-car  (param i32)     (result i32)))
  (import "pairs" "get-pair-cdr"   (func $get-pair-cdr  (param i32)     (result i32)))
+ (import "pairs" "get-pair-cdr-f32"   (func $get-pair-cdr-f32  (param i32)     (result f32)))
  (import "pairs" "set-pair-car"   (func $set-pair-car  (param i32 i32)))
  (import "pairs" "set-pair-cdr"   (func $set-pair-cdr  (param i32 i32)))
+ (import "pairs" "set-pair-cdr-f32"   (func $set-pair-cdr-f32  (param i32 f32)))
 
  ;;=============================================================================
  ;;
@@ -67,7 +71,7 @@
    (call $set-pair-cdr-f32 (local.get $box) (local.get $value)))
 
  (func $alloc-box (export "alloc-box")
-   (param $box-type)
+   (param $box-type i32)
    (result i32)
    (local $box i32)
    (local.set $box (call $alloc-pair))
@@ -75,36 +79,9 @@
    (call $set-box-type (local.get $box) (local.get $box-type))
    (local.get $box))
 
- (func $alloc-boxed-block (export "alloc-boxed-block")
-   (param $box-type i32)
-   (param $length i32)
-   (result i32)
-
-   (local $box i32)
-
-   (local.set $box (call $alloc-box (local.get $box-type)))
-
-   (call $set-pair-cdr
-         (local.get $box)
-         (call $alloc-block
-               (local.get $box)
-               (local.get $length))))
-
  (func $dealloc-box (export "dealloc-box")
    (param $b i32)
-
-   (if (call $is-boxed-block (local.get $b))
-       (then
-        (call $dealloc-block (call $get-boxed-value (local.get $b)))))
-
    (call $dealloc-pair (local.get $b)))
-
- (func $is-boxed-block (export "is-boxed-block")
-   (param $b i32)
-   (result i32)
-   (i32.eq (i32.and (call $get-box-type (local.get $b))
-                    (global.get $type-mask))
-           (global.get $type-block)))
 
  (func $make-box (export "make-box")
    (param $box-type i32)
@@ -118,7 +95,7 @@
 
 (func $make-box-f32 (export "make-box-f32")
    (param $box-type i32)
-   (param $value i32)
+   (param $value f32)
    (result i32)
    (local $box i32)
 

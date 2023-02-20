@@ -30,6 +30,8 @@ SOURCES = \
 OBJECTS = \
 	block-mgr.wasm \
 	block-mgr-test-client.wasm \
+	boxes.wasm \
+	bytevectors.wasm \
 	lists.wasm \
 	pairs.wasm \
 	values.wasm
