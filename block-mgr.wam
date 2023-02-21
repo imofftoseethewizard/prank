@@ -1120,6 +1120,34 @@
 
    (local.get $block-ref))
 
+ (func $remove-free-list-entry (export "remove-free-list-entry")
+   ;; Removes an entry from the free list. The entry is removed from
+   ;; the free list and deallocated, and the free list length is
+   ;; decremented.  This is called from alloc-block when the entire
+   ;; free block is used for an allocation request.
+
+   (param $blockset i32)
+   (param $entry i32)
+
+   (local $next-free-entry i32)
+   (local $prior-free-entry i32)
+
+   (local.set $next-free-entry (call $get-next-free-entry (local.get $entry)))
+
+   (local.set $prior-free-entry (call $find-predecessor-free-list-entry
+                                      (local.get $blockset)
+                                      (call $get-free-entry-block-ref (local.get $entry))))
+
+   (if (i32.eq (local.get $prior-free-entry) (global.get $null))
+       (then
+        (call $set-blockset-free-list (local.get $blockset) (local.get $next-free-entry)))
+     (else
+      (call $set-next-block-ref (local.get $prior-free-entry) (local.get $next-free-entry))))
+
+   (call $dealloc-pair (local.get $entry))
+
+   (call $decr-blockset-free-list-length (local.get $blockset)))
+
  ;;-----------------------------------------------------------------------------
  ;;
  ;; Resize Block
@@ -2132,41 +2160,6 @@
 
    (call $set-blockset-heap-sweep-cursor (local.get $blockset) (local.get $node-idx)))
 
- (func $rebuild-heap (export "rebuild-heap")
-   (param $blockset i32)
-
-   (local $free-entry i32)
-   (local $heap i32)
-   (local $heap-size i32)
-   (local $node-idx i32)
-
-   (local.set $free-entry (call $get-blockset-free-list (local.get $blockset)))
-   (local.set $heap (call $get-blockset-heap (local.get $blockset)))
-   (local.set $heap-size (call $get-blockset-heap-size (local.get $blockset)))
-   (local.set $node-idx (i32.const 0))
-
-   (loop $again
-     (if (call $is-unused-heap-block (local.get $heap) (local.get $node-idx))
-         (then
-          (call $dealloc-free-list-entry
-                (call $get-heap-node-entry (local.get $heap) (local.get $node-idx)))))
-
-     (if (i32.ne (local.get $free-entry) (global.get $null))
-         (then
-          (call $set-heap-node-entry (local.get $heap) (local.get $node-idx) (local.get $free-entry))
-          (local.set $free-entry (call $get-next-free-entry (local.get $free-entry)))
-          (call $raise-heap-node (local.get $blockset) (local.get $node-idx))))
-
-     (local.set $node-idx (i32.add (local.get $node-idx) (i32.const 1)))
-     (if (i32.lt_u (local.get $node-idx) (local.get $heap-size))
-         (then
-          (br $again))))
-
-   (call $set-blockset-heap-size
-         (local.get $blockset)
-         (call $get-blockset-free-list-length (local.get $blockset))))
-
-
  (func $swap-heap-entries (export "swap-heap-entries")
    (param $heap i32)
    (param $a-idx i32)
@@ -2262,27 +2255,4 @@
    (call $dealloc-pair (call $get-free-entry-block-ref (local.get $entry)))
 
    ;; the free list entry: contains (block-ref . null)
-   (call $dealloc-pair (local.get $entry)))
-
- (func $remove-free-list-entry (export "remove-free-list-entry")
-   (param $blockset i32)
-   (param $entry i32)
-
-   (local $next-free-entry i32)
-   (local $prior-free-entry i32)
-
-   (local.set $next-free-entry (call $get-next-free-entry (local.get $entry)))
-
-   (local.set $prior-free-entry (call $find-predecessor-free-list-entry
-                                      (local.get $blockset)
-                                      (call $get-free-entry-block-ref (local.get $entry))))
-
-   (if (i32.eq (local.get $prior-free-entry) (global.get $null))
-       (then
-        (call $set-blockset-free-list (local.get $blockset) (local.get $next-free-entry)))
-     (else
-      (call $set-next-block-ref (local.get $prior-free-entry) (local.get $next-free-entry))))
-
-   (call $dealloc-pair (local.get $entry))
-
-   (call $decr-blockset-free-list-length (local.get $blockset))))
+   (call $dealloc-pair (local.get $entry))))
