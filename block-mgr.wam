@@ -215,8 +215,6 @@
  (global $blockset-size-bits (export "blockset-size-bits") i32 (i32.const 6))
  (global $debug (export "#debug") (mut i32) (i32.const 0))
 
- (global $block-mgr-blockset-id (export "block-mgr-blockset-id") i32 (i32.const 0))
- (global $max-blockset-id (export "max-blockset-id") i32 (i32.const 16))
  ;; Each heap node is 8 bytes, allow 3 nodes per blockset
  (global $per-blockset-heap0-capacity-bytes (export "per-blockset-heap0-capacity-bytes") i32 (i32.const 24))
 

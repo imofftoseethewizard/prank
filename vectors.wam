@@ -1,15 +1,19 @@
 (module
 
- (import "blocks" "alloc-block-value"   (func $alloc-block-value   (param i32 i32) (result i32)))
- (import "blocks" "dealloc-block-value" (func $dealloc-block-value (param i32)))
- (import "blocks" "get-block-element"   (func $get-block-element   (param i32 i32) (result i32)))
- (import "blocks" "get-block-data-size" (func $get-block-data-size (param i32)     (result i32)))
- (import "blocks" "set-block-element"   (func $set-block-element   (param i32 i32 i32)))
- (import "boxes" "get-box-type"         (func $get-box-type        (param i32)     (result i32)))
- (import "boxes" "get-box-value"        (func $get-box-value       (param i32)     (result i32)))
- (import "pairs" "get-pair-car"         (func $get-pair-car        (param i32)     (result i32)))
- (import "pairs" "get-pair-cdr"         (func $get-pair-cdr        (param i32)     (result i32)))
- (import "values" "get-value-tag"       (func $get-value-tag       (param i32)     (result i32)))
+ (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32) (result i32)))
+ (import "block-mgr" "dealloc-block"      (func $dealloc-block      (param i32 i32)))
+ (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr (param i32)     (result i32)))
+ (import "block-mgr" "get-block-ref-size" (func $get-block-ref-size (param i32)     (result i32)))
+ (import "block-mgr" "init-blockset"      (func $init-blockset      (param i32 i32 i32)))
+ (import "boxes" "dealloc-box"            (func $dealloc-box        (param i32)))
+ (import "boxes" "get-box-length"         (func $get-box-length     (param i32)     (result i32)))
+ (import "boxes" "get-box-type"           (func $get-box-type       (param i32)     (result i32)))
+ (import "boxes" "get-box-value"          (func $get-box-value      (param i32)     (result i32)))
+ (import "boxes" "make-box"               (func $make-box           (param i32 i32) (result i32)))
+ (import "lists" "get-list-length"        (func $get-list-length    (param i32)     (result i32)))
+ (import "pairs" "get-pair-car"           (func $get-pair-car       (param i32)     (result i32)))
+ (import "pairs" "get-pair-cdr"           (func $get-pair-cdr       (param i32)     (result i32)))
+ (import "values" "get-value-tag"         (func $get-value-tag      (param i32)     (result i32)))
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
@@ -19,16 +23,20 @@
 
  (memory $memory (export "memory") 1)
 
+ (start $init-vectors)
  (func $init-vectors (export "init-vectors")
-   (call $init-blockset (global.get $vector-blockset-id))
+   (call $init-blockset
+         (global.get $vectors-blockset-id)
+         (i32.const 0x800)   ;; relocate blocks in groups of up to 2KB
+         (i32.const 0x4000)) ;; relocate single blocks of up to 16KB
 
    ;; defined in block-mgr-memory-proxies.wam
-   (call $init-blockset-memory-proxies (global.get $vector-blockset-id)))
+   (call $init-blockset-memory-proxies (global.get $vectors-blockset-id)))
 
  (func $is-vector (export "is-vector")
    (param $value i32)
    (result i32)
-   (if (i32.eq (call $get-value-tag (local.get $value)) (global.get $tag-box))
+   (if (result i32) (i32.eq (call $get-value-tag (local.get $value)) (global.get $tag-box))
        (then
         (i32.eq (call $get-pair-car (local.get $value) (global.get $type-vector))))
      (else
@@ -37,22 +45,28 @@
  (func $alloc-vector (export "alloc-vector")
    (param $length i32)
    (result i32)
-   (call $make-box
-         (global.get $type-vector)
-         (call $alloc-block
-               (global.get $vector-blockset-id)
-               (call $calc-vector-size (local.get $length)))))
+
+   (local $block-ref i32)
+
+   (local.set $block-ref (call $alloc-block
+                               (global.get $vectors-blockset-id)
+                               (call $calc-vector-size (local.get $length))))
+
+   (i32.store (call $get-block-ref-addr (local.get $block-ref)) (local.get $length))
+
+   (call $make-box (global.get $type-vector) (local.get $block-ref)))
 
  (func $calc-vector-size (export "calc-vector-size")
    (param $length i32)
    (result i32)
-   (i32.shl (local.get $length) (global.get $value-size-bits)))
+   (i32.add (i32.shl (local.get $length) (global.get $value-size-bits))
+            (global.get $value-size)))
 
  (func $dealloc-vector (export "dealloc-vector")
    (param $v i32)
 
    (call $dealloc-block
-         (global.get $vector-blockset-id)
+         (global.get $vectors-blockset-id)
          (call $get-box-value (local.get $v)))
 
    (call $dealloc-box (local.get $v)))
@@ -62,24 +76,23 @@
    (param $value i32)
    (result i32)
 
-   (local $block i32)
-   (local $idx i32)
+   (local $addr i32)
+   (local $end-addr i32)
    (local $v i32)
 
    (local.set $v (call $alloc-vector (local.get $length)))
-   (local.set $value-addr (call $get-vector-addr (local.get $v)))
+   (local.set $addr (call $get-vector-addr (local.get $v)))
 
-   (local.set $idx (i32.const 0))
+   (local.set $end-addr (i32.shl (local.get $length) (global.get $value-size-bits)))
 
    (loop $again
-     (i32.store (local.get $value-addr) (local.get $value))
+     (i32.store (local.get $addr) (local.get $value))
 
      (call $add-ref (local.get $v) (local.get $value))
 
-     (if (i32.lt_u (local.get $idx) (local.get $length))
+     (if (i32.lt_u (local.get $addr) (local.get $end-addr))
          (then
-          (local.set (i32.add (local.get $idx) (i32.const 1)))
-          (local.set (i32.add (local.get $value-addr) (global.get $value-size)))
+          (local.set $addr (i32.add (local.get $addr) (global.get $value-size)))
           (br $again))))
 
    (local.get $v))
@@ -88,42 +101,44 @@
    (param $list i32)
    (result i32)
 
-   (local.get $v)
-
-   (local $block i32)
+   (local $addr i32)
    (local $head i32)
-   (local $idx i32)
    (local $v i32)
    (local $value i32)
 
    (local.set $v (call $alloc-vector (call $get-list-length (local.get $list))))
 
-   (local.set $value-addr (call $get-vector-addr (local.get $v)))
+   (local.set $addr (call $get-vector-addr (local.get $v)))
    (local.set $head (local.get $list))
 
    (loop $again
      (if (i32.ne (local.get $head) (global.get $null))
          (then
           (local.set $value (call $get-pair-car (local.get $list)))
-          (i32.store (local.get $value-addr) (local.get $value))
+          (i32.store (local.get $addr) (local.get $value))
           (call $add-ref (local.get $v) (local.get $value))
-          (local.set $value-addr (i32.add (local.get $value-addr) (global.get $value-size)))
+          (local.set $addr (i32.add (local.get $addr) (global.get $value-size)))
           (local.set $head (call $get-pair-cdr (local.get $head)))
           (br $again))))
 
    (local.get $v))
 
+ (func $get-vector-addr (export "get-vector-addr")
+   (param $v i32)
+   (result i32)
+   (i32.add (call $get-block-ref-addr (call $get-box-value (local.get $v)))
+            (global.get $value-size)))
+
  (func $get-vector-length (export "get-vector-length")
    (param $v i32)
    (result i32)
-   (call $get-block-size (i32.shr_u (call $get-box-value (local.get $v))
-                                    (global.get $value-size-bits))))
+   (i32.load (call $get-block-ref-addr (call $get-box-value (local.get $v)))))
 
  (func $get-vector-element (export "get-vector-element")
    (param $v i32)
    (param $idx i32)
    (result i32)
-   (i32.load (i32.add (call $get-vector-address (local.get $v))
+   (i32.load (i32.add (call $get-vector-addr (local.get $v))
                       (i32.shl (local.get $idx)
                                (global.get $value-size-bits)))))
 

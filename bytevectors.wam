@@ -1,19 +1,19 @@
 (module
 
- (import "block-mgr" "alloc-block"   (func $alloc-block     (param i32 i32) (result i32)))
- (import "block-mgr" "dealloc-block" (func $dealloc-block   (param i32 i32)))
- (import "block-mgr" "init-blockset" (func $init-blockset   (param i32 i32 i32)))
- (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr   (param i32) (result i32)))
- (import "block-mgr" "get-block-ref-size" (func $get-block-ref-size   (param i32) (result i32)))
- (import "boxes" "dealloc-box"    (func $dealloc-box  (param i32)))
- (import "boxes" "get-box-length"    (func $get-box-length  (param i32)     (result i32)))
- (import "boxes" "get-box-value"     (func $get-box-value   (param i32)     (result i32)))
- (import "boxes" "get-box-type"     (func $get-box-type   (param i32)     (result i32)))
- (import "boxes" "make-box"          (func $make-box        (param i32 i32) (result i32)))
- (import "lists" "get-list-length"   (func $get-list-length (param i32)     (result i32)))
- (import "pairs" "get-pair-car"      (func $get-pair-car    (param i32)     (result i32)))
- (import "pairs" "get-pair-cdr"      (func $get-pair-cdr    (param i32)     (result i32)))
- (import "values" "get-value-tag"    (func $get-value-tag   (param i32)     (result i32)))
+ (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32) (result i32)))
+ (import "block-mgr" "dealloc-block"      (func $dealloc-block      (param i32 i32)))
+ (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr (param i32)     (result i32)))
+ (import "block-mgr" "get-block-ref-size" (func $get-block-ref-size (param i32)     (result i32)))
+ (import "block-mgr" "init-blockset"      (func $init-blockset      (param i32 i32 i32)))
+ (import "boxes" "dealloc-box"            (func $dealloc-box        (param i32)))
+ (import "boxes" "get-box-length"         (func $get-box-length     (param i32)     (result i32)))
+ (import "boxes" "get-box-type"           (func $get-box-type       (param i32)     (result i32)))
+ (import "boxes" "get-box-value"          (func $get-box-value      (param i32)     (result i32)))
+ (import "boxes" "make-box"               (func $make-box           (param i32 i32) (result i32)))
+ (import "lists" "get-list-length"        (func $get-list-length    (param i32)     (result i32)))
+ (import "pairs" "get-pair-car"           (func $get-pair-car       (param i32)     (result i32)))
+ (import "pairs" "get-pair-cdr"           (func $get-pair-cdr       (param i32)     (result i32)))
+ (import "values" "get-value-tag"         (func $get-value-tag      (param i32)     (result i32)))
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
@@ -45,17 +45,15 @@
    (param $size i32)
    (result i32)
 
-   (local $bv i32)
    (local $block-ref i32)
 
    (local.set $block-ref (call $alloc-block
                                (global.get $bytevectors-blockset-id)
                                (i32.add (local.get $size) (global.get $value-size))))
 
-   (local.set $bv (call $make-box (global.get $type-bytevector) (local.get $block-ref)))
-
    (i32.store (call $get-block-ref-addr (local.get $block-ref)) (local.get $size))
-   (local.get $bv))
+
+   (call $make-box (global.get $type-bytevector) (local.get $block-ref)))
 
  (func $dealloc-bytevector (export "dealloc-bytevector")
    (param $bv i32)

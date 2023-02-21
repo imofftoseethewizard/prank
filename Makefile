@@ -8,6 +8,7 @@ SOURCES = \
 	algorithms.wam \
 	block-mgr.wam \
 	boxes.wam \
+	bytevectors.wam \
 	globals.wam \
 	kernel.wam \
 	lex.wam \
@@ -18,13 +19,8 @@ SOURCES = \
 
 # OBJECTS = \
 # 	algorithms.wasm \
-# 	block-mgr.wasm \
-# 	boxes.wasm \
 # 	kernel.wasm \
 # 	lex.wasm \
-# 	memory.wasm \
-# 	pairs.wasm \
-# 	values.wasm \
 # 	vectors.wasm
 
 OBJECTS = \
@@ -32,9 +28,12 @@ OBJECTS = \
 	block-mgr-test-client.wasm \
 	boxes.wasm \
 	bytevectors.wasm \
+	chars.wasm \
 	lists.wasm \
 	pairs.wasm \
-	values.wasm
+	strings.wasm \
+	values.wasm \
+	vectors.wasm
 
 block-mgr.wat: globals.wam
 
@@ -44,9 +43,33 @@ block-mgr-test-client.wat: \
 	block-mgr-test-client.wam \
 	globals.wam
 
-pairs.wat: pairs.wam globals.wam gc-client.wam
+boxes.wat: globals.wam
 
-values.wat: values.wam globals.wam
+bytevectors.wat: \
+	block-mgr-memory-proxies.wam \
+	block-mgr-memory-proxy-imports.wam \
+	block-mgr-test-client.wam \
+	globals.wam
+
+chars.wam: globals.wam
+
+lists.wam: globals.wam
+
+pairs.wat: globals.wam gc-client.wam
+
+strings.wat: \
+	block-mgr-memory-proxies.wam \
+	block-mgr-memory-proxy-imports.wam \
+	block-mgr-test-client.wam \
+	globals.wam
+
+values.wat: globals.wam
+
+vectors.wat: \
+	block-mgr-memory-proxies.wam \
+	block-mgr-memory-proxy-imports.wam \
+	block-mgr-test-client.wam \
+	globals.wam
 
 all: test
 
