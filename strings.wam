@@ -10,6 +10,7 @@
  (import "boxes" "get-box-value"          (func $get-box-value      (param i32)     (result i32)))
  (import "boxes" "make-box"               (func $make-box           (param i32 i32) (result i32)))
  (import "chars" "calc-char-width"               (func $calc-char-width           (param i32) (result i32)))
+ (import "chars" "calc-encoded-length"               (func $calc-encoded-length           (param i32) (result i32)))
  (import "chars" "encode-char"               (func $encode-char           (param i32) (result i32)))
  (import "lists" "get-list-length"        (func $get-list-length    (param i32)     (result i32)))
  (import "pairs" "get-pair-car"           (func $get-pair-car       (param i32)     (result i32)))
@@ -36,6 +37,7 @@
  (func $is-string (export "is-string")
    (param $value i32)
    (result i32)
+   ;; todo -- fold types
    (i32.eq (call $get-value-tag (local.get $value)) (global.get $tag-string)))
 
  (func $alloc-string (export "alloc-string")
@@ -44,13 +46,39 @@
    (result i32)
 
    (local $block-ref i32)
+   (local $addr i32)
 
    (local.set $block-ref (call $alloc-block
                                (global.get $strings-blockset-id) (local.get $size)))
 
-   (i32.store (call $get-block-ref-addr (local.get $block-ref)) (local.get $length))
+   (local.set $addr (call $get-block-ref-addr (local.get $block-ref)))
 
-   (call $make-box (global.get $type-string) (local.get $block-ref)))
+   (if (i32.and (i32.lt_u (local.get $size) (i32.const 0x100))
+                (i32.eq (local.get $size) (local.get $length)))
+       (then
+        (i32.store8 (local.get $addr) (local.get $length))
+        (local.set $type (global.get $type-string-simple)))
+
+     (else
+      (if (i32.lt_u (local.get $size) (i32.const 0x100))
+          (then
+           (i32.store8 (local.get $addr) (local.get $size))
+           (i32.store8 (i32.add (local.get $addr) (i32.const 1)) (local.get $length))
+           (local.set $type (global.get $type-string-small)))
+
+        (else
+         (if (i32.lt_u (local.get $size) (i32.const 0x10000))
+             (then
+              (i32.store16 (local.get $addr) (local.get $size))
+              (i32.store16 (i32.add (local.get $addr) (i32.const 2)) (local.get $length))
+              (local.set $type (global.get $type-string-medium)))
+
+           (else ;; $type-string-large
+            (i32.store (local.get $addr) (local.get $size))
+            (i32.store (i32.add (local.get $addr) (i32.const 4)) (local.get $length))
+            (local.set $type (global.get $type-string-large))))))))
+
+   (call $make-box (local.get $type) (local.get $block-ref)))
 
  (func $dealloc-string (export "dealloc-string")
    (param $s i32)
@@ -61,16 +89,72 @@
 
    (call $dealloc-box (local.get $s)))
 
+ (func $get-string-block-addr (export "get-string-block-addr")
+   (param $s i32)
+   (result i32)
+   (call $get-block-ref-addr (call $get-box-value (local.get $s))))
+
  (func $get-string-addr (export "get-string-addr")
    (param $s i32)
    (result i32)
-   (i32.add (call $get-block-ref-addr (call $get-box-value (local.get $s)))
-            (global.get $value-size)))
+
+   (local $addr i32)
+   (local $type i32)
+
+   (local.set $type (call $get-string-type (local.get $s)))
+   (local.set $addr (call $get-string-block-addr (local.get $s)))
+
+   (if (i32.eq (local.get $type) (global.get $type-string-simple))
+       (then
+        (i32.add (local.get $addr) (i32.const 1)))
+     (else
+      (if (i32.eq (local.get $type) (global.get $type-string-small))
+          (then
+           ;; one byte each for size and length, plus index entries
+           (i32.add (i32.add (local.get $addr) (i32.const 2))
+                    (i32.shr_u (i32.load8_u (local.get $addr))
+                               (global.get $small-string-chunk-size-bits))))
+        (else
+         (else
+          (if (i32.eq (local.get $type) (global.get $type-string-medium))
+              (then
+               ;; 2 bytes each for size and length, plus index entries
+               (i32.add (i32.add (local.get $addr) (i32.const 4))
+                        (i32.shr_u (i32.load16_u (local.get $addr))
+                                   (global.get $medium-string-chunk-size-bits))))
+            (else
+             ;; 4 bytes each for size and length, plus index entries
+             (i32.add (i32.add (local.get $addr) (i32.const 8))
+                      (i32.shr_u (i32.load (local.get $addr))
+                                 (global.get $large-string-chunk-size-bits)))))))))))
 
  (func $get-string-length (export "get-string-length")
    (param $s i32)
    (result i32)
-   (i32.load (call $get-block-ref-addr (call $get-box-value (local.get $s)))))
+
+   (local $addr i32)
+   (local $type i32)
+
+   (local.set $type (call $get-string-type (local.get $s)))
+   (local.set $addr (call $get-string-block-addr (local.get $s)))
+
+   (if (i32.eq (local.get $type) (global.get $type-string-simple))
+       (then
+        (i32.load8_u (local.get $addr)))
+     (else
+      (if (i32.eq (local.get $type) (global.get $type-string-small))
+          (then
+           ;; skip over the byte size
+           (i32.load8_u (i32.add (local.get $addr) (i32.const 1))))
+        (else
+         (else
+          (if (i32.eq (local.get $type) (global.get $type-string-medium))
+              (then
+               ;; skip over the 2 bytes for size
+               (i32.load16_u (i32.add (local.get $addr) (i32.const 2))))
+            (else
+             ;; skip over the 4 bytes for size
+             (i32.load (i32.add (local.get $addr) (i32.const 4)))))))))))
 
  (func $make-string (export "make-string")
    (param $length i32)
@@ -78,11 +162,11 @@
    (result i32)
 
    (local $addr i32)
+   (local $char-utf-8 i32)
    (local $char-width i32)
    (local $count i32)
    (local $s i32)
    (local $size i32)
-   (local $width i32)
 
    (local.set $char-width (call $calc-char-width (local.get $char)))
 
@@ -91,29 +175,144 @@
                        (i32.mul (local.get $char-width) (local.get $length))))
 
    (local.set $addr (call $get-string-addr (local.get $s)))
-   (local.set $count (local.get $length))
+
+   (if (i32.eq (local.get $char-width) (i32.const 1))
+       (then
+        (memory.fill
+         (local.get $addr)
+         (local.get $length)
+         (local.get $char)))
+
+     (else
+
+      (local.set $char-utf-8 (call $encode-char (local.get $char)))
+      (local.set $count (local.get $length))
+
+      (loop $again
+        (if (local.get $count)
+            (then
+
+             (call $set-string-bytes
+                   (local.get $addr)
+                   (local.get $char-utf-8)
+                   (local.get $width))
+
+             (local.set $addr (i32.add (local.get $addr) (local.get $char-width)))
+             (local.set $count (i32.sub (local.get $count) (i32.const 1)))
+
+             (br $again))))))
+
+   (call $build-string-index (local.get $s))
+   (local.get $s))
+
+ (func $build-string-index (export "build-string-index")
+   (param $s i32)
+
+   (local $string-type i32)
+
+   (if (i32.eq (local.get $string-type) (global.get $type-string-small))
+       (then
+        (call $build-small-string-index (local.get $s)))
+     (else
+      (if (i32.eq (local.get $string-type) (global.get $type-string-medium))
+          (then
+           (call $build-medium-string-index (local.get $s)))
+        (else
+         (call $build-large-string-index (local.get $s)))))))
+
+ (func $build-small-string-index (export "build-small-string-index")
+   (param $s i32)
+
+   (local.set $addr (call $get-string-addr (local.get $s)))
+   (local.set $char-addr (local.get $addr))
+   (local.set $idx-addr (call $get-string-idx-addr (local.get $s)))
+
+   (local.set $count (i32.const 0))
+   (local.set $length (call $get-string-length (local.get $s)))
 
    (loop $again
-     (if (local.get $count)
+     (if (i32.lt_u (local.get $count) (local.get $length))
          (then
-          (local.set $width (call $set-string-char (local.get $addr) (local.get $char)))
-          (local.set $addr (i32.add (local.get $addr) (local.get $width)))
-          (local.set $count (i32.sub (local.get $count) (i32.const 1)))
-          (br $again))))
+          (local.set $char-addr (call $get-next-char-addr (local.get $char-addr)))
+          (local.set $count (i32.add (local.get $count) (i32.const 1)))
 
-   (local.get $s))
+          (if (i32.and (local.get $count) (i32.const 0xf))
+              (then
+               (i32.store8 (local.get $idx-addr)
+                           (i32.sub (local.get $char-addr) (local.get $addr)))
+               (local.set $idx-addr (i32.add (local.get $idx-addr) (i32.const 1)))))
+          (br $again)))))
+
+ (func $build-medium-string-index (export "build-medium-string-index")
+   (param $s i32)
+
+   (local.set $addr (call $get-string-addr (local.get $s)))
+   (local.set $char-addr (local.get $addr))
+   (local.set $idx-addr (call $get-string-idx-addr (local.get $s)))
+
+   (local.set $count (i32.const 0))
+   (local.set $length (call $get-string-length (local.get $s)))
+
+   (loop $again
+     (if (i32.lt_u (local.get $count) (local.get $length))
+         (then
+          (local.set $char-addr (call $get-next-char-addr (local.get $char-addr)))
+          (local.set $count (i32.add (local.get $count) (i32.const 1)))
+
+          (if (i32.and (local.get $count) (i32.const 0x1f))
+              (then
+               (i32.store16 (local.get $idx-addr)
+                            (i32.sub (local.get $char-addr) (local.get $addr)))
+               (local.set $idx-addr (i32.add (local.get $idx-addr) (i32.const 2)))))
+          (br $again)))))
+
+ (func $build-large-string-index (export "build-large-string-index")
+   (param $s i32)
+
+   (local.set $addr (call $get-string-addr (local.get $s)))
+   (local.set $char-addr (local.get $addr))
+   (local.set $idx-addr (call $get-string-idx-addr (local.get $s)))
+
+   (local.set $count (i32.const 0))
+   (local.set $length (call $get-string-length (local.get $s)))
+
+   (loop $again
+     (if (i32.lt_u (local.get $count) (local.get $length))
+         (then
+          (local.set $char-addr (call $get-next-char-addr (local.get $char-addr)))
+          (local.set $count (i32.add (local.get $count) (i32.const 1)))
+
+          (if (i32.and (local.get $count) (i32.const 0x3f))
+              (then
+               (i32.store (local.get $idx-addr)
+                          (i32.sub (local.get $char-addr) (local.get $addr)))
+               (local.set $idx-addr (i32.add (local.get $idx-addr) (i32.const 4)))))
+          (br $again)))))
+
+ (func $get-next-char-addr (export "get-next-char-addr")
+   (param $addr i32)
+
+   (local $encoded-length i32)
+
+   (local.set $encoded-length (call $calc-encoded-length (i32.load8_u (local.get $addr))))
+
+   (if (i32.eq (local.get $encoded-length) (i32.const -1))
+       (then
+        (unreachable)))
+
+   (i32.add (local.get $addr) (local.get $encoded-length)))
 
  (func $build-string (export "build-string")
    (param $list i32)
    (result i32)
 
    (local $addr i32)
-   (local $char i32)
+   (local $char-length i32)
+   (local $char-utf-8 i32)
    (local $head i32)
    (local $length i32)
    (local $s i32)
    (local $size i32)
-   (local $width i32)
 
    (local.set $head (local.get $list))
    (local.set $size (i32.const 0))
@@ -123,8 +322,9 @@
      (if (i32.ne (local.get $head) (global.get $null))
          (then
           (local.set $size (i32.add (local.get $size)
-                                      (call $calc-char-width
-                                            (call $get-pair-car (local.get $head)))))
+                                    (call $calc-char-width
+                                          (call $encode-char
+                                                (call $get-pair-car (local.get $head))))))
           (local.set $head (call $get-pair-cdr (local.get $head)))
           (local.set $length (i32.add (local.get $length (i32.const 1))))
           (br $again))))
@@ -137,165 +337,164 @@
    (loop $again
      (if (i32.ne (local.get $head) (global.get $null))
          (then
-          (local.set $char (call $get-pair-car (local.get $head)))
-          (local.set $width (call $set-string-char (local.get $addr) (local.get $char)))
-          (local.set $addr (i32.add (local.get $addr) (local.get $width)))
+          (local.set $char-utf-8 (call $encode-char (call $get-pair-car (local.get $head))))
+          (local.set $char-length (call $calc-encoded-length (local.get $char-utf-8)))
+
+          (call $set-string-bytes
+                (local.get $addr)
+                (local.get $char-utf-8)
+                (local.set $char-length))
+
+          (local.set $addr (i32.add (local.get $addr) (local.get $char-length)))
           (local.set $head (call $get-pair-cdr (local.get $head)))
+
           (br $again))))
 
    (local.get $s))
 
- (func $set-string-char (export "set-string-char")
+ (func $set-string-bytes (export "set-string-bytes")
    (param $addr i32)
-   (param $char i32)
-   (result i32)
+   (param $data i32)
+   (param $length i32)
 
-   (local $char-utf-8 i32)
-   (local $width i32)
-
-   (local.set $char-utf-8 (call $encode-char (local.get $char)))
-   (local.set $width (call $calc-char-width (local.get $char)))
-
-   (if (i32.eq (local.get $width) (i32.const 1))
+   (if (i32.eq (local.get $length) (i32.const 1))
        (then
-        (i32.store8 (local.get $addr) (local.get $char-utf-8)))
+        (i32.store8 (local.get $addr) (local.get $data)))
      (else
-      (if (i32.eq (local.get $width) (i32.const 2))
+      (if (i32.eq (local.get $length) (i32.const 2))
           (then
-              (i32.store16 (local.get $addr) (local.get $char-utf-8)))
+           (i32.store16 (local.get $addr) (local.get $data)))
         (else
-         (if (i32.eq (local.get $width) (i32.const 3))
+         (if (i32.eq (local.get $length) (i32.const 3))
              (then
-              (i32.store16 (local.get $addr) (local.get $char-utf-8))
+              (i32.store16 (local.get $addr) (local.get $data))
               (i32.store8 (i32.add (local.get $addr) (i32.const 2))
-                          (i32.shr_u (local.get $char-utf-8)
+                          (i32.shr_u (local.get $data)
                                      (i32.const 16))))
            (else
-            (i32.store (local.get $addr) (local.get $char-utf-8))))))))
+            (i32.store (local.get $addr) (local.get $data)))))))))
 
-   (local.get $width))
+ ;; (func $get-string-element (export "get-string-element")
+ ;;   (param $s i32)
+ ;;   (param $idx i32)
+ ;;   (result i32)
 
- (func $get-string-element (export "get-string-element")
-   (param $s i32)
-   (param $idx i32)
-   (result i32)
+ ;;   ;; TODO
+ ;;   (if (result i32) (i32.lt_u (local.get $idx) (call $get-string-length (local.get $s)))
+ ;;     (then
+ ;;      (call $get-block-i8-element (local.get $block) (local.get $idx)))
+ ;;     (else
+ ;;      (global.get $null))))
 
-   ;; TODO
-   (if (result i32) (i32.lt_u (local.get $idx) (call $get-string-length (local.get $s)))
-     (then
-      (call $get-block-i8-element (local.get $block) (local.get $idx)))
-     (else
-      (global.get $null))))
+ ;; (func $set-string-element (export "set-string-element")
+ ;;   (param $s i32)
+ ;;   (param $idx i32)
+ ;;   (param $byte i32)
 
- (func $set-string-element (export "set-string-element")
-   (param $s i32)
-   (param $idx i32)
-   (param $byte i32)
+ ;;   ;; TODO
+ ;;   (if (i32.lt_u (local.get $idx) (call $get-string-length (local.get $s)))
+ ;;     (then
+ ;;      (call $set-block-i8-element (local.get $block) (local.get $idx) (local.get $byte)))))
 
-   ;; TODO
-   (if (i32.lt_u (local.get $idx) (call $get-string-length (local.get $s)))
-     (then
-      (call $set-block-i8-element (local.get $block) (local.get $idx) (local.get $byte)))))
+ ;; (func $make-string-copy (export "make-string-copy")
+ ;;   (param $s i32)
+ ;;   (param $start i32)
+ ;;   (param $end i32)
+ ;;   (result i32)
 
- (func $make-string-copy (export "make-string-copy")
-   (param $s i32)
-   (param $start i32)
-   (param $end i32)
-   (result i32)
+ ;;   ;; TODO
+ ;;   (local $new-bv i32)
 
-   ;; TODO
-   (local $new-bv i32)
+ ;;   (local.set $length ())
 
-   (local.set $length ())
+ ;;   (local.set $new-bv (call $falloc-string (i32.sub (local.get $end)
+ ;;                                                   (local.get $start))))
+ ;;   (call $copy-block-i8-range
+ ;;         (call $get-box-value (local.get $s))
+ ;;         (local.get $start)
+ ;;         (local.get $end)
+ ;;         (call $get-box-value (local.get $new-bv))
+ ;;         (i32.const 0))
 
-   (local.set $new-bv (call $falloc-string (i32.sub (local.get $end)
-                                                   (local.get $start))))
-   (call $copy-block-i8-range
-         (call $get-box-value (local.get $s))
-         (local.get $start)
-         (local.get $end)
-         (call $get-box-value (local.get $new-bv))
-         (i32.const 0))
+ ;;   (local.get $new-bv))
 
-   (local.get $new-bv))
+ ;; (func $can-make-string-copy (export "can-make-string-copy")
+ ;;   (param $s i32)
+ ;;   (param $start i32)
+ ;;   (param $end i32)
+ ;;   (result i32)
 
- (func $can-make-string-copy (export "can-make-string-copy")
-   (param $s i32)
-   (param $start i32)
-   (param $end i32)
-   (result i32)
+ ;;   ;; TODO
+ ;;   (local $new-bv i32)
 
-   ;; TODO
-   (local $new-bv i32)
+ ;;   (i32.and (i32.lt_u (local.get $end) (call $get-string-length (local.get $s)))
+ ;;            (i32.le_u (local.get $start) (local.get $end))))
 
-   (i32.and (i32.lt_u (local.get $end) (call $get-string-length (local.get $s)))
-            (i32.le_u (local.get $start) (local.get $end))))
+ ;; (func $copy-string-range (export "copy-string-range")
+ ;;   (param $s-to i32)
+ ;;   (param $at i32)
+ ;;   (param $s-from i32)
+ ;;   (param $start i32)
+ ;;   (param $end i32)
 
- (func $copy-string-range (export "copy-string-range")
-   (param $s-to i32)
-   (param $at i32)
-   (param $s-from i32)
-   (param $start i32)
-   (param $end i32)
+ ;;   ;; TODO
+ ;;   (call $copy-block-i8-range
+ ;;         (call $get-box-value (local.get $s-from))
+ ;;         (local.get $start)
+ ;;         (local.get $end)
+ ;;         (call $get-box-value (local.get $s-to))
+ ;;         (local.get $at)))
 
-   ;; TODO
-   (call $copy-block-i8-range
-         (call $get-box-value (local.get $s-from))
-         (local.get $start)
-         (local.get $end)
-         (call $get-box-value (local.get $s-to))
-         (local.get $at)))
+ ;; (func $can-copy-string-range (export "can-copy-string-range")
+ ;;   (param $s-to i32)
+ ;;   (param $at i32)
+ ;;   (param $s-from i32)
+ ;;   (param $start i32)
+ ;;   (param $end i32)
+ ;;   (result i32)
 
- (func $can-copy-string-range (export "can-copy-string-range")
-   (param $s-to i32)
-   (param $at i32)
-   (param $s-from i32)
-   (param $start i32)
-   (param $end i32)
-   (result i32)
+ ;;   ;; TODO
+ ;;   (local $to-length i32)
+ ;;   (local.set $to-length (call $get-string-length (local.get $to)))
 
-   ;; TODO
-   (local $to-length i32)
-   (local.set $to-length (call $get-string-length (local.get $to)))
+ ;;   (i32.and (call $can-make-string-copy
+ ;;                  (local.get $s-from)
+ ;;                  (local.get $start)
+ ;;                  (local.get $end))
+ ;;            (i32.and (i32.ge_u (local.get $to-length) (local.get $at))
+ ;;                     (i32.ge_u (i32.sub (local.get $to-length) (local.get $at))
+ ;;                               (i32.sub (local.get $end) (local.get $start))))))
 
-   (i32.and (call $can-make-string-copy
-                  (local.get $s-from)
-                  (local.get $start)
-                  (local.get $end))
-            (i32.and (i32.ge_u (local.get $to-length) (local.get $at))
-                     (i32.ge_u (i32.sub (local.get $to-length) (local.get $at))
-                               (i32.sub (local.get $end) (local.get $start))))))
+ ;; (func $append-strings (export "append-strings")
+ ;;   (param $s-1 i32)
+ ;;   (param $s-2 i32)
+ ;;   (result i32)
 
- (func $append-strings (export "append-strings")
-   (param $s-1 i32)
-   (param $s-2 i32)
-   (result i32)
+ ;;   ;; TODO
+ ;;   (local $s i32)
+ ;;   (local $length-1 i32)
+ ;;   (local $length-2 i32)
 
-   ;; TODO
-   (local $s i32)
-   (local $length-1 i32)
-   (local $length-2 i32)
+ ;;   (local.set $length-1 (call $get-string-length (local.get $s-1)))
+ ;;   (local.set $length-2 (call $get-string-length (local.get $s-2)))
 
-   (local.set $length-1 (call $get-string-length (local.get $s-1)))
-   (local.set $length-2 (call $get-string-length (local.get $s-2)))
+ ;;   (local.set $s (call $alloc-string
+ ;;                        (i32.add (local.get $length-1) (local.get $length-2))))
 
-   (local.set $s (call $alloc-string
-                        (i32.add (local.get $length-1) (local.get $length-2))))
+ ;;   (call $copy-string-range
+ ;;         (local.get $s)
+ ;;         (i32.const 0)
+ ;;         (local.get $s-1)
+ ;;         (i32.const 0)
+ ;;         (local.get $length-1))
 
-   (call $copy-string-range
-         (local.get $s)
-         (i32.const 0)
-         (local.get $s-1)
-         (i32.const 0)
-         (local.get $length-1))
+ ;;   (call $copy-string-range
+ ;;         (local.get $s)
+ ;;         (local.get $length-1)
+ ;;         (local.get $s-2)
+ ;;         (i32.const 0)
+ ;;         (local.get $length-2))
 
-   (call $copy-string-range
-         (local.get $s)
-         (local.get $length-1)
-         (local.get $s-2)
-         (i32.const 0)
-         (local.get $length-2))
-
-   (local.get $s))
+ ;;   (local.get $s))
 
  )

@@ -243,115 +243,6 @@ number encoding
   real denom size (in 32 bit chunks) (0 => integer, inexact => 0)
 
 
-new block design
-  objective: create block mgr w/o own memory
-  owner, length not stored in block memory
-  block list ->
-    ( ( addr . length ) ... )
-  box ->
-    ( box-flags addr . length )
-
-  block mgr
-    ( block-list free-list free-area . top )
-    indirect call tables
-      memory-size
-      memory-grow
-      memory-copy
-
-    indexed by module-id
-
-
-  block list
-    list of ( addr . length )
-
-  block
-    sublist of block list with ( addr . length ) of memory at head
-
-  free list
-    list of free blocks (wh block is as above)
-
-  leave 0 length free list entries on move
-    cost 2 free list steps per 0 length entry for each end allocation
-    each memory compaction step creates another one
-    start from block list head if free list head has a length 0 block
-    otherwise start from last free list item with non-zero length block\
-
-    every step process block k list entries, for some function
-      k = k(#blocks, #free-blocks, #0-length free blocks)
-
-    which minimizes total work
-
-  block allocator
-    max heap
-    head = root
-    if head > size
-      if left is unused, bury left
-      if right is unused, bury right
-      if left and right < size then split head
-      if left and right >= size then recur with head = min of left or right
-      otherwise recur with head = left or right, whichever is >= size
-
-    if head = size
-      search free list for pred of head
-      remove head from free list
-      replace head with last element of heap
-    else
-      split head, sift down
-
-    unused free block
-      addr = (unsigned) -1 => free block
-      not in free list => separate heap count and free count
-      when heap encounters unused free block, bury block
-
-    bury block
-      set block size to 0
-      sift down
-
-    insert k v h
-
-      if target parent is size 0 and unused
-         then replace, do not incr count
-         else add as appropriate
-
-      sift up
-
-      if k == 0 add to left
-      if k == 1 add to right
-      if k & 1
-        then insert k >> 1, v, right
-        else insert k >> 1, v, left
-
-blocks defragmentation
-  incremental => cursor that runs along block list, persistent in blockset
-  general idea:
-    merge free blocks as cursor sweeps up through memory, copying allocated blocks down
-  algo:
-    terms
-      cursor
-      base free block
-      lower free block
-      upper free block
-    find free block before first free block above cursor
-      max of addr <= next block after cursor
-        top (log2 (sqrt heap size)) levels of heap
-          approx with (32-clz((32-clz)/2)
-        early exit for equality
-        otherwise scan forward from there until free block addr >= next block after cursor
-    find next free block after that
-      next in list
-      if none, reset cursor
-    move allocated blocks between down to addr of lower free block
-      move memory as a block
-      traverse block list
-        subtract size of lower block from each address
-      set cursor to addr of last allocated block moved
-    merge upper free block into lower
-      rm upper free block from the block list
-      rm upper free block from the free list
-      if upper free block is end block, set end block to lower free block
-      set upper free block addr to -1 to mark that it is unused
-      set lower free block addr to top of last allocated block moved
-
 TODO:
   string repr choices
     ucs-4 ... wasteful for most common cases
@@ -368,3 +259,57 @@ TODO:
      index fmt (sorted array):
      short strings (n <256 bytes) -- idx byte offset
      medium strings (256 <= n < 65536 bytes) -- idx
+
+  possible impls
+    simple string -- ascii, length < 256
+    short text -- some non-ascii chars, length < 256
+    text -- utf-8, length < 64KB
+    long text -- utf-8, length < 4GB
+
+    memory layout
+      simple string
+        1 byte length, then the bytes of the string
+
+      small string
+        1 byte length
+        up to 15 bytes index of 1 byte offsets (one between each 16 character chunk)
+
+      medium string
+        2 byte length
+        up to 4KB index of 2 byte offsets, one between each 32 character chunk
+
+      large string
+        4 byte length
+        up to 250MB index of 4 byte offsets, one between each 64 character chunk
+
+
+parser
+  interface with string
+    scan token to determine string length and size
+    call alloc-string
+    loop for each char
+      call set-string-bytes for each char
+    call build-string-index
+
+  interface with bytevector
+    scan token to determine length
+    call alloc-bytevector
+    loop for each byte
+      call set-bytevector-u8 for each byte (TODO)
+
+  interface with symbol
+    create new string
+    call inter-symbol
+    if symbol string != new string,  dealloc new string
+
+  interface with number
+    float
+      ...
+    inf/nan
+      specialized call
+    digits
+      loop
+        multiply base, add
+    complex/rational
+      create numbers for components
+      build with call make-rational or make-complex

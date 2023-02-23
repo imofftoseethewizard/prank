@@ -221,6 +221,9 @@
  ;; 1KB, enough for 128 heap nodes
  (global $initial-heap-size (export "initial-heap-size") i32 (i32.const 0x400))
 
+ ;; See quantize-size for an explanation
+ (global $alloc-precision-bits (export "alloc-precision-bits") i32 (i32.const 4))
+
  (global $blockset-block-count                (export "blockset-block-count")                i32 (i32.const 0x00))
  (global $blockset-block-list                 (export "blockset-block-list")                 i32 (i32.const 0x04))
  (global $blockset-defrag-cursor              (export "blockset-defrag-cursor")              i32 (i32.const 0x08))
@@ -847,6 +850,11 @@
  ;; Allocation
  ;;
 
+ ;; This is used in test/test_block_mgr.py::test_stochastic.  The average of
+ ;; many calls to this stub should account for the overhead of calling
+ ;; alloc-block so that the performance of alloc-block's internals can be more
+ ;; precisely measured.
+
  (func $stub-alloc-block (export "stub-alloc-block")
    (param $blockset-id i32)
    (param $size i32)
@@ -864,13 +872,26 @@
    (local $new-block-ref i32)
    (local $node-idx i32)
 
+   ;; The allocator operates more efficiently when there are fewer block sizes
+   ;; to manage.  Essentially, quantize-size rounds up size to 4 bits of
+   ;; precision.
+
    (local.set $size (call $quantize-size (local.get $size)))
 
    (local.set $blockset (call $get-blockset (local.get $blockset-id)))
 
+   ;; Ensure that the largest free block is big enough for the allocation to be
+   ;; successful.  This may include initializing the heap and free list, or
+   ;; growing memory, or both.  This also ensures that the top of the heap is
+   ;; not an unused block.
+
    (call $provision-blockset-heap (local.get $blockset) (local.get $size))
 
    (local.set $heap (call $get-blockset-heap (local.get $blockset)))
+
+   ;; Search through a subset of the heap for the smallest free block that is
+   ;; big enough to hold the allocation, but not so big as to be wasteful, or if
+   ;; that is not possible, select the largest block to be split.
 
    (local.set $node-idx (call $select-heap-node (local.get $blockset) (local.get $size)))
 
@@ -878,7 +899,14 @@
                           (local.get $size))
                  (call $calc-max-overage (local.get $size)))
        (then
-        (local.set $free-entry (call $get-heap-node-entry (local.get $heap) (local.get $node-idx)))
+
+        ;; The free block referenced by node-idx in the heap is a reasonable size to
+        ;; use as-is for this allocation.  Remove it from the heap and free list, and
+        ;; save the block ref for return to the caller.
+
+        (local.set $free-entry
+                   (call $get-heap-node-entry (local.get $heap) (local.get $node-idx)))
+
         (local.set $new-block-ref (call $get-free-entry-block-ref (local.get $free-entry)))
 
         (call $remove-free-list-entry (local.get $blockset) (local.get $free-entry))
@@ -886,11 +914,18 @@
         (call $remove-heap-node (local.get $blockset) (local.get $node-idx)))
 
      (else
+
+      ;; select-heap-node did not find a reasonably-sized block to use for this
+      ;; allocation, so take a piece of the largest block.
+
       (local.set $new-block-ref
                  (call $split-heap-root
                        (local.get $blockset)
                        (local.get $heap)
                        (local.get $size)))))
+
+   ;; Account for this allocation, noting that we can't use size here, because
+   ;; the block selected may be larger.
 
    (call $set-blockset-free-space (local.get $blockset)
          (i32.sub (call $get-blockset-free-space (local.get $blockset))
@@ -899,6 +934,17 @@
    (local.get $new-block-ref))
 
  (func $quantize-size (export "quantize-size")
+
+   ;; One of the memory efficiency versus CPU efficiency trade-offs that can be
+   ;; made is either to allocate precisely the amount requested and have a
+   ;; longer free list, and therefore increased search and maintenance time, or
+   ;; to allocate approximately and have a smaller free list.  This function is
+   ;; part of the latter approach.  Essentially, it reduces the precision of the
+   ;; requested size, so that for example, a request for 207 bytes would be
+   ;; rounded up to 208 since 207 = 0xcf = 0b11001111, and below we only
+   ;; use 4 bits of precision, so that gives 0b11010000 = 0xd0 = 208.  If only
+   ;; 3 bits were used, then we would have rounded up to 0b11100000 = 0xe0 = 224.
+
    (param $size i32)
    (result i32)
 
@@ -907,70 +953,17 @@
 
    (local.set $rank (i32.sub (i32.const 32) (i32.clz (local.get $size))))
 
-   (if (i32.le_u (local.get $rank) (i32.const 4))
+   (if (i32.le_u (local.get $rank) (global.get $alloc-precision-bits))
        (then
         (local.set $mask (i32.const 0)))
      (else
       (local.set $mask (i32.sub (i32.shl (i32.const 1)
-                                         (i32.sub (local.get $rank) (i32.const 4)))
+                                         (i32.sub (local.get $rank)
+                                                  (global.get $alloc-precision-bits)))
                                 (i32.const 1)))))
 
    (i32.and (i32.add (local.get $size) (local.get $mask))
             (i32.xor (local.get $mask) (i32.const -1))))
-
- (func $calc-max-overage (export "calc-max-overage")
-   (param $size i32)
-   (result i32)
-
-   (local $rank i32)
-
-   (local.set $rank (i32.sub (i32.const 32) (i32.clz (local.get $size))))
-
-   (if (result i32) (i32.le_u (local.get $rank) (i32.const 4))
-       (then
-        (global.get $value-size))
-       (else
-        (i32.shl (i32.const 1)
-                 (i32.sub (local.get $rank) (i32.const 2))))))
-
- (func $select-heap-node (export "select-heap-node")
-   (param $blockset i32)
-   (param $size i32)
-   (result i32)
-
-   (local $delta i32)
-   (local $heap i32)
-   (local $heap-size i32)
-   (local $min-delta i32)
-   (local $node-idx i32)
-   (local $result-idx i32)
-   (local $step i32)
-
-   (local.set $heap (call $get-blockset-heap (local.get $blockset)))
-   (local.set $heap-size (call $get-blockset-heap-size (local.get $blockset)))
-   (local.set $result-idx (i32.const 0))
-   (local.set $min-delta (i32.sub (call $get-heap-block-size (local.get $heap) (i32.const 0))
-                                  (local.get $size)))
-   (local.set $step (call $estimate-sqrt (local.get $heap-size)))
-
-   (local.set $node-idx (i32.const 1))
-   (loop $again
-     (if (i32.and (i32.gt_u (local.get $min-delta) (i32.const 0))
-                  (i32.lt_u (local.get $node-idx) (local.get $heap-size)))
-         (then
-          (if (i32.eqz (call $is-unused-heap-block (local.get $heap) (local.get $node-idx)))
-              (then
-               (local.set $delta
-                          (i32.sub (call $get-heap-block-size (local.get $heap) (local.get $node-idx))
-                                   (local.get $size)))
-               (if (i32.lt_u (local.get $delta) (local.get $min-delta))
-                   (then
-                    (local.set $min-delta (local.get $delta))
-                    (local.set $result-idx (local.get $node-idx))))))
-        (local.set $node-idx (i32.add (local.get $node-idx) (local.get $step)))
-        (br $again))))
-
-   (local.get $result-idx))
 
  (func $provision-blockset-heap (export "provision-blockset-heap")
    (param $blockset i32)
@@ -1067,6 +1060,120 @@
 
    (call $add-free-block (local.get $blockset) (local.get $block-ref)))
 
+ (func $select-heap-node (export "select-heap-node")
+   (param $blockset i32)
+   (param $size i32)
+   (result i32)
+
+   (local $delta i32)
+   (local $heap i32)
+   (local $heap-size i32)
+   (local $min-delta i32)
+   (local $node-idx i32)
+   (local $result-idx i32)
+   (local $step i32)
+
+   (local.set $heap (call $get-blockset-heap (local.get $blockset)))
+   (local.set $heap-size (call $get-blockset-heap-size (local.get $blockset)))
+   (local.set $result-idx (i32.const 0))
+   (local.set $min-delta (i32.sub (call $get-heap-block-size (local.get $heap) (i32.const 0))
+                                  (local.get $size)))
+   (local.set $step (call $estimate-sqrt (local.get $heap-size)))
+
+   (local.set $node-idx (i32.const 1))
+   (loop $again
+     (if (i32.and (i32.gt_u (local.get $min-delta) (i32.const 0))
+                  (i32.lt_u (local.get $node-idx) (local.get $heap-size)))
+         (then
+          (if (i32.eqz (call $is-unused-heap-block (local.get $heap) (local.get $node-idx)))
+              (then
+               (local.set $delta
+                          (i32.sub (call $get-heap-block-size (local.get $heap) (local.get $node-idx))
+                                   (local.get $size)))
+               (if (i32.lt_u (local.get $delta) (local.get $min-delta))
+                   (then
+                    (local.set $min-delta (local.get $delta))
+                    (local.set $result-idx (local.get $node-idx))))))
+        (local.set $node-idx (i32.add (local.get $node-idx) (local.get $step)))
+        (br $again))))
+
+   (local.get $result-idx))
+
+ (func $calc-max-overage (export "calc-max-overage")
+   (param $size i32)
+   (result i32)
+
+   (local $rank i32)
+
+   (local.set $rank (i32.sub (i32.const 32) (i32.clz (local.get $size))))
+
+   (if (result i32) (i32.le_u (local.get $rank) (i32.const 4))
+       (then
+        (global.get $value-size))
+       (else
+        (i32.shl (i32.const 1)
+                 (i32.sub (local.get $rank) (i32.const 2))))))
+
+ (func $remove-free-list-entry (export "remove-free-list-entry")
+   ;; Removes an entry from the free list. The entry is removed from
+   ;; the free list and deallocated, and the free list length is
+   ;; decremented.  This is called from alloc-block when the entire
+   ;; free block is used for an allocation request.
+
+   (param $blockset i32)
+   (param $entry i32)
+
+   (local $next-free-entry i32)
+   (local $prior-free-entry i32)
+
+   (local.set $next-free-entry (call $get-next-free-entry (local.get $entry)))
+
+   (local.set $prior-free-entry (call $find-predecessor-free-list-entry
+                                      (local.get $blockset)
+                                      (call $get-free-entry-block-ref (local.get $entry))))
+
+   (if (i32.eq (local.get $prior-free-entry) (global.get $null))
+       (then
+        (call $set-blockset-free-list (local.get $blockset) (local.get $next-free-entry)))
+     (else
+      (call $set-next-block-ref (local.get $prior-free-entry) (local.get $next-free-entry))))
+
+   (call $dealloc-pair (local.get $entry))
+
+   (call $decr-blockset-free-list-length (local.get $blockset)))
+
+ (func $remove-heap-node (export "remove-heap-node")
+   (param $blockset i32)
+   (param $node-idx i32)
+
+   (local $end-idx i32)
+   (local $heap i32)
+   (local $heap-size i32)
+
+   (local.set $heap (call $get-blockset-heap (local.get $blockset)))
+   (local.set $heap-size (call $get-blockset-heap-size (local.get $blockset)))
+
+   (loop $again
+     (local.set $end-idx (i32.sub (local.get $heap-size) (i32.const 1)))
+     (if (call $is-unused-heap-block (local.get $heap) (local.get $end-idx))
+         (then
+          (call $dealloc-free-list-entry
+                (call $get-heap-node-entry (local.get $heap) (local.get $end-idx)))
+          (local.set $heap-size (local.get $end-idx))
+          (br $again))))
+
+   (call $set-blockset-heap-size (local.get $blockset) (local.get $end-idx))
+
+   (if (i32.lt_u (local.get $node-idx) (local.get $end-idx))
+       (then
+        (call $set-heap-node-entry
+              (local.get $heap)
+              (local.get $node-idx)
+              (call $get-heap-node-entry (local.get $heap) (local.get $end-idx)))
+
+        (call $sink-heap-node (local.get $blockset) (local.get $node-idx))
+        (call $raise-heap-node (local.get $blockset) (local.get $node-idx)))))
+
  (func $split-heap-root (export "split-heap-root")
    (param $blockset i32)
    (param $heap i32)
@@ -1117,34 +1224,6 @@
    (call $sink-heap-node (local.get $blockset) (i32.const 0))
 
    (local.get $block-ref))
-
- (func $remove-free-list-entry (export "remove-free-list-entry")
-   ;; Removes an entry from the free list. The entry is removed from
-   ;; the free list and deallocated, and the free list length is
-   ;; decremented.  This is called from alloc-block when the entire
-   ;; free block is used for an allocation request.
-
-   (param $blockset i32)
-   (param $entry i32)
-
-   (local $next-free-entry i32)
-   (local $prior-free-entry i32)
-
-   (local.set $next-free-entry (call $get-next-free-entry (local.get $entry)))
-
-   (local.set $prior-free-entry (call $find-predecessor-free-list-entry
-                                      (local.get $blockset)
-                                      (call $get-free-entry-block-ref (local.get $entry))))
-
-   (if (i32.eq (local.get $prior-free-entry) (global.get $null))
-       (then
-        (call $set-blockset-free-list (local.get $blockset) (local.get $next-free-entry)))
-     (else
-      (call $set-next-block-ref (local.get $prior-free-entry) (local.get $next-free-entry))))
-
-   (call $dealloc-pair (local.get $entry))
-
-   (call $decr-blockset-free-list-length (local.get $blockset)))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -1213,6 +1292,11 @@
  ;;
  ;; Deallocation
  ;;
+
+ ;; This is used in test/test_block_mgr.py::test_stochastic.  The average of
+ ;; many calls to this stub should account for the overhead of calling
+ ;; dealloc-block so that the performance of dealloc-block's internals can be
+ ;; more precisely measured.
 
  (func $stub-dealloc-block (export "stub-dealloc-block")
    (param $blockset-id i32)
@@ -1698,7 +1782,6 @@
 
    (local.get $head))
 
-
  ;; Finding the predecessor of an entry in the free list is an expensive
  ;; operation.  The naive approach would be to search from the start of the free
  ;; list, but this quickly becomes inefficient, taking O(n) steps where n is the
@@ -1708,6 +1791,7 @@
  ;; of the top half of the heap is done in $estimate-free-entry-infimum, and the
  ;; linear scan from there is done in the body of this function. Returns $null
  ;; if there is no free list entry before the given block ref.
+
  (func $find-predecessor-free-list-entry (export "find-predecessor-free-list-entry")
    (param $blockset i32)
    (param $block-ref i32)
@@ -2174,38 +2258,6 @@
 
    (i64.store (local.get $a-addr) (i64.load (local.get $b-addr)))
    (i64.store (local.get $b-addr) (local.get $a-value)))
-
- (func $remove-heap-node (export "remove-heap-node")
-   (param $blockset i32)
-   (param $node-idx i32)
-
-   (local $end-idx i32)
-   (local $heap i32)
-   (local $heap-size i32)
-
-   (local.set $heap (call $get-blockset-heap (local.get $blockset)))
-   (local.set $heap-size (call $get-blockset-heap-size (local.get $blockset)))
-
-   (loop $again
-     (local.set $end-idx (i32.sub (local.get $heap-size) (i32.const 1)))
-     (if (call $is-unused-heap-block (local.get $heap) (local.get $end-idx))
-         (then
-          (call $dealloc-free-list-entry
-                (call $get-heap-node-entry (local.get $heap) (local.get $end-idx)))
-          (local.set $heap-size (local.get $end-idx))
-          (br $again))))
-
-   (call $set-blockset-heap-size (local.get $blockset) (local.get $end-idx))
-
-   (if (i32.lt_u (local.get $node-idx) (local.get $end-idx))
-       (then
-        (call $set-heap-node-entry
-              (local.get $heap)
-              (local.get $node-idx)
-              (call $get-heap-node-entry (local.get $heap) (local.get $end-idx)))
-
-        (call $sink-heap-node (local.get $blockset) (local.get $node-idx))
-        (call $raise-heap-node (local.get $blockset) (local.get $node-idx)))))
 
  (func $remove-unused-heap-node (export "remove-unused-heap-node")
    (param $blockset i32)
