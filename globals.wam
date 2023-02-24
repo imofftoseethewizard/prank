@@ -49,5 +49,6 @@
 (global $bytevectors-blockset-id (export "bytevectors-blockset-id") i32 (i32.const 1))
 (global $numbers-blockset-id     (export "numbers-blockset-id")     i32 (i32.const 2))
 (global $strings-blockset-id     (export "strings-blockset-id")     i32 (i32.const 3))
-(global $vectors-blockset-id     (export "vectors-blockset-id")     i32 (i32.const 4))
+(global $symbols-blockset-id     (export "symbols-blockset-id")     i32 (i32.const 4))
+(global $vectors-blockset-id     (export "vectors-blockset-id")     i32 (i32.const 5))
 (global $max-blockset-id         (export "max-blockset-id")         i32 (i32.const 16))

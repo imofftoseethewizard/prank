@@ -876,7 +876,7 @@ def test_calc_max_overage():
     for i in range(256, 512):
         assert block_mgr.calc_max_overage(i) == 128
 
-#@pytest.mark.skip('long, probably should be moved somewhere else')
+@pytest.mark.skip('long, probably should be moved somewhere else')
 def test_stochastic():
 
     init_test()

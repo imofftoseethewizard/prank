@@ -3,14 +3,8 @@
  (import "algorithms" "parameters" (table $algorithm-parameters))
 
  (import "algorithms" "bisect-left-i32xi32-indirect" (func $bisect-left-i32xi32-indirect (param i32 i32) (result i32)))
- (import "blocks" "copy-block-i32-range"             (func $copy-block-i32-range         (param i32 i32 i32 i32 i32)))
- (import "blocks" "get-block-data-size"              (func $get-block-data-size          (param i32)     (result i32)))
- (import "blocks" "get-block-i32-element"            (func $get-block-i32-element        (param i32 i32) (result i32)))
- (import "blocks" "resize-block"                     (func $resize-block                 (param i32)     (result i32)))
- (import "blocks" "set-block-i32-element"            (func $set-block-i32-element        (param i32 i32 i32)))
- (import "boxes" "alloc-boxed-block"                 (func $alloc-boxed-block            (param i32 i32) (result i32)))
+ (import "block-mgr" "resize-block"                     (func $resize-block                 (param i32 i32)     (result i32)))
  (import "boxes" "get-box-value"                     (func $get-box-value                (param i32)     (result i32)))
- (import "strings" "string-compare"                  (func $string-compare               (param i32 i32) (result i32)))
  (import "values" "get-value-data"                   (func $get-value-data               (param i32)     (result i32)))
  (import "values" "make-value"                       (func $make-value                   (param i32 i32) (result i32)))
 
@@ -19,32 +13,40 @@
  (memory (export "memory") 1)
 
  (global $symbol-count (export "symbol-count") (mut i32) (i32.const 0))
- (global $symbol-index (export "symbol-index") (mut i32) (i32.const 0))
- (global $symbol-table (export "symbol-table") (mut i32) (i32.const 0))
+ (global $symbol-index-block-ref (export "symbol-index-block-ref") (mut i32) (i32.const 0))
+ (global $symbol-table-block-ref (export "symbol-table-block-ref") (mut i32) (i32.const 0))
 
+ (global $initial-capacity (export "initial-capacity") i32 (i32.const 16))
+
+ (start $init-symbols)
  (func $init-symbols (export "init-symbols")
-   (param $initial-capacity i32)
 
    (global.set $symbol-count (i32.const 0))
 
-   (global.set $symbol-index
-               (call $alloc-bytevector
-                     (i32.shl (local.get $initial-capacity)
-                              (global.get $index-entry-size))))
+   (global.set $symbol-index-block-ref
+               (call $alloc-block
+                     (global.get $symbols-blockset-id)
+                     (i32.shl (global.get $initial-capacity)
+                              (global.get $index-entry-size-bits))))
 
-   (global.set $symbol-table
-               (call $alloc-bytevector
-                     (i32.shl (local.get $initial-capacity)
-                              (global.get $value-size)))))
+   (global.set $symbol-table-block-ref
+               (call $alloc-block
+                     (global.get $symbols-blockset-id)
+                     (i32.shl (global.get $initial-capacity)
+                              (global.get $value-size-bits)))))
+
+ (func $get-symbol-table (export "get-symbol-table")
+   (result i32)
+   (call $get-block-ref-addr (global.get $symbol-table-block-ref)))
 
  (func $get-symbol-name (export "get-symbol-name")
    (param $symbol i32)
    (result i32)
 
-   (call $get-bytevector-i32
-         (call $get-symbol-table)
-         (i32.shr_u (call $get-value-data (local.get $symbol))
-                    (global.get $tag-size-bits))))
+   (i32.load (i32.add (call $get-symbol-table)
+                      (i32.shl (i32.shr_u (call $get-value-data (local.get $symbol))
+                                          (global.get $tag-size-bits))
+                               (global.get $value-size-bits)))))
 
  (func $inter-symbol (export "inter-symbol")
    (param $name i32)

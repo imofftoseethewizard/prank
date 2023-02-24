@@ -31,7 +31,7 @@ OBJECTS = \
 	chars.wasm \
 	lists.wasm \
 	pairs.wasm \
-	strings.wasm \
+#	strings.wasm \
 	values.wasm \
 	vectors.wasm
 
