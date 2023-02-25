@@ -313,3 +313,22 @@ parser
     complex/rational
       create numbers for components
       build with call make-rational or make-complex
+
+tooling improvements
+  wat
+    different face for local.set and local.get
+
+  wam.py
+    error messages
+    check syntax of expr vs label in macros
+    add line no to IR
+
+  test
+    tests for non-debug builds
+    better cli for block_mgr perf test
+    better cli/cleanup of block_mgr stochastic test bench
+    rework block_mgr_utils for to support both debug/non-debug
+    test suite for wam.py
+
+  build
+    put build artifacts in subdirectory

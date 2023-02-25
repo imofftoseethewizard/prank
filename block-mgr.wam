@@ -204,7 +204,6 @@
  (import "pairs" "set-pair-cadr"  (func $set-pair-cadr  (param i32 i32)))
  (import "pairs" "set-pair-car"   (func $set-pair-car   (param i32 i32)))
  (import "pairs" "set-pair-cdr"   (func $set-pair-cdr   (param i32 i32)))
- (import "values" "get-value-tag" (func $get-value-tag  (param i32)     (result i32)))
 
  (include "./globals.wam")
 

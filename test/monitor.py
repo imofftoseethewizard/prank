@@ -43,7 +43,7 @@ def start_test(e):
     timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     f.write(f'\n{timestamp} {rel_path} {e.event_type}\n'.encode())
 
-    p = subprocess.run(['stdbuf', '-i0', '-o0', '-e0', 'pytest'],
+    p = subprocess.run(['stdbuf', '-i0', '-o0', '-e0', 'make', 'test'],
                        stdout=f, stderr=f, cwd=project_root)
 
     f.close()

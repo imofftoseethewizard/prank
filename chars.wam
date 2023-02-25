@@ -14,21 +14,19 @@
  ;; The encoding/decoding logic below is based on https://en.wikipedia.org/wiki/UTF-8
  ;;
 
- (import "values" "get-value-data" (func $get-value-data (param i32)     (result i32)))
- (import "values" "make-value"     (func $make-value     (param i32 i32) (result i32)))
-
  (include "./globals.wam")
+ (include "./values.wam")
 
  (func $get-char-code-point (export "get-char-code-point")
    (param $char i32)
    (result i32)
-   (i32.shr_u (call $get-value-data (local.get $char))
+   (i32.shr_u (expand %get-value-data (local.get $char))
               (global.get $tag-size-bits)))
 
  (func $make-char (export "make-char")
    (param $code-point i32)
    (result i32)
-   (call $make-value
+   (expand %make-value
          (i32.or (i32.shl (local.get $code-point)
                           (global.get $tag-size-bits))
                  (global.get $tag-char))

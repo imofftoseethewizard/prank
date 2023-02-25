@@ -1,91 +1,79 @@
-(module
+;;=============================================================================
+;;
+;; Values
+;;
+;; Each pair contains two values.  These are tagged to indicate what kind of
+;; value they hold.  The tag occupies the low 3 bits of the value.
+;;
+;; The rationale for the tag assignments below follows from an attempt to
+;; arrange small integer arithmetic and pair dereferencing as to be as
+;; efficient as possible.
+;;
+;; Small integer considerations are that the small integer tag is 0, and that
+;; the tag bits are in the low bits of the word.  Together these allow small
+;; integer operations without any shifts or masking.
+;;
+;; The allowance for pairs is the 3 bit tag.  With 4 byte words, and therefore
+;; 8 byte pairs, all pair addresses will have the lower 3 bits 0. Hence, to
+;; transform a pair value to a pair address only requires a mask.
+;;
+;; Small integers are numbers that fit within 2^29, should an operation cause
+;; an overflow, the value will be automatically promoted to a block value,
+;; encoding the number as an arbitrary-precision integer.
+;;
+;; Boxes contain the address of a pair.
+;; The first value in the pair contains
+;; a type designator, the second value contains the address of a block in the
+;; blockstore.  The pair referenced by a block value is the owner of the block
+;; in the blockstore, and every block has exactly one such owner.  Some blocks
+;; may be empty -- such as a vector of length zero -- in which case the block
+;; address will be $null.  Type designators are a small enumeration which
+;; includes values for bytevectors, numbers, strings, and vectors.
+;;
+;; Boxes contain the address of a pair, similar to blocks.  They also have a
+;; type designator in the first value and an address in the second.  Currently,
+;; the only purpose envisioned for these is to hold a weak reference.  Another
+;; possibility would be an opaque 32-bit value from an external source.  This
+;; would be unsafe to put in an ordinary pair, and much less efficient to store
+;; in a bytevector. Small strings or bytevectors could also fit, packed as
+;;
+;;     0               1                | 0               1
+;;     0123456789abcdef0123456789abcdef | 0123456789abcdef0123456789abcdef
+;;     | type  | count | char1 | char2 |  | char3 | char4 | char5 | char6 |
+;;
+;; Procedures. TBD.
+;;
+;; A symbol is an index into the symbol table. The symbol table is a private
+;; vector which contains string values, sorted lexicographically.
+;;
+;; Singletons are one of the following: #true, #false, #null, #eof-object
 
- ;;=============================================================================
- ;;
- ;; Values
- ;;
- ;; Each pair contains two values.  These are tagged to indicate what kind of
- ;; value they hold.  The tag occupies the low 3 bits of the value.
- ;;
- ;; The rationale for the tag assignments below follows from an attempt to
- ;; arrange small integer arithmetic and pair dereferencing as to be as
- ;; efficient as possible.
- ;;
- ;; Small integer considerations are that the small integer tag is 0, and that
- ;; the tag bits are in the low bits of the word.  Together these allow small
- ;; integer operations without any shifts or masking.
- ;;
- ;; The allowance for pairs is the 3 bit tag.  With 4 byte words, and therefore
- ;; 8 byte pairs, all pair addresses will have the lower 3 bits 0. Hence, to
- ;; transform a pair value to a pair address only requires a mask.
- ;;
- ;; Small integers are numbers that fit within 2^29, should an operation cause
- ;; an overflow, the value will be automatically promoted to a block value,
- ;; encoding the number as an arbitrary-precision integer.
- ;;
- ;; Boxes contain the address of a pair.
- ;; The first value in the pair contains
- ;; a type designator, the second value contains the address of a block in the
- ;; blockstore.  The pair referenced by a block value is the owner of the block
- ;; in the blockstore, and every block has exactly one such owner.  Some blocks
- ;; may be empty -- such as a vector of length zero -- in which case the block
- ;; address will be $null.  Type designators are a small enumeration which
- ;; includes values for bytevectors, numbers, strings, and vectors.
- ;;
- ;; Boxes contain the address of a pair, similar to blocks.  They also have a
- ;; type designator in the first value and an address in the second.  Currently,
- ;; the only purpose envisioned for these is to hold a weak reference.  Another
- ;; possibility would be an opaque 32-bit value from an external source.  This
- ;; would be unsafe to put in an ordinary pair, and much less efficient to store
- ;; in a bytevector. Small strings or bytevectors could also fit, packed as
- ;;
- ;;     0               1                | 0               1
- ;;     0123456789abcdef0123456789abcdef | 0123456789abcdef0123456789abcdef
- ;;     | type  | count | char1 | char2 |  | char3 | char4 | char5 | char6 |
- ;;
- ;; Procedures. TBD.
- ;;
- ;; A symbol is an index into the symbol table. The symbol table is a private
- ;; vector which contains string values, sorted lexicographically.
- ;;
- ;; Singletons are one of the following: #true, #false, #null, #eof-object
+(global $value-tag-mask  (export "tag-mask")  i32 (i32.const 0x00000007))
+(global $value-data-mask (export "data-mask") i32 (i32.const 0xfffffff8))
 
- (include "./globals.wam")
+(macro %get-value-data
+  (expr ,value)
+  (i32.and ,value (global.get $value-data-mask)))
 
- (global $value-tag-mask  (export "tag-mask")  i32 (i32.const 0x00000007))
- (global $value-data-mask (export "data-mask") i32 (i32.const 0xfffffff8))
+(macro %get-value-tag
+  (expr ,value)
+  (i32.and ,value (global.get $value-tag-mask)))
 
- (func $get-value-data (export "get-value-data")
-   (param $value i32)
-   (result i32)
-   (i32.and (local.get $value) (global.get $value-data-mask)))
+(macro %set-value-data
+  (expr ,value)
+  (expr ,data)
+  (i32.or (expand %get-value-tag ,value) ,data))
 
- (func $get-value-tag (export "get-value-tag")
-   (param $value i32)
-   (result i32)
-   (i32.and (local.get $value) (global.get $value-tag-mask)))
+(macro %set-value-tag
+  (expr ,value)
+  (expr ,tag)
+  (i32.or (expand %get-value-data ,value) ,tag))
 
- (func $set-value-data (export "set-value-data")
-   (param $value i32)
-   (param $data i32)
-   (result i32)
-   (i32.or (call $get-value-tag (local.get $value))
-           (local.get $data)))
+(macro %make-value
+  (expr ,tag)
+  (expr ,data)
+  (i32.or ,tag ,data))
 
- (func $set-value-tag (export "set-value-tag")
-   (param $value i32)
-   (param $tag i32)
-   (result i32)
-   (i32.or (call $get-value-data (local.get $value))
-           (local.get $tag)))
-
- (func $make-value (export "make-value")
-   (param $tag i32)
-   (param $data i32)
-   (result i32)
-   (i32.or (local.get $tag) (local.get $data)))
-
- (func $is-pair-value (export "is-pair-value")
-   (param $value i32)
-   (result i32)
-   (i32.eq (call $get-value-tag (local.get $value)) (global.get $tag-pair))))
+(macro %is-pair-value
+  (expr ,value)
+  (i32.eq (expand %get-value-tag ,value) (global.get $tag-pair)))

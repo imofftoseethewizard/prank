@@ -41,7 +41,7 @@
  ;;
 
  (start $init-pairs)
- (func $init-pairs (export "init-pairs")
+ (func $init-pairs (debug (export "init-pairs"))
 
    (global.set $pairs-top (i32.const 0))
    (global.set $pair-count (i32.const 0))

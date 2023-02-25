@@ -7,14 +7,17 @@ from itertools import zip_longest
 
 import pytest
 
-from modules import block_mgr, block_mgr_test_client, lists, pairs, values
-import util
+from modules.debug.block_mgr import *
+from modules.debug.block_mgr_test_client import *
+from modules.debug.pairs import *
+
+from util import format_addr
 
 blockset_id = 7
-#blockset = block_mgr.get_blockset(blockset_id)
+blockset = block_mgr.get_blockset(blockset_id)
 
 mgr_blockset_id = block_mgr.block_mgr_blockset_id.value
-#mgr_blockset = block_mgr.get_blockset(mgr_blockset_id)
+mgr_blockset = block_mgr.get_blockset(mgr_blockset_id)
 
 NULL = block_mgr.NULL.value
 
@@ -229,9 +232,6 @@ def print_heap(blockset, depth=None):
     for s in format_heap_node(block_mgr.get_blockset_heap(blockset), 0, depth):
         print(s)
     print()
-
-def format_addr(addr):
-    return 'NULL' if addr == NULL else hex((abs(addr) ^ 0xffffffff) + 1) if addr < 0 else hex(addr)
 
 def format_heap_node(heap, n, depth):
 

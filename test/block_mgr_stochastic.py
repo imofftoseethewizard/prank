@@ -5,7 +5,7 @@ import time
 from block_mgr_util import (blockset_id, validate_blockset, print_blockset, print_heap,
                             print_block_mgr_state, format_addr)
 
-from modules import block_mgr, block_mgr_test_client, lists, pairs, values
+from modules import block_mgr, block_mgr_test_client, lists, pairs
 import util
 
 #blockset = block_mgr.get_blockset(blockset_id)
