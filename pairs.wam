@@ -52,6 +52,17 @@
  ;; Accessors
  ;;
 
+ (macro %set-pair-car
+   (expr ,pair)
+   (expr ,value)
+   (i32.store ,pair ,value))
+
+ (macro %set-pair-cdr
+   (expr ,pair)
+   (expr ,value)
+   (i32.store (i32.add ,pair (global.get $value-size))
+              ,value))
+
  (func $get-pair-addr (export "get-pair-addr")
    (param $pair i32)
    (result i32)
@@ -172,15 +183,12 @@
  (func $set-pair-car (export "set-pair-car")
    (param $pair i32)
    (param $value i32)
-   (i32.store (local.get $pair)
-              (local.get $value)))
+   (expand %set-pair-car (local.get $pair) (local.get $value)))
 
  (func $set-pair-cdr (export "set-pair-cdr")
    (param $pair i32)
    (param $value i32)
-   (i32.store (i32.add (local.get $pair)
-                       (global.get $value-size))
-              (local.get $value)))
+   (expand %set-pair-cdr (local.get $pair) (local.get $value)))
 
  (func $set-pair-caar (export "set-pair-caar")
    (param $pair i32)
@@ -283,6 +291,17 @@
  ;; Allocation
  ;;
 
+ (macro %alloc-pair
+   (if (i32.eq (global.get $pair-free-list) (global.get $null))
+       (then
+        (call $grow-storage (global.get $default-grow-storage-pair-count))))
+
+   (debug
+    (global.set $pair-count (i32.add (global.get $pair-count) (i32.const 1))))
+
+   (global.get $pair-free-list)
+   (global.set $pair-free-list (i32.load (global.get $pair-free-list))))
+
  (func $make-pair (export "make-pair")
    (param $car i32)
    (param $cdr i32)
@@ -290,24 +309,17 @@
 
    (local $pair-addr i32)
 
-   (local.set $pair-addr (call $alloc-pair))
+   (local.set $pair-addr (expand %alloc-pair))
 
-   (call $set-pair-car (local.get $pair-addr) (local.get $car))
-   (call $set-pair-cdr (local.get $pair-addr) (local.get $cdr))
+   (expand %set-pair-car (local.get $pair-addr) (local.get $car))
+   (expand %set-pair-cdr (local.get $pair-addr) (local.get $cdr))
 
    (local.get $pair-addr))
 
- (func $alloc-pair (export "alloc-pair")
-   (result i32)
-
-   (if (i32.eq (global.get $pair-free-list) (global.get $null))
-       (then
-        (call $grow-storage (global.get $default-grow-storage-pair-count))))
-
-   (global.set $pair-count (i32.add (global.get $pair-count) (i32.const 1)))
-
-   (global.get $pair-free-list)
-   (global.set $pair-free-list (i32.load (global.get $pair-free-list))))
+ (debug
+  (func $alloc-pair (export "alloc-pair")
+    (result i32)
+    (expand %alloc-pair)))
 
  (func $grow-storage (debug (export "grow-storage"))
    (param $count i32)
@@ -352,8 +364,9 @@
      (local.set $next-pair (i32.add (local.get $pair) (global.get $pair-size)))
      (if (i32.lt_u (local.get $next-pair) (local.get $top))
          (then
-          (i32.store (local.get $pair) (local.get $next-pair))
-          (i32.store (i32.add (local.get $pair) (global.get $value-size)) (i32.const 0xdeadce11))
+          (expand %set-pair-car (local.get $pair) (local.get $next-pair))
+          (debug
+           (expand %set-pair-cdr (local.get $pair) (i32.const 0xdeadce11)))
           (local.set $pair (local.get $next-pair))
           (br $again))
        (else
@@ -370,12 +383,13 @@
  (func $dealloc-pair (export "dealloc-pair")
    (param $pair i32)
 
-   (call $set-pair-car (local.get $pair) (global.get $pair-free-list))
-   (call $set-pair-cdr (local.get $pair) (i32.const 0xdeadce11))
+   (expand %set-pair-car (local.get $pair) (global.get $pair-free-list))
 
-   (global.set $pair-free-list (local.get $pair))
+   (debug
+    (expand %set-pair-cdr (local.get $pair) (i32.const 0xdeadce11))
+    (global.set $pair-count (i32.sub (global.get $pair-count) (i32.const 1))))
 
-   (global.set $pair-count (i32.sub (global.get $pair-count) (i32.const 1))))
+   (global.set $pair-free-list (local.get $pair)))
 
  ;;-----------------------------------------------------------------------------
  ;;

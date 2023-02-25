@@ -1,0 +1,18 @@
+(module
+
+ (memory (debug (export "memory")) 1)
+ (include "./test-include.wam")
+
+ (macro $next-foo
+   (label $addr)
+   (local.set $addr (i32.add (local.get $addr) (i32.const 4)))
+   (expand $get-foo (local.get $addr)))
+
+ (macro $get-foo
+   (expr ,addr-expr)
+   (i32.load ,addr-expr))
+
+ (func $test
+   (param $bar i32)
+   (result i32)
+   (expand $next-foo $bar)))
