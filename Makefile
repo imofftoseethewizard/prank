@@ -1,13 +1,13 @@
-%.d.wasm: %.d.wat
-	${WAT2WASM} $*.d.wat -o $@ --debug-names
+obj/%.d.wasm: obj/%.d.wat
+	${WAT2WASM} obj/$*.d.wat -o $@ --debug-names
 
-%.d.wat: %.wam
+obj/%.d.wat: %.wam
 	${WAM} --debug $*.wam >$@
 
-%.wasm: %.wat
-	${WAT2WASM} $*.wat -o $@
+obj/%.wasm: obj/%.wat
+	${WAT2WASM} obj/$*.wat -o $@
 
-%.wat: %.wam
+obj/%.wat: %.wam
 	${WAM} $*.wam >$@
 
 TOOLS = \
@@ -16,63 +16,70 @@ TOOLS = \
 	test/test_*.py
 
 OBJECTS = \
-	block-mgr.wasm \
-	block-mgr.d.wasm \
-	block-mgr-test-client.wasm \
-	block-mgr-test-client.d.wasm \
-	bytevectors.wasm \
-	bytevectors.d.wasm \
-	chars.wasm \
-	chars.d.wasm \
-	lists.wasm \
-	lists.d.wasm \
-	pairs.wasm \
-	pairs.d.wasm \
-	strings.wasm \
-	strings.d.wasm \
-	vectors.wasm \
-	vectors.d.wasm
+	obj/block-mgr.wasm \
+	obj/block-mgr.d.wasm \
+	obj/block-mgr-test-client.wasm \
+	obj/block-mgr-test-client.d.wasm \
+	obj/bytevectors.wasm \
+	obj/bytevectors.d.wasm \
+	obj/chars.wasm \
+	obj/chars.d.wasm \
+	obj/lists.wasm \
+	obj/lists.d.wasm \
+	obj/pairs.wasm \
+	obj/pairs.d.wasm \
+	obj/strings.wasm \
+	obj/strings.d.wasm \
+	obj/symbols.wasm \
+	obj/symbols.d.wasm \
+	obj/vectors.wasm \
+	obj/vectors.d.wasm
 
-block-mgr.wat block-mgr.d.wat: globals.wam
+obj/block-mgr.wat obj/block-mgr.d.wat: globals.wam
 
-block-mgr-test-client.wat block-mgr-test-client.d.wat: \
+obj/block-mgr-test-client.wat obj/block-mgr-test-client.d.wat: \
 	block-mgr-memory-proxies.wam \
 	block-mgr-memory-proxy-imports.wam \
-	block-mgr-test-client.wam \
 	globals.wam
 
-boxes.wat boxes.d.wat: globals.wam
+obj/boxes.wat obj/boxes.d.wat: globals.wam
 
-bytevectors.wat bytevectors.d.wat: \
+obj/bytevectors.wat obj/bytevectors.d.wat: \
 	block-mgr-memory-proxies.wam \
 	block-mgr-memory-proxy-imports.wam \
-	block-mgr-test-client.wam \
 	boxes.wam \
 	globals.wam \
 	values.wam
 
-chars.wat chars.d.wat: globals.wam
+obj/chars.wat obj/chars.d.wat: globals.wam values.wam
 
-lists.wat lists.d.wat: globals.wam
+obj/lists.wat obj/lists.d.wat: globals.wam
 
-pairs.wat pairs.d.wat: globals.wam gc-client.wam
+obj/pairs.wat obj/pairs.d.wat: globals.wam gc-client.wam
 
-strings.wat strings.d.wat: \
+obj/strings.wat obj/strings.d.wat: \
 	block-mgr-memory-proxies.wam \
 	block-mgr-memory-proxy-imports.wam \
-	block-mgr-test-client.wam \
-	globals.wam
+	boxes.wam \
+	globals.wam \
+	values.wam
 
-vectors.wat vectors.d.wat: \
+obj/symbols.wat obj/symbols.d.wat: \
 	block-mgr-memory-proxies.wam \
 	block-mgr-memory-proxy-imports.wam \
-	block-mgr-test-client.wam \
+	boxes.wam \
+	globals.wam \
+	values.wam
+
+obj/vectors.wat obj/vectors.d.wat: \
+	block-mgr-memory-proxies.wam \
+	block-mgr-memory-proxy-imports.wam \
 	globals.wam
 
 all: test
 
 clean:
-	rm -f *.wat *.wasm
+	rm -f obj/*
 
 wasm: ${OBJECTS}
 

@@ -59,7 +59,7 @@ test_handler.on_modified = test_wasm
 o = Observer()
 
 wam_watch = o.schedule(wam_handler, project_root, recursive=False)
-wasm_watch = o.schedule(wasm_handler, project_root, recursive=False)
+wasm_watch = o.schedule(wasm_handler, project_root / 'obj', recursive=False)
 test_watch = o.schedule(test_handler, project_root / 'test', recursive=True)
 
 o.start()

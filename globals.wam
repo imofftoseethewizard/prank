@@ -52,3 +52,39 @@
 (global $symbols-blockset-id     (export "symbols-blockset-id")     i32 (i32.const 4))
 (global $vectors-blockset-id     (export "vectors-blockset-id")     i32 (i32.const 5))
 (global $max-blockset-id         (export "max-blockset-id")         i32 (i32.const 16))
+
+(macro %incr-n
+  (class Int)
+  (label $var)
+  (expr ,n)
+  (local.set $var (Int.add (local.get $var) (Int.const ,n))))
+
+(macro %decr-n
+  (class Int)
+  (label $var)
+  (expr ,n)
+  (local.set $var (Int.sub (local.get $var) (Int.const ,n))))
+
+(macro %incr
+  (class Int)
+  (label $var)
+  (%incr-n Int $var 1))
+
+(macro %decr
+  (class Int)
+  (label $var)
+  (%decr-n Int $var 1))
+
+(macro %global.incr
+  (class Int)
+  (label $var)
+  (global.set $var (Int.add (global.get $var) (Int.const 1))))
+
+(macro %global.decr
+  (class Int)
+  (label $var)
+  (global.set $var (Int.sub (global.get $var) (Int.const 1))))
+
+(macro %next-cdr
+  (label $var)
+  (local.set $var (call $get-pair-cdr (local.get $var))))

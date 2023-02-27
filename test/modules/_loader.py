@@ -9,12 +9,12 @@ def module_wasm_path(name, debug=False):
     if debug:
         name += '.d'
     print(name)
-    return Path.home() / 'src' / 'prank' / f'{name}.wasm'
+    return Path.home() / 'src' / 'prank' / 'obj' / f'{name}.wasm'
 
 def module_wat_path(name, debug=False):
     if debug:
         name += '.d'
-    return Path.home() / 'src' / 'prank' / f'{name}.wat'
+    return Path.home() / 'src' / 'prank' / 'obj' / f'{name}.wat'
 
 def read_wasm_module(name, debug=False):
     return Module(store, module_wasm_path(name, debug=debug).read_bytes())

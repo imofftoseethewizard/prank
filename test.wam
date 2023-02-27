@@ -15,4 +15,33 @@
  (func $test
    (param $bar i32)
    (result i32)
-   (expand $next-foo $bar)))
+   (expand $next-foo $bar))
+
+  (macro %bisect-left-indirect
+   (class Int)
+   (label $compare)
+   (label $lo)
+   (label $hi)
+   (label $v)
+   (label $mid)
+
+   (loop $again
+     (local.set $mid (i32.and (i32.add (i32.shr_u (local.get $lo) (i32.const 1))
+                                       (i32.shr_u (local.get $hi) (i32.const 1)))
+                              (i32.const Int.align_mask)))
+
+     (if (call $compare (local.get $v) (Int.load (local.get $mid)))
+         (then
+          (local.set $lo (local.get $mid)))
+       (else
+        (local.set $hi (local.get $mid))))
+
+     (if (i32.lt_u (local.get $lo) (local.get $hi))
+         (then
+          (br $again))))
+
+   (local.get $lo))
+
+  (func $foo
+
+    (%bisect-left-indirect i64 $compare-name $start $end $name $mid)))

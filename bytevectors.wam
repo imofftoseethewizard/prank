@@ -30,24 +30,24 @@
 
  (macro %get-bytevector-addr
    (expr ,bv)
-   (i32.add (call $get-block-ref-addr (expand %get-box-value ,bv))
+   (i32.add (call $get-block-ref-addr (%get-box-value ,bv))
             (global.get $value-size)))
 
  (macro %get-bytevector-size
    (expr ,bv)
-   (i32.load (call $get-block-ref-addr (expand %get-box-value ,bv))))
+   (i32.load (call $get-block-ref-addr (%get-box-value ,bv))))
 
  (func $get-bytevector-size (export "get-bytevector-size")
    (param $bv i32)
    (result i32)
-   (expand %get-bytevector-size (local.get $bv)))
+   (%get-bytevector-size (local.get $bv)))
 
  (func $is-bytevector (export "is-bytevector")
    (param $value i32)
    (result i32)
-   (if (result i32) (i32.eq (expand %get-value-tag (local.get $value)) (global.get $tag-box))
+   (if (result i32) (i32.eq (%get-value-tag (local.get $value)) (global.get $tag-box))
      (then
-      (i32.eq (i32.and (expand %get-box-type (local.get $value))
+      (i32.eq (i32.and (%get-box-type (local.get $value))
                        (global.get $box-type-mask))
               (global.get $type-bytevector)))
      (else
@@ -65,16 +65,16 @@
 
    (i32.store (call $get-block-ref-addr (local.get $block-ref)) (local.get $size))
 
-   (expand %make-box (global.get $type-bytevector) (local.get $block-ref)))
+   (%make-box (global.get $type-bytevector) (local.get $block-ref)))
 
  (func $dealloc-bytevector (export "dealloc-bytevector")
    (param $bv i32)
 
    (call $dealloc-block
          (global.get $bytevectors-blockset-id)
-         (expand %get-box-value (local.get $bv)))
+         (%get-box-value (local.get $bv)))
 
-   (expand %dealloc-box (local.get $bv)))
+   (%dealloc-box (local.get $bv)))
 
  (func $make-bytevector (export "make-bytevector")
    (param $size i32)
@@ -86,7 +86,7 @@
    (local.set $bv (call $alloc-bytevector (local.get $size)))
 
    (memory.fill
-    (expand %get-bytevector-addr (local.get $bv))
+    (%get-bytevector-addr (local.get $bv))
     (local.get $size)
     (local.get $fill-value))
 
@@ -103,14 +103,14 @@
 
    (local.set $bv (call $alloc-bytevector (call $get-list-length (local.get $list))))
 
-   (local.set $byte-addr (expand %get-bytevector-addr (local.get $bv)))
+   (local.set $byte-addr (%get-bytevector-addr (local.get $bv)))
    (local.set $head (local.get $list))
 
    (loop $again
      (if (i32.ne (local.get $head) (global.get $null))
          (then
           (i32.store8 (local.get $byte-addr) (call $get-pair-car (local.get $head)))
-          (local.set $byte-addr (i32.add (local.get $byte-addr) (i32.const 1)))
+          (%incr i32 $byte-addr)
           (local.set $head (call $get-pair-cdr (local.get $head)))
           (br $again))))
 
@@ -122,9 +122,9 @@
    (result i32)
 
    (if (result i32) (i32.le_u (i32.add (local.get $offset) (i32.const 2))
-                              (expand %get-bytevector-size (local.get $bv)))
+                              (%get-bytevector-size (local.get $bv)))
      (then
-      (i32.load16_s (i32.add (expand %get-bytevector-addr (local.get $bv))
+      (i32.load16_s (i32.add (%get-bytevector-addr (local.get $bv))
                              (local.get $offset))))
      (else
       (i32.const 0)
@@ -136,10 +136,10 @@
    (result i32)
 
    (if (result i32) (i32.le_u (i32.add (local.get $offset) (i32.const 2))
-                              (expand %get-bytevector-size (local.get $bv)))
+                              (%get-bytevector-size (local.get $bv)))
      (then
-      (i32.load16_u (i32.add (expand %get-bytevector-addr (local.get $bv))
-                            (local.get $offset))))
+      (i32.load16_u (i32.add (%get-bytevector-addr (local.get $bv))
+                             (local.get $offset))))
      (else
       (i32.const 0)
       (unreachable))))
@@ -150,9 +150,9 @@
    (result i32)
 
    (if (result i32) (i32.le_u (i32.add (local.get $offset) (i32.const 4))
-                              (expand %get-bytevector-size (local.get $bv)))
+                              (%get-bytevector-size (local.get $bv)))
      (then
-      (i32.load (i32.add (expand %get-bytevector-addr (local.get $bv))
+      (i32.load (i32.add (%get-bytevector-addr (local.get $bv))
                          (local.get $offset))))
      (else
       (i32.const 0)
@@ -163,9 +163,9 @@
    (param $offset i32)
    (result i32)
 
-   (if (result i32) (i32.lt_u (local.get $offset) (expand %get-bytevector-size (local.get $bv)))
+   (if (result i32) (i32.lt_u (local.get $offset) (%get-bytevector-size (local.get $bv)))
      (then
-      (i32.load8_s (i32.add (expand %get-bytevector-addr (local.get $bv))
+      (i32.load8_s (i32.add (%get-bytevector-addr (local.get $bv))
                             (local.get $offset))))
      (else
       (i32.const 0)
@@ -176,9 +176,9 @@
    (param $offset i32)
    (result i32)
 
-   (if (result i32) (i32.lt_u (local.get $offset) (expand %get-bytevector-size (local.get $bv)))
+   (if (result i32) (i32.lt_u (local.get $offset) (%get-bytevector-size (local.get $bv)))
      (then
-      (i32.load8_u (i32.add (expand %get-bytevector-addr (local.get $bv))
+      (i32.load8_u (i32.add (%get-bytevector-addr (local.get $bv))
                             (local.get $offset))))
      (else
       (i32.const 0)
@@ -190,11 +190,11 @@
    (param $value i32)
 
    (if (i32.le_u (i32.add (local.get $offset) (i32.const 2))
-                 (expand %get-bytevector-size (local.get $bv)))
+                 (%get-bytevector-size (local.get $bv)))
        (then
-        (i32.store16 (i32.add (expand %get-bytevector-addr (local.get $bv))
-                             (local.get $offset))
-                    (local.get $value)))
+        (i32.store16 (i32.add (%get-bytevector-addr (local.get $bv))
+                              (local.get $offset))
+                     (local.get $value)))
      (else
       (unreachable))))
 
@@ -204,9 +204,9 @@
    (param $value i32)
 
    (if (i32.le_u (i32.add (local.get $offset) (i32.const 4))
-                 (expand %get-bytevector-size (local.get $bv)))
+                 (%get-bytevector-size (local.get $bv)))
        (then
-        (i32.store (i32.add (expand %get-bytevector-addr (local.get $bv))
+        (i32.store (i32.add (%get-bytevector-addr (local.get $bv))
                             (local.get $offset))
                    (local.get $value)))
      (else
@@ -217,9 +217,9 @@
    (param $offset i32)
    (param $value i32)
 
-   (if (i32.lt_u (local.get $offset) (expand %get-bytevector-size (local.get $bv)))
+   (if (i32.lt_u (local.get $offset) (%get-bytevector-size (local.get $bv)))
        (then
-        (i32.store8 (i32.add (expand %get-bytevector-addr (local.get $bv))
+        (i32.store8 (i32.add (%get-bytevector-addr (local.get $bv))
                              (local.get $offset))
                     (local.get $value)))
      (else
@@ -236,10 +236,10 @@
    (local.set $new-bv (call $alloc-bytevector (i32.sub (local.get $end)
                                                        (local.get $start))))
 
-   (memory.copy (expand %get-bytevector-addr (local.get $new-bv))
-                (i32.add (expand %get-bytevector-addr (local.get $bv))
+   (memory.copy (%get-bytevector-addr (local.get $new-bv))
+                (i32.add (%get-bytevector-addr (local.get $bv))
                          (local.get $start))
-                (expand %get-bytevector-size (local.get $bv)))
+                (%get-bytevector-size (local.get $bv)))
 
    (local.get $new-bv))
 
@@ -251,7 +251,7 @@
 
    (local $new-bv i32)
 
-   (i32.and (i32.lt_u (local.get $end) (expand %get-bytevector-size (local.get $bv)))
+   (i32.and (i32.lt_u (local.get $end) (%get-bytevector-size (local.get $bv)))
             (i32.le_u (local.get $start) (local.get $end))))
 
  (func $copy-bytevector-range (export "copy-bytevector-range")
@@ -261,9 +261,9 @@
    (param $start i32)
    (param $end i32)
 
-   (memory.copy (i32.add (expand %get-bytevector-addr (local.get $bv-to))
+   (memory.copy (i32.add (%get-bytevector-addr (local.get $bv-to))
                          (local.get $at))
-                (i32.add (expand %get-bytevector-addr (local.get $bv-from))
+                (i32.add (%get-bytevector-addr (local.get $bv-from))
                          (local.get $start))
                 (i32.sub (local.get $end) (local.get $start))))
 
@@ -276,7 +276,7 @@
    (result i32)
 
    (local $to-size i32)
-   (local.set $to-size (expand %get-bytevector-size (local.get $bv-to)))
+   (local.set $to-size (%get-bytevector-size (local.get $bv-to)))
 
    (i32.and (call $can-make-bytevector-copy
                   (local.get $bv-from)
@@ -296,22 +296,22 @@
    (local $size-1 i32)
    (local $size-2 i32)
 
-   (local.set $size-1 (expand %get-bytevector-size (local.get $bv-1)))
-   (local.set $size-2 (expand %get-bytevector-size (local.get $bv-2)))
+   (local.set $size-1 (%get-bytevector-size (local.get $bv-1)))
+   (local.set $size-2 (%get-bytevector-size (local.get $bv-2)))
 
    (local.set $bv (call $alloc-bytevector
                         (i32.add (local.get $size-1) (local.get $size-2))))
 
-   (local.set $block-addr (expand %get-bytevector-addr (local.get $bv)))
+   (local.set $block-addr (%get-bytevector-addr (local.get $bv)))
 
    (memory.copy
     (local.get $block-addr)
-    (expand %get-bytevector-addr (local.get $bv-1))
+    (%get-bytevector-addr (local.get $bv-1))
     (local.get $size-1))
 
    (memory.copy
     (i32.add (local.get $block-addr) (local.get $size-1))
-    (expand %get-bytevector-addr (local.get $bv-2))
+    (%get-bytevector-addr (local.get $bv-2))
     (local.get $size-2))
 
    (local.get $bv)))

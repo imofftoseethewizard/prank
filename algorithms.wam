@@ -1,111 +1,200 @@
-(module
+;; (class x) where x can be one of i8 i16 i32 i64 i128 f32 or f64
+;; (x.align v) applies to integer classes, aligns the value with
+;;            to the class
+;; (x.size) # of bytes, applies to all
+;; (x.bits) # of bits, applies to all
+;; (x.size_bits) # i8 -> 3, i16 -> 4, etc
 
- (import "memory" "main" (memory 1))
+ ;; (macro %bisect-left-indirect
+ ;;   (class Int)
+ ;;   (label $lo)
+ ;;   (label $mid)
+ ;;   (label $hi)
+ ;;   (label $compare)
+ ;;   (label $v)
 
- (func $bisect-left-i64 (export "bisect-left-i64")
-   (param $lo i32)
-   (param $hi i32)
-   (param $v i64)
-   (result i32)
+ ;;   (loop $again
+ ;;     (local.set $mid (i32.and (i32.add (i32.shr_u (local.get $lo) (i32.const 1))
+ ;;                                       (i32.shr_u (local.get $hi) (i32.const 1)))
+ ;;                              (i32.const Int.align_mask)))
 
-   (local $mid i32)
+ ;;     (if (i32.gt_s (call $compare (local.get $v) (Int.load (local.get $mid)))
+ ;;                   (i32.const 0))
+ ;;         (then
+ ;;          (local.set $lo (local.get $mid)))
+ ;;       (else
+ ;;        (local.set $hi (local.get $mid))))
+
+ ;;     (if (i32.lt_u (local.get $lo) (local.get $hi))
+ ;;         (then
+ ;;          (br $again))))
+
+ ;;   (local.get $lo))
+
+ (macro %bisect-left
+   (class Int)
+   (label $lo)
+   (label $mid)
+   (label $hi)
+   (label $v)
 
    (loop $again
      (local.set $mid (i32.and (i32.add (i32.shr_u (local.get $lo) (i32.const 1))
                                        (i32.shr_u (local.get $hi) (i32.const 1)))
-                              (i32.const 0xfffffff8)))
+                              (i32.const Int.align_mask)))
 
-     (if (i64.ge_u (local.get $v) (i64.load (local.get $mid)))
+     (if (i32.gt_s (local.get $v) (Int.load (local.get $mid)))
          (then
           (local.set $lo (local.get $mid)))
        (else
         (local.set $hi (local.get $mid))))
+
      (if (i32.lt_u (local.get $lo) (local.get $hi))
          (then
           (br $again))))
 
    (local.get $lo))
 
- (func $bisect-right-i64 (export "bisect-right-i64")
-   (param $lo i32)
-   (param $hi i32)
-   (param $v i64)
-   (result i32)
+;; (macro %bisect-right
+;;   (class Int)
+;;   (label $lo)
+;;   (label $hi)
+;;   (label $v)
+;;   (label $mid)
+;;   ;; result in $lo
 
-   (local $mid i32)
+;;   (loop $again
+;;     (local.set $mid (Int.align (i32.add (i32.shr_u (local.get $lo) (i32.const 1))
+;;                                         (i32.shr_u (local.get $hi) (i32.const 1)))))
+;;     (if (Int.gt_u (local.get $v) (Int.load (local.get $mid)))
+;;         (then
+;;          (local.set $lo (local.get $mid)))
+;;       (else
+;;        (local.set $hi (local.get $mid))))
+;;     (if (i32.lt_u (local.get $lo) (local.get $hi))
+;;         (then
+;;          (br $again))))
 
-   (loop $again
-     (local.set $mid (i32.and (i32.add (i32.shr_u (local.get $lo) (i32.const 1))
-                                       (i32.shr_u (local.get $hi) (i32.const 1)))
-                              (i32.const 0xfffffff8)))
+;;   (local.get $lo))
 
-     (if (i64.gt_u (local.get $v) (i64.load (local.get $mid)))
-         (then
-          (local.set $lo (local.get $mid)))
-       (else
-        (local.set $hi (local.get $mid))))
-     (if (i32.lt_u (local.get $lo) (local.get $hi))
-         (then
-          (br $again))))
+;; (macro %hoare-quicksort
+;;   (class Int)
+;;   (label $A)
+;;   (label $lo)
+;;   (label $hi)
+;;   (label $pivot)
+;;   (label $a)
+;;   (label $b)
 
-   (local.get $lo))
+;;   (if (i32.and (i32.and (i32.ge_u (local.get $lo) (local.get $A))
+;;                         (i32.ge_u (local.get $hi) (local.get $A)))
+;;                (i32.lt_u (local.get $lo) (local.get $hi)))
+;;       (then
+;;        (local.set $p (expand $hoare-partition Int $lo $hi))
+;;        (call $hoare-quicksort-i64 (local.get $A) (local.get $lo) (local.get $p))
+;;        (call $hoare-quicksort-i64
+;;              (local.get $A)
+;;              (i32.add (local.get $lo)
+;;                       (i32.const 8))
+;;              (local.get $hi)))))
 
- (func $hoare-quicksort-i64 (export "hoare-quicksort-i64")
-   (param $A i32)
-   (param $lo i32)
-   (param $hi i32)
+;; (macro %bisect-left-i64
+;;   (label $lo)
+;;   (label $hi)
+;;   (label $v)
+;;   (label $mid)
+;;   ;; result in $lo
 
-   (local $p i32)
+;;   (loop $again
+;;     (local.set $mid (i32.and (i32.add (i32.shr_u (local.get $lo) (i32.const 1))
+;;                                       (i32.shr_u (local.get $hi) (i32.const 1)))
+;;                              (i32.const 0xfffffff8)))
 
-   (if (i32.and (i32.and (i32.ge_u (local.get $lo) (local.get $A))
-                         (i32.ge_u (local.get $hi) (local.get $A)))
-                (i32.lt_u (local.get $lo) (local.get $hi)))
-       (then
-        (local.set $p (call $hoare-partition-i64 (local.get $lo) (local.get $hi)))
-        (call $hoare-quicksort-i64 (local.get $A) (local.get $lo) (local.get $p))
-        (call $hoare-quicksort-i64
-              (local.get $A)
-              (i32.add (local.get $lo)
-                       (i32.const 8))
-              (local.get $hi)))))
+;;     (if (i64.ge_u (local.get $v) (i64.load (local.get $mid)))
+;;         (then
+;;          (local.set $lo (local.get $mid)))
+;;       (else
+;;        (local.set $hi (local.get $mid))))
+;;     (if (i32.lt_u (local.get $lo) (local.get $hi))
+;;         (then
+;;          (br $again)))))
 
- (func $hoare-partition-i64 (export "hoare-partition-i64")
-   (param $lo i32)
-   (param $hi i32)
-   (result i32)
+;; (macro %bisect-right-i64
+;;   (label $lo)
+;;   (label $hi)
+;;   (label $v)
+;;   (label $mid)
+;;   ;; result in $lo
 
-   (local $a i64)
-   (local $b i64)
-   (local $pivot i64)
+;;   (loop $again
+;;     (local.set $mid (i32.and (i32.add (i32.shr_u (local.get $lo) (i32.const 1))
+;;                                       (i32.shr_u (local.get $hi) (i32.const 1)))
+;;                              (i32.const 0xfffffff8)))
 
-   (local.set $pivot (i64.load
-                      (i32.and (i32.add (i32.shr_u (local.get $lo) (i32.const 1))
-                                        (i32.shr_u (local.get $hi) (i32.const 1)))
-                               (i32.const 0xfffffff8))))
+;;     (if (i64.gt_u (local.get $v) (i64.load (local.get $mid)))
+;;         (then
+;;          (local.set $lo (local.get $mid)))
+;;       (else
+;;        (local.set $hi (local.get $mid))))
+;;     (if (i32.lt_u (local.get $lo) (local.get $hi))
+;;         (then
+;;          (br $again))))
 
-   (local.set $lo (i32.sub (local.get $lo) (i32.const 8)))
-   (local.set $hi (i32.add (local.get $hi) (i32.const 8)))
+;;   (local.get $lo))
 
-   (loop $outer
+;; (macro %hoare-quicksort-i64
+;;   (label $A)
+;;   (label $lo)
+;;   (label $hi)
+;;   (label $p)
 
-     (loop $lo-inner
-       (local.set $lo (i32.add (local.get $lo) (i32.const 8)))
-       (local.set $a (i64.load (local.get $lo)))
-       (if (i64.lt_u (local.get $a) (local.get $pivot))
-           (then
-            (br $lo-inner))))
+;;   (if (i32.and (i32.and (i32.ge_u (local.get $lo) (local.get $A))
+;;                         (i32.ge_u (local.get $hi) (local.get $A)))
+;;                (i32.lt_u (local.get $lo) (local.get $hi)))
+;;       (then
+;;        (local.set $p (call $hoare-partition-i64 (local.get $lo) (local.get $hi)))
+;;        (call $hoare-quicksort-i64 (local.get $A) (local.get $lo) (local.get $p))
+;;        (call $hoare-quicksort-i64
+;;              (local.get $A)
+;;              (i32.add (local.get $lo)
+;;                       (i32.const 8))
+;;              (local.get $hi)))))
 
-     (loop $hi-inner
-       (local.set $hi (i32.add (local.get $hi) (i32.const 8)))
-       (local.set $b (i64.load (local.get $hi)))
-       (if (i64.gt_u (local.get $b) (local.get $pivot))
-           (then
-            (br $hi-inner))))
+;; (macro %hoare-partition-i64
+;;   (label $lo)
+;;   (label $hi)
+;;   (label $a)
+;;   (label $b)
+;;   (label $pivot)
 
-     (if (i32.gt_u (local.get $lo) (local.get $hi))
-         (then
-          (i64.store (local.get $lo) (local.get $b))
-          (i64.store (local.get $hi) (local.get $a))
-          (br $outer))))
+;;   (local.set $pivot (i64.load
+;;                      (i32.and (i32.add (i32.shr_u (local.get $lo) (i32.const 1))
+;;                                        (i32.shr_u (local.get $hi) (i32.const 1)))
+;;                               (i32.const 0xfffffff8))))
 
-   (local.get $hi)))
+;;   (local.set $lo (i32.sub (local.get $lo) (i32.const 8)))
+;;   (local.set $hi (i32.add (local.get $hi) (i32.const 8)))
+
+;;   (loop $outer
+
+;;     (loop $lo-inner
+;;       (local.set $lo (i32.add (local.get $lo) (i32.const 8)))
+;;       (local.set $a (i64.load (local.get $lo)))
+;;       (if (i64.lt_u (local.get $a) (local.get $pivot))
+;;           (then
+;;            (br $lo-inner))))
+
+;;     (loop $hi-inner
+;;       (local.set $hi (i32.add (local.get $hi) (i32.const 8)))
+;;       (local.set $b (i64.load (local.get $hi)))
+;;       (if (i64.gt_u (local.get $b) (local.get $pivot))
+;;           (then
+;;            (br $hi-inner))))
+
+;;     (if (i32.gt_u (local.get $lo) (local.get $hi))
+;;         (then
+;;          (i64.store (local.get $lo) (local.get $b))
+;;          (i64.store (local.get $hi) (local.get $a))
+;;          (br $outer))))
+
+;;   (local.get $hi))

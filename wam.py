@@ -16,7 +16,7 @@ lexemes = {
     'comment': re.compile(';;[^\n]*'),
     'whitespace': re.compile('[ \t]+'),
     'newline': re.compile('\n'),
-    'label': re.compile(r'[$%,][-a-z0-9]+'),
+    'label': re.compile(r'[A-Z$%,][-a-z0-9._/]+'),
     'string': re.compile(r'"([^"\\]|\\.)*"'),
     'token': re.compile(r'[-a-z0-9._]+'),
 }
@@ -33,6 +33,7 @@ def tokens(src):
 
     pos = 0
     indent = 0
+    line = 1
 
     while True:
         name, match = next_token(src, pos)
@@ -40,10 +41,11 @@ def tokens(src):
         if name is None:
             break
 
-        yield (name, match, indent)
+        yield (name, match, line, indent)
 
         if name == 'newline':
             indent = 0
+            line += 1
         else:
             indent = match.end() - match.start()
 
@@ -53,7 +55,7 @@ def parse(src):
 
     exprs = [[]]
 
-    for name, match, indent in tokens(src):
+    for name, match, line, indent in tokens(src):
 
         if name == 'open-paren':
             new_expr = []
@@ -66,7 +68,7 @@ def parse(src):
             exprs.pop()
 
         else:
-            exprs[-1].append((name, match, indent))
+            exprs[-1].append((name, match.group(), line, indent))
 
     if len(exprs) > 1:
         from pprint import pprint; pprint(exprs)
@@ -83,7 +85,7 @@ def translate(expr, env):
     rest = expr
 
     if type(expr[0]) == tuple:
-        op = expr[0][1].group()
+        op = expr[0][1]
         rest = expr[0:]
 
     if op == 'debug':
@@ -94,7 +96,7 @@ def translate(expr, env):
         else:
             return translate_debug(expr[1:], env)
 
-    if op == 'expand':
+    if op and op.startswith('%'):
         return expand_macro(expr, env)
 
     if op == 'include':
@@ -129,13 +131,13 @@ def expand_macro(expr, env):
     name = None
     arg_exprs = []
 
-    for e in expr[1:]:
+    for e in expr:
 
         if type(e) == tuple and e[0] in ('comment', 'newline', 'whitespace'):
             continue
 
         if name is None and type(e) == tuple and e[0] == 'label':
-            name = e[1].group()
+            name = e[1]
 
         elif name:
             arg_exprs.append(e)
@@ -145,13 +147,19 @@ def expand_macro(expr, env):
 
     macro = env['macros'][name]
 
-    assert len(arg_exprs) == len(macro['params'])
+    assert len(arg_exprs) == len(macro['params']), expr
 
     subst_env = {
         **env,
         'params': {
             param_name: e
             for (param_type, param_name), e in zip(macro['params'], arg_exprs)
+            if param_type != 'class'
+        },
+        'class-params': {
+            param_name: e
+            for (param_type, param_name), e in zip(macro['params'], arg_exprs)
+            if param_type == 'class'
         }
     }
 
@@ -162,7 +170,14 @@ def substitute_params(expr, env):
     if type(expr) == tuple:
 
         if expr[0] == 'label':
-            return env['params'].get(expr[1].group(), expr)
+
+            label_value = expr[1]
+            label_stem = label_value.split('.', 1)[0]
+
+            if label_stem in env['class-params']:
+                return substitute_class_param(label_stem, label_value, expr, env)
+
+            return env['params'].get(expr[1], expr)
 
         else:
             return expr
@@ -171,6 +186,72 @@ def substitute_params(expr, env):
         substitute_params(e, env)
         for e in expr
     ]
+
+def substitute_class_param(label_stem, label, expr, env):
+
+    class_expr = env['class-params'][label_stem]
+
+    if label == label_stem:
+        return env['class-params'][label]
+
+    label_suffix = label.split('.', 1)[1]
+
+    if label_suffix == 'align_mask':
+        value = class_align_mask[class_expr[1]]
+
+    elif label_suffix == 'size':
+        value = class_size[class_expr[1]]
+
+    elif label_suffix == 'bits':
+        value = class_bits[class_expr[1]]
+
+    elif label_suffix == 'size_bits':
+        value = class_size_bits[class_expr[1]]
+
+    else:
+        value = f'{class_expr[1]}.{label_suffix}'
+
+    return ('label', value, -1)
+
+class_align_mask = {
+    'i8':   '-1',
+    'i16':  '-2',
+    'i32':  '-4',
+    'i64':  '-8',
+    'i128': '-16',
+    'f32':  '-4',
+    'f64':  '-8',
+}
+
+class_size = {
+    'i8':   '1',
+    'i16':  '2',
+    'i32':  '4',
+    'i64':  '8',
+    'i128': '16',
+    'f32':  '4',
+    'f64':  '8',
+}
+
+class_size = {
+    'i8':   '8',
+    'i16':  '16',
+    'i32':  '32',
+    'i64':  '64',
+    'i128': '128',
+    'f32':  '32',
+    'f64':  '64',
+}
+
+class_size_bits = {
+    'i8':   '3',
+    'i16':  '4',
+    'i32':  '5',
+    'i64':  '6',
+    'i128': '7',
+    'f32':  '5',
+    'f64':  '6',
+}
 
 def include_file(expr, env):
 
@@ -183,7 +264,7 @@ def include_file(expr, env):
             continue
 
         if path is None and type(e) == tuple and e[0] == 'string':
-            path = e[1].group().strip('"')
+            path = e[1].strip('"')
 
         else:
             assert False, (expr, e)
@@ -205,9 +286,9 @@ def define_macro(expr, env):
 
         if name is None:
             assert e[0] == 'label', e
-            name = e[1].group()
+            name = e[1]
 
-        elif not body and type(e) != tuple and e[0][1].group() in  ('expr', 'label'):
+        elif not body and type(e) != tuple and e[0][1] in  ('class', 'expr', 'label'):
 
             params.append(define_param(e))
 
@@ -224,7 +305,7 @@ def define_macro(expr, env):
 
 def define_param(expr):
 
-    param_type = expr[0][1].group()
+    param_type = expr[0][1]
     param_name = None
 
     for e in expr[1:]:
@@ -234,7 +315,7 @@ def define_param(expr):
 
         if param_name == None:
             assert e[0] == 'label'
-            param_name = e[1].group()
+            param_name = e[1]
 
         else:
             assert False, (expr, e)
@@ -251,7 +332,7 @@ def emit(expr):
                 emit(e)
 
         else:
-            print(expr[1].group(), end='')
+            print(expr[1], end='')
 
     else:
         print('(', end='')

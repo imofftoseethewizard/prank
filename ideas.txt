@@ -288,7 +288,8 @@ parser
     scan token to determine string length and size
     call alloc-string
     loop for each char
-      call set-string-bytes for each char
+      call set-string-bytes s offset encoded-char
+      offset += char-width
     call build-string-index
 
   interface with bytevector
@@ -321,7 +322,6 @@ tooling improvements
   wam.py
     error messages
     check syntax of expr vs label in macros
-    add line no to IR
 
   test
     tests for non-debug builds
@@ -329,6 +329,3 @@ tooling improvements
     better cli/cleanup of block_mgr stochastic test bench
     rework block_mgr_utils for to support both debug/non-debug
     test suite for wam.py
-
-  build
-    put build artifacts in subdirectory
