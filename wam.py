@@ -1,7 +1,10 @@
 import argparse
+import contextlib
 import os
 import re
 import textwrap
+
+from pathlib import Path
 
 parser = argparse.ArgumentParser(
     prog='wam',
@@ -20,6 +23,13 @@ lexemes = {
     'string': re.compile(r'"([^"\\]|\\.)*"'),
     'token': re.compile(r'[-a-z0-9._]+'),
 }
+
+@contextlib.contextmanager
+def current_directory(path):
+    old_cwd = os.getcwd()
+    os.chdir(path)
+    yield
+    os.chdir(old_cwd)
 
 def next_token(src, pos):
     for name, regexp in lexemes.items():
@@ -271,7 +281,8 @@ def include_file(expr, env):
 
     src = textwrap.indent(textwrap.dedent(open(path).read()), ' ' * indent)
 
-    return ('splice', translate(parse(src), env), -1)
+    with current_directory(Path(path).parent):
+        return ('splice', translate(parse(src), env), -1)
 
 def define_macro(expr, env):
 
@@ -345,7 +356,8 @@ def emit(expr):
 def process(args):
 
     for expr in parse(open(args.filename).read()):
-        emit(translate(expr, { 'debug': args.debug, 'macros': {} }))
+        with current_directory(Path(args.filename).parent):
+            emit(translate(expr, { 'debug': args.debug, 'macros': {} }))
 
 if __name__ == '__main__':
     process(parser.parse_args())

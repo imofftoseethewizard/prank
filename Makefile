@@ -1,14 +1,14 @@
 obj/%.d.wasm: obj/%.d.wat
 	${WAT2WASM} obj/$*.d.wat -o $@ --debug-names
 
-obj/%.d.wat: %.wam
-	${WAM} --debug $*.wam >$@
+obj/%.d.wat: src/%.wam
+	${WAM} --debug src/$*.wam >$@
 
 obj/%.wasm: obj/%.wat
 	${WAT2WASM} obj/$*.wat -o $@
 
-obj/%.wat: %.wam
-	${WAM} $*.wam >$@
+obj/%.wat: src/%.wam
+	${WAM} src/$*.wam >$@
 
 TOOLS = \
 	Makefile \
@@ -35,46 +35,46 @@ OBJECTS = \
 	obj/vectors.wasm \
 	obj/vectors.d.wasm
 
-obj/block-mgr.wat obj/block-mgr.d.wat: globals.wam
+obj/block-mgr.wat obj/block-mgr.d.wat: src/globals.wam
 
 obj/block-mgr-test-client.wat obj/block-mgr-test-client.d.wat: \
-	block-mgr-memory-proxies.wam \
-	block-mgr-memory-proxy-imports.wam \
-	globals.wam
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/globals.wam
 
 obj/boxes.wat obj/boxes.d.wat: globals.wam
 
 obj/bytevectors.wat obj/bytevectors.d.wat: \
-	block-mgr-memory-proxies.wam \
-	block-mgr-memory-proxy-imports.wam \
-	boxes.wam \
-	globals.wam \
-	values.wam
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/boxes.wam \
+	src/globals.wam \
+	src/values.wam
 
-obj/chars.wat obj/chars.d.wat: globals.wam values.wam
+obj/chars.wat obj/chars.d.wat: src/globals.wam src/values.wam
 
-obj/lists.wat obj/lists.d.wat: globals.wam
+obj/lists.wat obj/lists.d.wat: src/globals.wam
 
-obj/pairs.wat obj/pairs.d.wat: globals.wam gc-client.wam
+obj/pairs.wat obj/pairs.d.wat: src/globals.wam src/gc-client.wam
 
 obj/strings.wat obj/strings.d.wat: \
-	block-mgr-memory-proxies.wam \
-	block-mgr-memory-proxy-imports.wam \
-	boxes.wam \
-	globals.wam \
-	values.wam
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/boxes.wam \
+	src/globals.wam \
+	src/values.wam
 
 obj/symbols.wat obj/symbols.d.wat: \
-	block-mgr-memory-proxies.wam \
-	block-mgr-memory-proxy-imports.wam \
-	boxes.wam \
-	globals.wam \
-	values.wam
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/boxes.wam \
+	src/globals.wam \
+	src/values.wam
 
 obj/vectors.wat obj/vectors.d.wat: \
-	block-mgr-memory-proxies.wam \
-	block-mgr-memory-proxy-imports.wam \
-	globals.wam
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/globals.wam
 
 all: test
 
