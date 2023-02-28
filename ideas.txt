@@ -159,128 +159,52 @@ another refindex design
             process chunk size elements so that idx has the 1st chunk size values
             filled in.
 
-project organization
-  file dependencies
-    memory.wat defines the memory, anything that has to accees
-      memory has to import it from there
-
-    algorithms.wat
-      provide standard algorithms
-      imports memory
-
-    lex.wat
-      r7rs tokenizer, per spec
-      imports memory
-
-    kernel
-      data representation
-  kernel.wat
-
 number encoding
-  small integer as tagged value (up to 29 bits)
-  boxed number
-    f32 and i32 (for 32 bits) stored as boxed value
-    box flags indicate exact/inexact, real only
-  block number
-    box flags indicate storage type
-      double format 00xxxxxx xxxxxxxx
-      small format  01xxxxxx xxxxxxxx
-      [ medium format 10xxxxxx xxxxxxxx ]
-      large format  11xxxxxx xxxxxxxx
+  number box types
+                       BRCE
+    i32              0x0001 xxxx xxxx xxxx xxxx xxxx xxx1 1111
+    rational         0x0101 xxxx xxxx xxxx xxxx xxxx xxx1 1111
+    complex          0x0011 xxxx xxxx xxxx xxxx xxxx xxx1 1111
+    f64              0x10?0 xxxx xxxx xxxx xxxx xxxx xxx1 1111
+    integer          0x1001 rrrr rrrr rrrr rrrr xxxx xxx1 1111
 
-      double format
-        00cxxxxx xxxxxxxx
-        c = 0 => imag part is not present, block is one 64 bit float
-        c = 1 => imag part is present, block is two 64 bit floats
+    B = 1 means that the box value is a block, otherwise the box value may
+          be a 32-bit integer (E=1, C=0, R=0), or a pair
+          (E=1 and C=1 or R=1).
+    R = 1 means that the box value is a pair, the car of which is the numerator
+          the cdr of which is the denominator
+    C = 1 means that the number is complex. If it is a block number, then it also
+          must be inexact, and the block will contain 2 64-bit floats. If it is
+          not a box number, then the box value is a pair, the car of which is the
+          real part, the cdr of which is the imaginary part
+    E = 1 implies that the number is exact, otherwise B=1 and t
 
-      small format
-        01RCxxxx xxxxxxxx
-        RC = 00 => real integer
-          0100rrrr rrrrrrrr
-          12 bits for count of 32 bit words = 131040 binary digits
-          good enough for all pre-quantum crypto
+    R = 1 requires that E=1 and C=0
+    C = 1 requires that R=0
 
-        RC = 10 => rationals
-          0011nnnn nndddddd
-          6 bits each for the num and denom = 2016 binary digits each
+    i32
+      32-bit integer stored in box value
 
-        RC = 01 => gaussian integers
-          0010rrrr rriiiiii
-          6 bits each for counts of 32-bit units for real/imag parts = 2016 binary digits each
+    rational
+      pair stored in box value, car is num, cdr is denom
 
-        RC = 11 => gaussian rationals
-          0011aaab bbcccddd
-          3 bits each for counts of 32-bit units for real/image parts and num/denoms
-          7 * 32 = 224 binary digits for each
+    complex
+      pair stored in box value, car is re, cdr is im
 
-      large format
-        11xxxxxx xxxxxxxx
-        1st 128 bits of block provide lengths (in 32 bit units) of num/denom for real/imag parts
-          each 32 bits, providing more digits than the wasm address space allows
-        unlikely to have a practical use
-        probably for testing only.
+    f64
+      box value is a block containing 1 or 2 64-bit floats, as C=0 or C=1, resp
 
-      exact/inexact flag. inexact => small format
-      small flag => 3 bit sizes for num/denom for real/imag (12 bits)
-      real flag set =>
-      small flag clear + med flag set
+    integer
+      box value is a block containing up to 2^16 64-bit digits
 
-        => 1st value allocates
-  value
-    exact
-      integer (length)
-      rational (num length, denom length)
-    inexact
-      f32/f64
-  real part value
-  imag part value
+  ? store all 64-bit floats in a block, identify by index, keep
+  3-level bitfield of used/unused?
+    advantage:
+      uses less memory
 
-  value flags
-    real exact/inexact
-    imag exact/inexact
+    disadvantage
+      complexity
 
-  real denom/float size (in 32 bit chunks, inexact => 1 or 2)
-  real denom size (in 32 bit chunks) (0 => integer, inexact => 0)
-
-
-TODO:
-  string repr choices
-    ucs-4 ... wasteful for most common cases
-    utf-8 efficient, but slow to index
-    emacs: unibyte, multibyte types
-    index for utf-8
-     each string has a most common character length. in some languages,
-       that may be 2 -- many asian languages, for example
-     what would an index look like that had a max 10% memory overhead budget? 20%?
-     ... ie. a 256 byte string gets 24 bytes of index
-     entry only for multibyte chars => most indexes would be 0.
-     also, perhaps only store index entries for some subset of multibyte chars,
-     say every 16 or more.
-     index fmt (sorted array):
-     short strings (n <256 bytes) -- idx byte offset
-     medium strings (256 <= n < 65536 bytes) -- idx
-
-  possible impls
-    simple string -- ascii, length < 256
-    short text -- some non-ascii chars, length < 256
-    text -- utf-8, length < 64KB
-    long text -- utf-8, length < 4GB
-
-    memory layout
-      simple string
-        1 byte length, then the bytes of the string
-
-      small string
-        1 byte length
-        up to 15 bytes index of 1 byte offsets (one between each 16 character chunk)
-
-      medium string
-        2 byte length
-        up to 4KB index of 2 byte offsets, one between each 32 character chunk
-
-      large string
-        4 byte length
-        up to 250MB index of 4 byte offsets, one between each 64 character chunk
 
 
 parser
@@ -329,3 +253,49 @@ tooling improvements
     better cli/cleanup of block_mgr stochastic test bench
     rework block_mgr_utils for to support both debug/non-debug
     test suite for wam.py
+
+  what would it take to have one codebase for i32 addressing and i64 addressing?
+    use of macro with class at the module level
+      (macro %block-mgr
+        (class W)
+        (module ...
+          (macro %get-heap-block
+            (expr ,heap)
+            (expr ,idx)
+            (W.load (%calc-heap-node-addr ,heap ,idx)))
+
+          (macro %get-heap-node-entry
+            (expr ,heap)
+            (expr ,idx)
+            (W.wrap_i64 (i64.shr_u (%get-heap-node ,heap ,idx) ;; problematic
+                                   (i64.const 32))))           ;; also problematic
+
+        ))
+
+    then
+
+      (%block-mgr i32)
+
+    or
+
+      (%block-mgr i64)
+
+    There is going to be code that is not just a simple substitution of one
+    identifier or value for another, but that is structurally different.
+
+    So
+      (macro %get-heap-node-entry
+        (expr ,heap)
+        (expr ,idx)
+        (i32.wrap_i64 (i64.shr_u (%get-heap-node ,heap ,idx)
+                                 (i64.const 32))))
+      (%block-mgr i32)
+
+    or
+
+      (macro %get-heap-node-entry
+        (expr ,heap)
+        (expr ,idx)
+        (i64x2.extract_lane (%get-heap-node ,heap ,idx) 1))
+
+      (%block-mgr i32)

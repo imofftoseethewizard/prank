@@ -26,6 +26,8 @@ OBJECTS = \
 	obj/chars.d.wasm \
 	obj/lists.wasm \
 	obj/lists.d.wasm \
+	obj/numbers.wasm \
+	obj/numbers.d.wasm \
 	obj/pairs.wasm \
 	obj/pairs.d.wasm \
 	obj/strings.wasm \
@@ -54,6 +56,13 @@ obj/bytevectors.wat obj/bytevectors.d.wat: \
 obj/chars.wat obj/chars.d.wat: src/globals.wam src/values.wam
 
 obj/lists.wat obj/lists.d.wat: src/globals.wam
+
+obj/numbers.wat obj/numbers.d.wat: \
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/boxes.wam \
+	src/globals.wam \
+	src/values.wam
 
 obj/pairs.wat obj/pairs.d.wat: src/globals.wam src/gc-client.wam
 
