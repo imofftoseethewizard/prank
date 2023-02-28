@@ -1,3 +1,112 @@
+;; number encoding
+;;
+;;   numbers block
+;;     a block in which to store discrete i64s and f64s
+;;     alloc number blocks as needed, of size immobile block size.
+;;     never deallocated, tracked in a list for debugging
+;;
+;;   track used/unused
+;;     use linked-list impl similar to pairs, alloc and dealloc will be very
+;;     similar value of a free # is the address of the next free number in the
+;;     list has value -1
+;;
+;;   number box types
+;;                        BCRE
+;;     i64              0x0001 xxxx xxxx xxxx xxxx xxxx xxx1 1111
+;;     f64              0x0?00 xxxx xxxx xxxx xxxx xxxx xxx1 1111
+;;     rational         0x0011 xxxx xxxx xxxx xxxx xxxx xxx1 1111
+;;     complex          0x0101 xxxx xxxx xxxx xxxx xxxx xxx1 1111
+;;     integer          0x1001 rrrr rrrr rrrr rrrr xxxx xxx1 1111
+;;
+;;     B = 1 means that the box value is stored in a block and consists
+;;           of up to 2^16 64 bit digits
+;;
+;;     R = 1 means that the number is rational, the box value is a pair,
+;;           the car of which is the numerator the cdr of which is the
+;;           denominator
+;;
+;;     C = 1 means that the number is complex, the car of which is the
+;;           real part, the cdr of which is the imaginary part
+;;
+;;     E = 1 means that the number is exact.
+;;
+;;     constraints
+;;       B = 1 => C = 0, R = 0, E = 1
+;;       R = 1 => B = 0, C = 0, E = 1
+;;
+;;     i64
+;;       the box value is an address into a numbers block
+;;
+;;     f64
+;;       box value is either (C=0) an address into a numbers block or
+;;       (C=1) a pair, its car and cdr each containing an address into a
+;;       numbers block
+;;
+;;     rational
+;;       pair stored in box value, car is num, cdr is denom; num and denomm must
+;;       be exact and must not be complex or rational
+;;
+;;     complex
+;;       pair stored in box value, car is re, cdr is im; re and im must be exact
+;;       and must not be complex
+;;
+;;     integer
+;;       box value is a block ref containing up to 2^16 64-bit digits
+;;
+;;   a box type of block has a block ref as its box value. it must also be exact
+;;     and not rational nor complex.
+;;
+;;   a box value which is not complex, rational, or block is an address into a
+;;     numbers block if the box type is exact, it is i64, otherwise f64.
+;;
+;;   a box type which is either complex or rational must have a pair as its value
+;;     the value of the pair may be
+;;
+;;     if the box is rational
+;;        the car and cdr may independently be addresss into a numbers block or
+;;        references to boxed numbers which are exact and not rational nor
+;;        complex, ie a tagged 29-bit integer, an i64, or an integer
+;;
+;;     if the box is complex and exact
+;;        the car and cdr may independently be addresss into a numbers block or
+;;        references to boxed numbers which are exact and not complex, ie a
+;;        tagged 29-bit integer, an i64, a rational, or an integer
+;;
+;;     if the box is complex and inexact
+;;        the car and cdr must be addresss into a numbers block
+;;
+;; exhaustive list of number encodings
+;;
+;;   f64
+;;   complex f64
+;;   tagged 29-bit
+;;   i64
+;;   integer
+;;   rational 29-bit  29-bit
+;;   rational 29-bit  i64
+;;   rational 29-bit  integer
+;;   rational i64     29-bit
+;;   rational i64     i64
+;;   rational i64     integer
+;;   rational integer 29-bit
+;;   rational integer i64
+;;   rational integer integer
+;;   complex ... 144 binary combinations of { 29-bit i64 integer } + rationals
+;;
+;;   => 160 different possible encoding structures for a number
+;;
+;; Required support for parser:
+;;   f64? should parser directly synthesize binary form?
+;;   Multiply simple integer types (29-bit, i64, integer) by 2 and add 1
+;;   Multiply simple integer types (29-bit, i64, integer) by 8 and add 1-7
+;;   Multiply simple integer types (29-bit, i64, integer) by 10 and add 1-9
+;;   Multiply simple integer types (29-bit, i64, integer) by 16 and add 1-15
+;;   auto promote 29-bit to i64 and i64 to integer prior to overflow
+;;   create rational
+;;   create exact complex
+;;   create inexact complex
+;;
+
 (module
 
  (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32) (result i32)))
@@ -164,8 +273,8 @@
                 (local.get $im-byte-size))
 
    (%make-box (%make-complex-rational-box-type
-                    (call $get-rational-n-size (local.get $re))
-                    (call $get-rational-d-size (local.get $re))
-                    (call $get-rational-n-size (local.get $im))
-                    (call $get-rational-d-size (local.get $im)))
+               (call $get-rational-n-size (local.get $re))
+               (call $get-rational-d-size (local.get $re))
+               (call $get-rational-n-size (local.get $im))
+               (call $get-rational-d-size (local.get $im)))
               (local.get $block-ref))))
