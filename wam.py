@@ -2,6 +2,7 @@ import argparse
 import contextlib
 import os
 import re
+import sys
 import textwrap
 
 from pathlib import Path
@@ -12,6 +13,20 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('filename')
 parser.add_argument('-d', '--debug', action='store_true', default=os.environ.get('WAM_DEBUG'))
+
+class WamException(Exception):
+    ...
+
+class UndefinedMacro(WamException):
+    def __init__(self, name, expr):
+        self.name = name
+        self.expr = expr
+
+    def __str__(self):
+        line_no = self.expr[0][2]
+        line_text = '\n'.join(self.expr[0][4].split('\n')[line_no-1:line_no+2])
+        path = self.expr[0][5]
+        return f'error: undefined macro: {self.name} at line {line_no} of {path}:\n{line_text}'
 
 lexemes = {
     'open-paren': re.compile(r'\('),
@@ -39,7 +54,7 @@ def next_token(src, pos):
 
     return (None, None)
 
-def tokens(src):
+def tokens(src, path):
 
     pos = 0
     indent = 0
@@ -51,7 +66,7 @@ def tokens(src):
         if name is None:
             break
 
-        yield (name, match, line, indent)
+        yield (name, match, line, indent, src, path)
 
         if name == 'newline':
             indent = 0
@@ -61,11 +76,11 @@ def tokens(src):
 
         pos = match.end()
 
-def parse(src):
+def parse(src, path):
 
     exprs = [[]]
 
-    for name, match, line, indent in tokens(src):
+    for name, match, line, indent, src, path in tokens(src, path):
 
         if name == 'open-paren':
             new_expr = []
@@ -78,7 +93,7 @@ def parse(src):
             exprs.pop()
 
         else:
-            exprs[-1].append((name, match.group(), line, indent))
+            exprs[-1].append((name, match.group(), line, indent, src, path))
 
     if len(exprs) > 1:
         from pprint import pprint; pprint(exprs)
@@ -155,7 +170,10 @@ def expand_macro(expr, env):
         else:
             assert False, (expr, e)
 
-    macro = env['macros'][name]
+    try:
+        macro = env['macros'][name]
+    except KeyError:
+        raise UndefinedMacro(name, expr)
 
     assert len(arg_exprs) == len(macro['params']), expr
 
@@ -282,7 +300,7 @@ def include_file(expr, env):
     src = textwrap.indent(textwrap.dedent(open(path).read()), ' ' * indent)
 
     with current_directory(Path(path).parent):
-        return ('splice', translate(parse(src), env), -1)
+        return ('splice', translate(parse(src, path), env), -1)
 
 def define_macro(expr, env):
 
@@ -355,9 +373,14 @@ def emit(expr):
 
 def process(args):
 
-    for expr in parse(open(args.filename).read()):
+    for expr in parse(open(args.filename).read(), args.filename):
         with current_directory(Path(args.filename).parent):
             emit(translate(expr, { 'debug': args.debug, 'macros': {} }))
 
 if __name__ == '__main__':
-    process(parser.parse_args())
+    try:
+        process(parser.parse_args())
+
+    except WamException as exc:
+        print(exc, file=sys.stderr)
+        exit(1)

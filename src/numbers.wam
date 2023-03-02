@@ -97,15 +97,30 @@
 ;;
 ;; Required support for parser:
 ;;   f64? should parser directly synthesize binary form?
-;;   Multiply simple integer types (29-bit, i64, integer) by 2 and add 1
-;;   Multiply simple integer types (29-bit, i64, integer) by 8 and add 1-7
-;;   Multiply simple integer types (29-bit, i64, integer) by 10 and add 1-9
-;;   Multiply simple integer types (29-bit, i64, integer) by 16 and add 1-15
-;;   auto promote 29-bit to i64 and i64 to integer prior to overflow
+;;   Multiply integer by 2 and add 1
+;;   Multiply integer by 8 and add 1-7
+;;   Multiply integer by 10 and add 1-9
+;;   Multiply integer by 16 and add 1-15
 ;;   create rational
 ;;   create exact complex
 ;;   create inexact complex
 ;;
+;; # of bits required to represent a decimal integer of n digits:
+;;   log2 10 = 3.321928094887362
+;;   256 * log2 10 = 850.4135922911647
+;;   add 255 to get ceil with >> 8, and +1 for sign bit:
+;;     b = ((n*851 + 255)>>8) + 1
+;;   to get number of i64 digits (b + 63) >> 6
+;;
+;; multiply-add i64 by i32, i32 (n, k)
+;;
+;;   split i64 into i32 h, l and fill i64x2 with h, l
+;;   fill i64x2 with n, n
+;;   i64x2 mul -> n*h, n*l
+;;   fill i64x2 with 0, k
+;;   i64x2.add -> n*h, n*l + k -> a, b
+;;   split a in into a_h, a_l
+;;   result is a_l << 32 + b, with carry a_h >> 32
 
 (module
 
@@ -129,17 +144,26 @@
 
  (memory $memory (debug (export "memory")) 1)
 
- (global $box-flag-block-number           (debug (export "box-flag-block-number")           i32 (i32.const 0x80000000)))
- (global $box-flag-rational-number        (debug (export "box-flag-rational-number")        i32 (i32.const 0x40000000)))
- (global $box-flag-complex-number         (debug (export "box-flag-complex-number")         i32 (i32.const 0x20000000)))
- (global $box-flag-exact-number           (debug (export "box-flag-exact-number")           i32 (i32.const 0x10000000)))
+;;     i64              xxxx xxxx xxxx xxxx xxxx 0001 xxx1 1111
+;;     f64              xxxx xxxx xxxx xxxx xxxx 0?00 xxx1 1111
+;;     rational         xxxx xxxx xxxx xxxx xxxx 0011 xxx1 1111
+;;     complex          xxxx xxxx xxxx xxxx xxxx 0101 xxx1 1111
+;;     integer          rrrr rrrr rrrr rrrr rrrr 1001 xxx1 1111
 
- (global $box-type-number-i32             (debug (export "box-type-number-i32")             i32 (i32.const 0x1000001f)))
- (global $box-type-number-f64             (debug (export "box-type-number-f64")             i32 (i32.const 0x0000001f)))
- (global $box-type-number-f64-complex     (debug (export "box-type-number-f64-complex")     i32 (i32.const 0x2000001f)))
- (global $box-type-rational         (debug (export "box-type-block-rational")         i32 (i32.const 0x6000001f)))
- (global $box-type-complex          (debug (export "box-type-block-complex")          i32 (i32.const 0x5000001f)))
- (global $box-type-integer (debug (export "box-type-block-complex-rational") i32 (i32.const 0x7000001f)))
+ (global $number-block-size (debug (export "number-block-size") i32 (i32.const 0x4000)))
+
+ (global $number-type-i64             (debug (export "number-type-i64")             i32 (i32.const 0x0000011f)))
+ (global $number-type-f64             (debug (export "number-type-f64")             i32 (i32.const 0x0000001f)))
+ (global $number-type-inexact-complex (debug (export "number-type-inexact-complex") i32 (i32.const 0x0000041f)))
+ (global $number-type-exact-complex   (debug (export "number-type-exact-complex")   i32 (i32.const 0x0000051f)))
+ (global $number-type-rational        (debug (export "number-type-rational")        i32 (i32.const 0x0000031f)))
+ (global $number-type-integer         (debug (export "number-type-integer")         i32 (i32.const 0x0000091f)))
+ (global $number-type-mask            (debug (export "number-type-mask")            i32 (i32.const 0x00000f1f)))
+
+ (global $x64-free-list (debug (export "x64-free-list")) (mut i32) (i32.const 0))
+ (debug
+  (global $number-block-list (debug (export "number-block-list")) (mut i32) (i32.const 0))
+  (global $x64-count (debug (export "x64-count")) (mut i32) (i32.const 0)))
 
  (start $init-numbers)
  (func $init-numbers (debug (export "init-numbers"))
@@ -147,134 +171,309 @@
    (call $init-blockset
          (global.get $numbers-blockset-id)
          (i32.const 0x1000)
-         (i32.const 0x8000))
+         (global.get $number-block-size))
 
-   (call $init-blockset-memory-proxies (global.get $bytevectors-blockset-id)))
+   (call $init-blockset-memory-proxies (global.get $bytevectors-blockset-id))
 
- (func $make-small-integer (export "make-small-integer")
+   (global.set $x64-free-list (global.get $null))
+   (debug
+    (global.set $number-block-list (global.get $null))
+    (global.set $x64-count (i32.const 0))))
+
+ (macro %make-integer-number-type
+   (expr ,digits)
+   (i32.or (global.get $number-type-integer)
+           (i32.shl ,digits (i32.const 12))))
+
+ (macro %get-number-type
+   (expr ,x)
+   (i32.and (global.get $number-type-mask) ,x))
+
+ (macro %get-integer-addr
+   (expr ,int)
+   (call $get-block-ref-addr (%get-box-value ,int)))
+
+ (macro %get-integer-size
+   (expr ,int)
+   (i32.shr_u (i32.and (%get-box-value ,int)
+                       (i32.xor (global.get $number-type-mask)
+                                (i32.const -1)))
+              (i32.const 12)))
+
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Allocation
+ ;;
+
+ (func $alloc-integer (export "alloc-integer")
+   (param $i64-digits i32)
+   (result i32)
+
+   (local $addr i32)
+   (local $block-ref i32)
+   (local $size i32)
+
+   (local.set $size (i32.shl (local.get $i64-digits) (i32.const 3)))
+
+   (local.set $block-ref (call $alloc-block
+                               (global.get $numbers-blockset-id)
+                               (local.get $size)))
+
+   (local.set $addr (call $get-block-ref-addr (local.get $block-ref)))
+
+   (memory.fill (local.get $addr) (local.get $size) (i32.const 0))
+
+   (%make-box (%make-integer-number-type (local.get $i64-digits))
+              (local.get $block-ref)))
+
+ (func $alloc-x64 (debug (export "alloc-x64"))
+   (result i32)
+
+   (if (i32.eq (global.get $x64-free-list) (global.get $null))
+       (then
+        (call $alloc-x64-block)))
+
+   (debug
+    (%global.incr i32 $x64-count))
+
+   (global.get $x64-free-list)
+   (global.set $x64-free-list (i32.load (global.get $x64-free-list))))
+
+ (func $alloc-x64-block (debug (export "alloc-x64-block"))
+
+   (local $addr i32)
+   (local $block-ref i32)
+   (local $end-addr i32)
+   (local $last-addr i32)
+   (local $next-x64 i32)
+   (local $x64 i32)
+
+   (local.set $block-ref (call $alloc-block
+                               (global.get $numbers-blockset-id)
+                               (global.get $number-block-size)))
+
+   (debug
+    (global.set $number-block-list
+                (call $make-pair
+                      (local.get $block-ref)
+                      (global.get $number-block-list))))
+
+   (local.set $addr (call $get-block-ref-addr (local.get $block-ref)))
+   (local.set $end-addr (i32.add (local.get $addr)
+                                 (global.get $number-block-size)))
+
+   (local.set $last-addr (global.get $x64-free-list))
+   (loop $again
+     (if (i32.lt_u (local.get $addr) (local.get $end-addr))
+         (then
+          (i32.store (local.get $addr) (local.get $last-addr))
+          (local.set $last-addr (local.get $addr))
+          (%incr-n i32 $addr 8)
+          (br $again))))
+
+   (global.set $x64-free-list (local.get $last-addr)))
+
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Deallocation
+ ;;
+
+ (func $dealloc-number (export "dealloc-number")
+   (param $x i32)
+
+   (local $type i32)
+   (local $value i32)
+
+   (if (i32.eq (%get-value-tag (local.get $x)) (global.get $tag-small-integer))
+       (then
+        (return)))
+
+   (local.set $type (%get-number-type (local.get $x)))
+   (local.set $value (%get-box-value (local.get $x)))
+
+   (if (i32.or (i32.eq (local.get $type) (global.get $number-type-f64))
+               (i32.eq (local.get $type) (global.get $number-type-i64)))
+       (then
+        (call $dealloc-x64 (local.get $value))
+        (%dealloc-box (local.get $x))
+        (return)))
+
+   (if (i32.or (i32.eq (local.get $type) (global.get $number-type-exact-complex))
+               (i32.eq (local.get $type) (global.get $number-type-rational)))
+       (then
+        (call $dealloc-number (call $get-pair-car (local.get $value)))
+        (call $dealloc-number (call $get-pair-cdr (local.get $value)))
+        (%dealloc-box (local.get $x))
+        (return)))
+
+   (if (i32.eq (local.get $type) (global.get $number-type-inexact-complex))
+       (then
+        (call $dealloc-x64 (call $get-pair-car (local.get $value)))
+        (call $dealloc-x64 (call $get-pair-cdr (local.get $value)))
+        (%dealloc-box (local.get $x))
+        (return)))
+
+   (if (i32.eq (local.get $type) (global.get $number-type-integer))
+       (then
+        (call $dealloc-block (global.get $numbers-blockset-id) (%get-box-value (local.get $x)))
+        (%dealloc-box (local.get $x))
+        (return)))
+
+   (unreachable))
+
+ (func $dealloc-x64 (debug (export "dealloc-x64"))
+   (param $x64 i32)
+
+   (i32.store (local.get $x64) (global.get $x64-free-list))
+
+   (debug
+    (%global.decr i32 $x64-count))
+
+   (global.set $x64-free-list (local.get $x64)))
+
+
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Number Constructors
+ ;;
+
+  (func $make-small-integer (export "make-small-integer")
    (param $x i32)
    (result i32)
    (%make-value (i32.shl (local.get $x) (global.get $tag-size-bits))
                 (global.get $tag-small-integer)))
 
- (func $make-boxed-i32 (export "make-boxed-i32")
-   (param $x i32)
+ (func $make-boxed-i64 (export "make-boxed-i64")
+   (param $x i64)
    (result i32)
-   (%make-box (global.get $box-type-number-i32) (local.get $x)))
 
- (func $make-boxed-f32 (export "make-boxed-f32")
-   (param $x f32)
-   (result i32)
-   (%make-box-f32 (global.get $box-type-number-f32) (local.get $x)))
+   (local $x64 i32)
+   (local.set $x64 (call $alloc-x64))
+   (i64.store (local.get $x64) (local.get $x))
 
- (func $make-block-f64 (export "make-block-f64")
+   (%make-box (global.get $number-type-i64) (local.get $x64)))
+
+ (func $make-boxed-f64 (export "make-boxed-f64")
    (param $x f64)
    (result i32)
 
-   (local $block-ref i32)
+   (local $x64 i32)
+   (local.set $x64 (call $alloc-x64))
+   (f64.store (local.get $x64) (local.get $x))
 
-   (local.set $block-ref (call $alloc-block
-                               (global.get $numbers-blockset-id)
-                               (i32.const 8)))
+   (%make-box (global.get $number-type-f64) (local.get $x64)))
 
-   (f64.store (call $get-block-ref-addr (local.get $block-ref))
-              (local.get $x))
-
-   (%make-box (global.get $box-type-number-f64) (local.get $block-ref)))
-
- (func $make-block-f64-complex (export "make-block-complex-f64")
-   (param $re f64)
-   (param $im f64)
-   (result i32)
-
-   (local $block-ref i32)
-
-   (local.set $block-ref (call $alloc-block
-                               (global.get $numbers-blockset-id)
-                               (i32.const 16)))
-
-   (f64.store (call $get-block-ref-addr (local.get $block-ref))
-              (local.get $re))
-
-   (f64.store (i32.add (call $get-block-ref-addr (local.get $block-ref))
-                       (i32.const 8))
-              (local.get $im))
-
-   (%make-box (global.get $box-type-number-f64-complex) (local.get $block-ref)))
-
- (func $make-block-integer-i32 (export "make-block-integer-i32")
-   (param $x i32)
-   (result i32)
-
-   (call $make-small-block-number
-         (local.get $x)
-         (i32.const 1)
-         (i32.const 0)
-         (i32.const 1)))
-
- (func $make-block-rational (export "make-block-rational")
+ (func $make-rational (export "make-rational")
    (param $n i32)
    (param $d i32)
    (result i32)
 
-   (call $make-small-block-number
-         (local.get $n)
-         (local.get $d)
-         (i32.const 0)
-         (i32.const 1)))
+   (%make-box (global.get $number-type-rational)
+              (call $make-pair
+                    (local.get $n)
+                    (local.get $d))))
 
- (func $make-block-complex-integer (export "make-block-complex-integer")
+ (func $make-exact-complex (export "make-exact-complex")
    (param $re i32)
    (param $im i32)
    (result i32)
 
-   (call $make-small-block-number
-         (local.get $re)
-         (local.get 1)
-         (i32.const $im)
-         (i32.const 1)))
+   (%make-box (global.get $number-type-exact-complex)
+              (call $make-pair
+                    (local.get $re)
+                    (local.get $im))))
 
- (func $make-small-block-number (export "make-small-block-number")
-   (param $re-n i32)
-   (param $re-d i32)
-   (param $im-n i32)
-   (param $im-d i32)
+ (func $make-inexact-complex (export "make-inexact-complex")
+   (param $re i32)
+   (param $im i32)
    (result i32)
 
-   (local $block-ref i32)
-   (local $block-addr i32)
+   (%make-box (global.get $number-type-inexact-complex)
+              (call $make-pair
+                    (local.get $re)
+                    (local.get $im))))
 
-   (local $re-size i32)
-   (local $im-size i32)
+ (func $make-integer (export "make-integer")
+   (param $x i64)
+   (param $size i32)
+   (result i32)
 
-   (local $re-byte-size i32)
-   (local $im-byte-size i32)
+   (local $int i32)
+   (local.set $int (call $alloc-integer (local.get $size)))
 
-   (local.set $re-size (call $get-rational-size (local.get $re)))
-   (local.set $im-size (call $get-rational-size (local.get $im)))
+   (i64.store (%get-integer-addr (local.get $int)) (local.get $x))
+   (local.get $int))
 
-   (local.set $re-byte-size (i32.shl (local.get $re-size) (i32.const 2)))
-   (local.set $im-byte-size (i32.shl (local.get $im-size) (i32.const 2)))
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Parsing support for integers
+ ;;
 
-   (local.set $block-ref (call $alloc-block
-                               (global.get $numbers-blockset-id)
-                               (i32.add (local.get $im-byte-size)
-                                        (local.get $re-byte-size))))
+ (func $multiply-add-integer-i32 (export "multiply-add-integer-i32")
+   (param $int i32)
+   (param $n i32)
+   (param $k i32)
 
-   (local.set $block-addr (call $get-block-ref-addr (local.get $block-ref)))
+   (local $addr i32)
+   (local $c i64)
+   (local $end-addr i32)
+   (local $m i64)
+   (local $v i64)
 
-   (memory.copy (local.get $block-addr)
-                (call $get-integer-addr (local.get $re))
-                (local.get $re-byte-size))
+   (local.set $m (i64.extend_i32_u (local.get $n)))
+   (local.set $c (i64.extend_i32_u (local.get $k)))
 
-   (memory.copy (i32.add (local.get $block-addr)
-                         (local.get $re-byte-size))
-                (call $get-integer-addr (local.get $im))
-                (local.get $im-byte-size))
+   (local.set $addr (%get-integer-addr (local.get $int)))
+   (local.set $end-addr (i32.add (local.get $addr) (%get-integer-size (local.get $int))))
 
-   (%make-box (%make-complex-rational-box-type
-               (call $get-rational-n-size (local.get $re))
-               (call $get-rational-d-size (local.get $re))
-               (call $get-rational-n-size (local.get $im))
-               (call $get-rational-d-size (local.get $im)))
-              (local.get $block-ref))))
+   (loop $again
+     (if (i32.lt_u (local.get $addr) (local.get $end-addr))
+         (then
+          (local.set $v (i64.add (i64.mul (i64.load32_u (local.get $addr))
+                                          (local.get $m))
+                                 (local.get $c)))
+          (i32.store (local.get $addr) (i32.wrap_i64 (local.get $v)))
+          (local.set $c (i64.shr_u (local.get $v) (i64.const 32)))
+          (%incr-n i32 $addr 4)
+          (br $again)))))
+
+ (func $negate-integer (export "negate-integer")
+   (param $int i32)
+
+   (local $addr i32)
+   (local $c i64)
+   (local $end-addr i32)
+   (local $v i64)
+
+   (local.set $addr (%get-integer-addr (local.get $int)))
+   (local.set $end-addr (i32.add (local.get $addr) (%get-integer-size (local.get $int))))
+
+   (local.set $c (i64.const 1))
+
+   (loop $again
+     (if (i32.lt_u (local.get $addr) (local.get $end-addr))
+         (then
+          (local.set $v (i64.add (i64.xor (i64.load (local.get $addr))
+                                          (i64.const -1))
+                                 (local.get $c)))
+
+          (i64.store (local.get $addr) (local.get $v))
+
+          (if (i64.ne (local.get $v) (i64.const 0))
+              (then
+               (local.set $c (i64.const 0))))
+
+          (%incr-n i32 $addr 8)
+          (br $again)))))
+
+ (func $set-integer-i64-digit (export "set-integer-i64-digit")
+   (param $int i32)
+   (param $i i32)
+   (param $d i64)
+
+   (i64.store (i32.add (%get-integer-addr (local.get $int))
+                       (i32.shl (local.get $i)
+                                (i32.const 3)))
+              (local.get $d)))
+
+ )
