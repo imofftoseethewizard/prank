@@ -28,6 +28,16 @@ class UndefinedMacro(WamException):
         path = self.expr[0][5]
         return f'error: undefined macro: {self.name} at line {line_no} of {path}:\n{line_text}'
 
+class DefineMacroNameMissing(WamException):
+    def __init__(self, expr):
+        self.expr = expr
+
+    def __str__(self):
+        line_no = self.expr[0][2]
+        line_text = '\n'.join(self.expr[0][4].split('\n')[line_no-1:line_no+2])
+        path = self.expr[0][5]
+        return f'error: name expected in macro definition at line {line_no} of {path}:\n{line_text}'
+
 lexemes = {
     'open-paren': re.compile(r'\('),
     'close-paren': re.compile(r'\)'),
@@ -168,14 +178,17 @@ def expand_macro(expr, env):
             arg_exprs.append(e)
 
         else:
+            # The context in which this is called should ensure that this never gets
+            # here.
             assert False, (expr, e)
 
-    try:
-        macro = env['macros'][name]
-    except KeyError:
+    if name not in env['macros']:
         raise UndefinedMacro(name, expr)
 
-    assert len(arg_exprs) == len(macro['params']), expr
+    macro = env['macros'][name]
+
+    if len(arg_exprs) != len(macro['params']):
+        raise MacroArgumentCountMismatchError(name, expr)
 
     subst_env = {
         **env,
@@ -295,7 +308,7 @@ def include_file(expr, env):
             path = e[1].strip('"')
 
         else:
-            assert False, (expr, e)
+            raise IncludeFilePathExpected(expr)
 
     src = textwrap.indent(textwrap.dedent(open(path).read()), ' ' * indent)
 
@@ -314,7 +327,9 @@ def define_macro(expr, env):
             continue
 
         if name is None:
-            assert e[0] == 'label', e
+            if e[0] != 'label':
+                raise DefineMacroNameExpected(expr)
+
             name = e[1]
 
         elif not body and type(e) != tuple and e[0][1] in  ('class', 'expr', 'label'):
@@ -324,8 +339,11 @@ def define_macro(expr, env):
         else:
             body.append(e)
 
-    assert name is not None, expr
-    assert name not in env['macros'], expr
+    if name is None:
+        raise DefineMacroNameMissing(expr)
+
+    if name in env['macros']:
+        raise MacroRedefinition(name, expr)
 
     env['macros'][name] = {
         'params': params,
@@ -343,11 +361,14 @@ def define_param(expr):
             continue
 
         if param_name == None:
-            assert e[0] == 'label'
+
+            if e[0] != 'label':
+                raise DefineParameterNameExpected(expr)
+
             param_name = e[1]
 
         else:
-            assert False, (expr, e)
+            raise DefineParameterUnexpectedExpression(expr, e)
 
     return (param_type, param_name)
 

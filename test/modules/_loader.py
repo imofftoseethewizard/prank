@@ -8,7 +8,7 @@ store = Store()
 def module_wasm_path(name, debug=False):
     if debug:
         name += '.d'
-    print(name)
+
     return Path.home() / 'src' / 'prank' / 'obj' / f'{name}.wasm'
 
 def module_wat_path(name, debug=False):
@@ -40,8 +40,6 @@ def init_module(globals, name, *dependencies, debug=False):
         for dep in dependencies
     }
 
-    from pprint import pprint
-    pprint(imports)
     instance = Instance(module, imports)
 
     exports = exports_dict(instance)

@@ -159,84 +159,6 @@ another refindex design
             process chunk size elements so that idx has the 1st chunk size values
             filled in.
 
-number encoding
-  number box types
-                       BCRE
-    i64              0x0001 xxxx xxxx xxxx xxxx xxxx xxx1 1111
-    f64              0x0?00 xxxx xxxx xxxx xxxx xxxx xxx1 1111
-    rational         0x0011 xxxx xxxx xxxx xxxx xxxx xxx1 1111
-    complex          0x0101 xxxx xxxx xxxx xxxx xxxx xxx1 1111
-    integer          0x1001 rrrr rrrr rrrr rrrr xxxx xxx1 1111
-
-    B = 1 means that the box value is stored in a block and consists
-          of up to 2^16 64 bit digits
-
-    R = 1 means that the number is rational, the box value is a pair,
-          the car of which is the numerator the cdr of which is the
-          denominator
-
-    C = 1 means that the number is complex, the car of which is the
-          real part, the cdr of which is the imaginary part
-
-    E = 1 means that the number is exact.
-
-    constraints
-      B = 1 => R = 0, B = 0, E = 1
-      R = 1 => C = 0, E = 1, B = 0
-      C = 1 => R = 0, E = 1, B = 0
-      E = 0 => R = 0, B = 0
-
-    i64
-      the box value is an index into the numbers block
-
-    f64
-      box value is either (C=0) an index into the numbers block or
-      (C=1) a pair, its car and cdr each containing an index into the
-      numbers block
-
-    rational
-      pair stored in box value, car is num, cdr is denom; num and denomm must
-      be exact and must not be complex or rational
-
-    complex
-      pair stored in box value, car is re, cdr is im; re and im must be exact
-      and must not be complex
-
-    integer
-      box value is a block ref containing up to 2^16 64-bit digits
-
-  numbers block
-    a block in which to store i64s and f64s, initially with space for
-    64 64-bit numbers, growing by the same amount on resize.
-
-  track used/unused
-    use linked-list impl similar to pairs, alloc and dealloc will be very similar
-    value of a free # is the idx of the next free number in the list
-    last free # has value -1
-
-  a box type which is exact, but not block, rational, or complex has a box value
-    of a 32 bit integer
-
-  a box type of block has a block ref as its box value. it must also be exact
-    and not rational nor complex.
-
-  a box value which is not complex, rational, or block is an index into the numbers block
-    if the box type is inexact, it is f64, otherwise i64.
-
-  a box type which is either complex or rational must have a pair as its value
-    the value of the pair may be
-
-    if the box is rational
-       the car and cdr may independently be indexes into the numbers block,
-       or references to boxed numbers which are exact and not rational nor complex
-
-    if the box is complex and exact
-       the car and cdr may independently be indexes into the numbers block,
-       or references to boxed numbers which are exact and not complex
-
-    if the box is complex and inexact
-       the car and cdr must be indexes into the numbers block
-
 parser
   interface with string
     scan token to determine string length and size
@@ -276,6 +198,10 @@ tooling improvements
   wam.py
     error messages
     check syntax of expr vs label in macros
+    (const #name value)
+      (const #value-size 4)
+      (i32.const #value-size)
+      (%decr-n i32 $addr #value-size)
 
   test
     tests for non-debug builds
@@ -329,3 +255,9 @@ tooling improvements
         (i64x2.extract_lane (%get-heap-node ,heap ,idx) 1))
 
       (%block-mgr i32)
+
+symbols:
+  replace sorted list with hash table
+  include table of string hashes
+  on collision, rehash value using kx where k has no factors of 2
+  rebuild when 75% full

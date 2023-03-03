@@ -1,11 +1,13 @@
 (module
 
- (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32) (result i32)))
- (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr (param i32 i32) (result i32)))
+ (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32)     (result i32)))
+ (import "block-mgr" "dealloc-block"        (func $dealloc-block        (param i32 i32) ))
+ (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr (param i32)         (result i32)))
  (import "block-mgr" "init-blockset"      (func $init-blockset      (param i32 i32 i32)))
- (import "block-mgr" "resize-block"       (func $resize-block       (param i32 i32) (result i32)))
- (import "strings" "string-equal"         (func $string-equal       (param i32 i32) (result i32)))
- (import "strings" "string-hash"          (func $string-hash        (param i32)     (result i32)))
+ (import "block-mgr" "resize-block"       (func $resize-block       (param i32 i32 i32) (result i32)))
+ (import "strings" "dealloc-string"         (func $dealloc-string       (param i32)   ))
+ (import "strings" "string-equal"         (func $string-equal       (param i32 i32)     (result i32)))
+ (import "strings" "hash-string"          (func $hash-string        (param i32)         (result i32)))
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
@@ -15,13 +17,59 @@
 
  (memory (debug (export "memory")) 1)
 
- (global $symbol-count                  (debug (export "symbol-count"))                  (mut i32) (i32.const 0))
- (global $symbol-index-hashes-block-ref (debug (export "symbol-index-hashes-block-ref")) (mut i32) (i32.const 0))
- (global $symbol-index-values-block-ref (debug (export "symbol-index-values-block-ref")) (mut i32) (i32.const 0))
- (global $symbol-table-block-ref        (debug (export "symbol-table-block-ref"))        (mut i32) (i32.const 0))
- (global $symbol-table-size             (debug (export "symbol-table-size"))             (mut i32) (i32.const 0))
+ (global $hash-offset-mask       (debug (export "hash-offset-mask"))       (mut i32) (i32.const 0))
+ (global $hash-table-addr        (debug (export "hash-table-addr"))        (mut i32) (i32.const 0))
+ (global $hash-table-block-ref   (debug (export "hash-table-block-ref"))   (mut i32) (i32.const 0))
+ (global $symbol-count           (debug (export "symbol-count"))           (mut i32) (i32.const 0))
+ (global $symbol-table-addr      (debug (export "symbol-table-addr"))      (mut i32) (i32.const 0))
+ (global $symbol-table-block-ref (debug (export "symbol-table-block-ref")) (mut i32) (i32.const 0))
+ (global $symbol-table-capacity  (debug (export "symbol-table-capacity"))  (mut i32) (i32.const 0))
+ (global $symbol-table-size      (debug (export "symbol-table-size"))      (mut i32) (i32.const 0))
 
- (global $initial-table-size (debug (export "initial-table-size")) i32 (i32.const 16))
+ (global $initial-table-size (debug (export "initial-table-size")) i32 (i32.const 0x1000))
+ (global $next-hash-coefficient (debug (export "next-hash-coefficient") i32 (i32.const 1220703125))) ;; 5^13
+
+ (global $symbol-table-entry-size (debug (export "symbol-table-entry-size")) i32 (i32.const 8))
+ (global $symbol-table-entry-size-bits (debug (export "symbol-table-entry-size-bits")) i32 (i32.const 3))
+
+ (macro %calc-symbol-table-capacity
+   (i32.shr_u (i32.mul (global.get $symbol-table-size) (i32.const 3))
+              (i32.const 2)))
+
+ (macro %calc-hash-offset-mask
+   (i32.shl (i32.sub (global.get $symbol-table-size)
+                     (i32.const 1))
+            (global.get $value-size-bits)))
+
+ (macro %get-symbol-table
+   (global.get $symbol-table-addr))
+
+ (macro %get-hash-table
+   (global.get $hash-table-addr))
+
+ (macro %get-symbol-name
+   (expr ,symbol)
+   (i32.load (i32.add (%get-symbol-table) ,symbol)))
+
+ (macro %get-symbol-hash
+   (expr ,symbol)
+   (i32.load (i32.add (i32.add (%get-symbol-table) ,symbol)
+                      (i32.const (global.get $value-size)))))
+
+ (macro %calc-hash-offset
+   (expr ,hash)
+   (i32.and ,hash (global.get $hash-offset-mask)))
+
+ (macro %next-hash
+   (label $var)
+   (local.set $var (i32.mul (local.get $var) (global.get $next-hash-coefficient))))
+
+ (macro %is-symbol-table-full
+   (i32.eq (global.get $symbol-count) (global.get $symbol-table-capacity)))
+
+ (macro %get-hash-addr
+   (expr ,hash)
+   (i32.add (%get-hash-table) (%calc-hash-offset ,hash)))
 
  (start $init-symbols)
  (func $init-symbols (debug (export "init-symbols"))
@@ -36,14 +84,10 @@
 
    (global.set $symbol-count (i32.const 0))
    (global.set $symbol-table-size (global.get $initial-table-size))
+   (global.set $symbol-table-capacity (%calc-symbol-table-capacity))
+   (global.set $hash-offset-mask (%calc-hash-offset-mask))
 
-   (global.set $symbol-index-hashes-block-ref
-               (call $alloc-block
-                     (global.get $symbols-blockset-id)
-                     (i32.shl (global.get $initial-table-size)
-                              (global.get $value-size-bits))))
-
-   (global.set $symbol-index-values-block-ref
+   (global.set $hash-table-block-ref
                (call $alloc-block
                      (global.get $symbols-blockset-id)
                      (i32.shl (global.get $initial-table-size)
@@ -53,210 +97,158 @@
                (call $alloc-block
                      (global.get $symbols-blockset-id)
                      (i32.shl (global.get $initial-table-size)
-                              (global.get $value-size-bits)))))
+                              (global.get $symbol-table-entry-size-bits))))
 
- (macro %get-symbol-table
-   (call $get-block-ref-addr
-         (global.get $symbols-blockset-id)
-         (global.get $symbol-table-block-ref)))
+   (global.set $symbol-table-addr (call $get-block-ref-addr
+                                        (global.get $symbol-table-block-ref)))
 
- (macro %get-symbol-index-hashes
-   (call $get-block-ref-addr
-         (global.get $symbols-blockset-id)
-         (global.get $symbol-index-hashes-block-ref)))
+   (global.set $hash-table-addr (call $get-block-ref-addr
+                                      (global.get $hash-table-block-ref)))
 
- (macro %get-symbol-index-values
-   (call $get-block-ref-addr
-         (global.get $symbols-blockset-id)
-         (global.get $symbol-index-values-block-ref)))
-
- ;; Calculate the index from the offset
- (macro %calc-table-offset-idx
-   (expr ,offset)
-   (i32.shr_u ,offset (global.get $value-size-bits)))
-
- (macro %calc-index-value-offset-idx
-   (expr ,offset)
-   (i32.shr_u ,offset (global.get $value-size-bits)))
-
- (macro %calc-index-hash-offset-idx
-   (expr ,offset)
-   (i32.shr_u ,offset (global.get $value-size-bits)))
-
- ;; Calculate the offset from the index
- (macro %calc-table-idx-offset
-   (expr ,offset)
-   (i32.shl ,offset (global.get $value-size-bits)))
-
- (macro %calc-index-value-idx-offset
-   (expr ,offset)
-   (i32.shl ,offset (global.get $value-size-bits)))
-
- (macro %calc-index-hash-idx-offset
-   (expr ,offset)
-   (i32.shl ,offset (global.get $value-size-bits)))
-
- (macro %get-symbol-index-hash
-   (expr ,idx)
-   (i32.load (i32.add (%get-symbol-index-hashes)
-                      (%calc-index-hash-idx-offset ,idx))))
-
- (macro %get-symbol-index-value
-   (expr ,idx)
-   (i32.load (i32.add (%get-symbol-index-values)
-                      (%calc-index-value-idx-offset ,idx))))
-
- (macro %get-symbol-name
-   (expr ,idx)
-   (i32.load (i32.add (%get-symbol-table)
-                      (%calc-table-idx-offset ,idx))))
+   (memory.fill
+    (global.get $hash-table-addr)
+    (global.get $null)
+    (i32.shl (global.get $symbol-table-size) (global.get $value-size-bits)))
+   )
 
  (func $inter-symbol (export "inter-symbol")
    (param $name i32)
    (result i32)
 
    (local $candidate i32)
-   (local $idx i32)
-   (local $symbol i32)
-   (local $name-hash i32)
+   (local $h i32)
    (local $hash i32)
+   (local $hash-addr i32)
+   (local $symbol i32)
 
-   (local.set $hash (call $string-hash (local.get $name)))
+   (local.set $h (call $hash-string (local.get $name)))
+   (local.set $hash (local.get $h))
    (local.set $symbol (global.get $null))
 
-   (local.set $idx (call $find-symbol-idx (local.get $name-hash)))
+   (loop $again
+     (local.set $hash-addr (%get-hash-addr (local.get $h)))
+     (local.set $candidate (i32.load (local.get $hash-addr)))
 
-   (if (i32.lt_u (local.get $idx) (global.get $symbol-count))
-       (then
-        (loop $again
-          (local.set $hash (%get-symbol-index-hash (local.get $idx)))
-          (if (i32.eq (local.get $hash) (local.get $name-hash))
+     (if (i32.eq (local.get $candidate) (global.get $null))
+         (then
+          (local.set $symbol (call $make-symbol
+                                   (local.get $name)
+                                   (local.get $hash)
+                                   (local.get $hash-addr))))
+         (else
+          (if (call $string-equal
+                    (local.get $name)
+                    (%get-symbol-name (local.get $candidate)))
               (then
-               (local.set $candidate (%get-symbol-index-value (local.get $idx)))
-               (if (call $string-equal
-                         (local.get $name)
-                         (%get-symbol-name (local.get $candidate)))
-                   (then
-                    (local.set $symbol (local.get $candidate)))
-                 (else
-                  (%incr i32 $idx)
-                  (if (i32.lt_u (local.get $idx) (global.get $symbol-count))
-                      (then
-                       (br $again))))))))))
-
-   (if (i32.eq (local.get $symbol) (global.get $null))
-       (then
-        (local.set $symbol (call $make-symbol (local.get $name)))
-
-        (call $insert-symbol-index-entry
-              (local.get $idx)
-              (local.get $symbol)
-              (local.get $name)
-              (local.get $name-hash))))
+               (local.set $symbol (local.get $candidate))
+               (call $dealloc-string (local.get $name)))
+            (else
+             (%next-hash $h)
+             (br $again))))))
 
    (local.get $symbol))
 
- (func $find-symbol-idx (debug (export "find-symbol-idx"))
-   (param $name-hash i32)
-   (result i32)
-
-   (local $lo i32)
-   (local $hi i32)
-   (local $mid i32)
-   (local $index i32)
-
-   (local.set $index (%get-symbol-index-hashes))
-   (local.set $lo (local.get $index))
-   (local.set $hi (i32.add (local.get $lo)
-                           (i32.shl (global.get $symbol-count)
-                                    (global.get $value-size-bits))))
-
-   (%calc-index-hash-offset-idx (i32.sub (%bisect-left i32 $lo $mid $hi $name-hash)
-                                         (local.get $index))))
-
- (macro %is-symbol-table-full
-   (i32.eq (global.get $symbol-count) (global.get $symbol-table-size)))
-
  (func $make-symbol (debug (export "make-symbol"))
    (param $name i32)
+   (param $hash i32)
+   (param $hash-addr i32)
    (result i32)
 
-   (local $symbol-idx i32)
+   (local $symbol i32)
+   (local $symbol-addr i32)
+
+   (local.set $symbol (i32.shl (global.get $symbol-count)
+                               (global.get $symbol-table-entry-size-bits)))
+
+   (%global.incr i32 $symbol-count)
+
+   (local.set $symbol-addr (i32.add (%get-symbol-table) (local.get $symbol)))
+
+   (i32.store (local.get $symbol-addr) (local.get $name))
+
+   (i32.store (i32.add (local.get $symbol-addr) (global.get $value-size))
+              (local.get $hash))
 
    (if (%is-symbol-table-full)
        (then
-        (call $grow-symbol-table)))
+        (call $grow-symbol-table))
+     (else
+      (i32.store (local.get $hash-addr) (local.get $symbol))))
 
-   (local.set $symbol-idx (global.get $symbol-count))
-   (%global.incr i32 $symbol-count)
-
-   (i32.store (i32.add (%get-symbol-table) (%calc-table-idx-offset (local.get $symbol-idx)))
-              (local.get $name))
-
-   (local.get $symbol-idx))
+   (local.get $symbol))
 
  (func $grow-symbol-table (debug (export "grow-symbol-table"))
 
-   (global.set $symbol-table-size (i32.shl (global.get $symbol-table-size)
-                                           (i32.const 1)))
+   (local $hash-table-size i32)
+
+   (%global.double i32 $symbol-table-size)
+   (global.set $symbol-table-capacity (%calc-symbol-table-capacity))
+   (global.set $hash-offset-mask (%calc-hash-offset-mask))
+
+   (call $dealloc-block
+         (global.get $symbols-blockset-id)
+         (global.get $hash-table-block-ref))
 
    (global.set $symbol-table-block-ref
                (call $resize-block
+                     (global.get $symbols-blockset-id)
                      (global.get $symbol-table-block-ref)
                      (i32.shl (global.get $symbol-table-size)
-                              (global.get $value-size-bits))))
+                              (global.get $symbol-table-entry-size-bits))))
 
-   (global.set $symbol-index-hashes-block-ref
-               (call $resize-block
-                     (global.get $symbol-index-hashes-block-ref)
-                     (i32.shl (global.get $symbol-table-size)
-                              (global.get $value-size-bits))))
+   (local.set $hash-table-size (i32.shl (global.get $symbol-table-size)
+                                        (global.get $value-size-bits)))
 
-   (global.set $symbol-index-values-block-ref
-               (call $resize-block
-                     (global.get $symbol-index-values-block-ref)
-                     (i32.shl (global.get $symbol-table-size)
-                              (global.get $value-size-bits)))))
+   (global.set $hash-table-block-ref
+               (call $alloc-block
+                     (global.get $symbols-blockset-id)
+                     (local.get $hash-table-size)))
 
- (func $insert-symbol-index-entry (debug (export "insert-symbol-index-entry"))
-   (param $idx i32)
-   (param $symbol i32)
-   (param $name i32)
-   (param $name-hash i32)
+   (global.set $symbol-table-addr (call $get-block-ref-addr
+                                        (global.get $symbol-table-block-ref)))
 
-   (local $count i32)
-   (local $symbol-index-hash-addr i32)
-   (local $symbol-index-value-addr i32)
+   (global.set $hash-table-addr (call $get-block-ref-addr
+                                      (global.get $hash-table-block-ref)))
 
-   (local.set $count (i32.sub (i32.sub (global.get $symbol-count)
-                                       (local.get $idx))
-                              (i32.const 1)))
+   (memory.fill
+    (global.get $hash-table-addr)
+    (global.get $null)
+    (local.get $hash-table-size))
 
-   (local.set $symbol-index-hash-addr
-              (i32.add (%get-symbol-index-hashes)
-                       (i32.shl (local.get $count)
-                                (global.get $value-size-bits))))
+   (call $rebuild-hash-table))
 
-   (local.set $symbol-index-value-addr
-              (i32.add (%get-symbol-index-values)
-                       (i32.shl (local.get $count)
-                                (global.get $value-size-bits))))
+ (func $rebuild-hash-table (debug (export "rebuild-hash-table"))
 
-   (if (local.get $count)
-       (then
-        (memory.copy
-         (i32.add (local.get $symbol-index-hash-addr)
-                  (global.get $value-size))
-         (local.get $symbol-index-hash-addr)
-         (i32.shl (local.get $count)
-                  (global.get $value-size-bits)))
+   (local $addr i32)
+   (local $end-symbol i32)
+   (local $h i32)
+   (local $symbol-hash-addr i32)
+   (local $symbol i32)
 
-        (memory.copy
-         (i32.add (local.get $symbol-index-value-addr)
-                  (global.get $value-size))
-         (local.get $symbol-index-value-addr)
-         (i32.shl (local.get $count)
-                  (global.get $value-size-bits)))))
+   (local.set $symbol (i32.const 0))
+   (local.set $end-symbol (i32.add (local.get $symbol)
+                                   (i32.shl (global.get $symbol-count)
+                                            (global.get $symbol-table-entry-size-bits))))
 
-   (i32.store (local.get $symbol-index-hash-addr) (local.get $name-hash))
-   (i32.store (local.get $symbol-index-value-addr) (local.get $symbol))))
+   (local.set $symbol-hash-addr (i32.add (%get-symbol-table) (global.get $value-size)))
+
+   (loop $symbols
+     (local.set $h (i32.load (local.get $symbol-hash-addr)))
+
+     (loop $hashes
+       (local.set $addr (%get-hash-addr (local.get $h)))
+
+       (if (i32.eq (i32.load (local.get $addr)) (global.get $null))
+           (then
+            (i32.store (local.get $addr) (local.get $symbol)))
+
+         (else
+          (%next-hash $h)
+          (br $hashes))))
+
+     (if (i32.lt_u (local.get $symbol) (local.get $end-symbol))
+         (then
+          (%incr-n i32 $symbol 8)
+          (%incr-n i32 $symbol-hash-addr 8)
+          (br $symbols)))))
+ )

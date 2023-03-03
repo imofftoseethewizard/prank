@@ -144,21 +144,21 @@
 
  (memory $memory (debug (export "memory")) 1)
 
-;;     i64              xxxx xxxx xxxx xxxx xxxx 0001 xxx1 1111
-;;     f64              xxxx xxxx xxxx xxxx xxxx 0?00 xxx1 1111
-;;     rational         xxxx xxxx xxxx xxxx xxxx 0011 xxx1 1111
-;;     complex          xxxx xxxx xxxx xxxx xxxx 0101 xxx1 1111
-;;     integer          rrrr rrrr rrrr rrrr rrrr 1001 xxx1 1111
+;;     i64              xxxx xxxx xxxx xxxx xxxx 0001 0000 0001
+;;     f64              xxxx xxxx xxxx xxxx xxxx 0?00 0000 0001
+;;     rational         xxxx xxxx xxxx xxxx xxxx 0011 0000 0001
+;;     complex          xxxx xxxx xxxx xxxx xxxx 0101 0000 0001
+;;     integer          rrrr rrrr rrrr rrrr rrrr 1001 0000 0001
 
  (global $number-block-size (debug (export "number-block-size") i32 (i32.const 0x4000)))
 
- (global $number-type-i64             (debug (export "number-type-i64")             i32 (i32.const 0x0000011f)))
- (global $number-type-f64             (debug (export "number-type-f64")             i32 (i32.const 0x0000001f)))
- (global $number-type-inexact-complex (debug (export "number-type-inexact-complex") i32 (i32.const 0x0000041f)))
- (global $number-type-exact-complex   (debug (export "number-type-exact-complex")   i32 (i32.const 0x0000051f)))
- (global $number-type-rational        (debug (export "number-type-rational")        i32 (i32.const 0x0000031f)))
- (global $number-type-integer         (debug (export "number-type-integer")         i32 (i32.const 0x0000091f)))
- (global $number-type-mask            (debug (export "number-type-mask")            i32 (i32.const 0x00000f1f)))
+ (global $number-type-i64             (debug (export "number-type-i64")             i32 (i32.const 0x00000101)))
+ (global $number-type-f64             (debug (export "number-type-f64")             i32 (i32.const 0x00000001)))
+ (global $number-type-inexact-complex (debug (export "number-type-inexact-complex") i32 (i32.const 0x00000401)))
+ (global $number-type-exact-complex   (debug (export "number-type-exact-complex")   i32 (i32.const 0x00000501)))
+ (global $number-type-rational        (debug (export "number-type-rational")        i32 (i32.const 0x00000301)))
+ (global $number-type-integer         (debug (export "number-type-integer")         i32 (i32.const 0x00000901)))
+ (global $number-type-mask            (debug (export "number-type-mask")            i32 (i32.const 0x00000fff)))
 
  (global $x64-free-list (debug (export "x64-free-list")) (mut i32) (i32.const 0))
  (debug

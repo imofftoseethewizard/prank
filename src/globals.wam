@@ -23,24 +23,24 @@
 (global $tag-singleton         (export "tag-singleton")         i32 (i32.const 0x07))
 
 (global $singleton-type-mask   (export "singleton-type-mask")   i32 (i32.const 0x00000f07))
-(global $box-type-mask         (export "box-type-mask")         i32 (i32.const 0x00000fff))
+
+(global $type-null             (export "type-null")             i32 (i32.const 0x00000f07))
+(global $type-boolean          (export "type-boolean")          i32 (i32.const 0x00000007))
+(global $type-eof              (export "type-eof")              i32 (i32.const 0x00000e07))
 
 (global $eof                   (export "#eof-object")           i32 (i32.const 0x00000e0f))
 (global $false                 (export "#false")                i32 (i32.const 0x00000007))
 (global $null                  (export "#null")                 i32 (i32.const 0xffffffff))
 (global $true                  (export "#true")                 i32 (i32.const 0x0000000f))
 
-(global $type-bytevector       (export "type-bytevector")       i32 (i32.const 0x00000107))
-(global $type-number           (export "type-number")           i32 (i32.const 0x0000010f))
-(global $type-string           (export "type-string")           i32 (i32.const 0x00000117))
-(global $type-vector           (export "type-vector")           i32 (i32.const 0x0000011f))
-(global $type-weakref          (export "typevalue-weakref")     i32 (i32.const 0x00000207))
+(global $box-type-mask         (export "box-type-mask")         i32 (i32.const 0x000000ff))
+(global $box-flags-mask        (export "box-flags-mask")        i32 (i32.const 0xffffff00))
 
-(global $type-null             (export "type-null")             i32 (i32.const 0x00000f07))
-(global $type-boolean          (export "type-boolean")          i32 (i32.const 0x00000007))
-(global $type-eof              (export "type-eof")              i32 (i32.const 0x00000e07))
-(global $type-block            (export "type-block")            i32 (i32.const 0x00000107))
-(global $type-box              (export "type-box")              i32 (i32.const 0x00000207))
+(global $type-bytevector       (export "type-bytevector")       i32 (i32.const 0x00000000))
+(global $type-number           (export "type-number")           i32 (i32.const 0x00000001))
+(global $type-string           (export "type-string")           i32 (i32.const 0x00000002))
+(global $type-vector           (export "type-vector")           i32 (i32.const 0x00000003))
+(global $type-weakref          (export "typevalue-weakref")     i32 (i32.const 0x00000004))
 
 ;; "parameter" table entry ids for algorithms.wam
 (global $bisect-left-i32-indirect-compare (export "bisect-left-i32-indirect-compare") i32 (i32.const 0))
@@ -88,3 +88,13 @@
 (macro %next-cdr
   (label $var)
   (local.set $var (call $get-pair-cdr (local.get $var))))
+
+(macro %double
+  (class Int)
+  (label $var)
+  (local.set $var (Int.shl (local.get $var) (Int.const 1))))
+
+(macro %global.double
+  (class Int)
+  (label $var)
+  (global.set $var (Int.shl (global.get $var) (Int.const 1))))
