@@ -254,6 +254,23 @@
    (expr ,block)
    (call $get-pair-car ,block))
 
+
+ ;; (macro %get-block-addr
+ ;;   (expr ,block)
+ ;;   (i32.load ,block))
+
+ ;; (macro %get-block-size
+ ;;   (expr ,block)
+ ;;   (i32.load (i32.add ,block (global.get $block-size))))
+
+ ;; (macro %get-next-block
+ ;;   (expr ,block)
+ ;;   (i32.load (i32.add ,block (global.get $block-next-block))))
+
+ ;; (macro %get-previous-block
+ ;;   (expr ,block)
+ ;;   (i32.load (i32.add ,block (global.get $block-previous-block))))
+
  (macro %get-block-size
    (expr ,block)
    (call $get-pair-cdr ,block))
@@ -267,6 +284,16 @@
    (expr ,block)
    (expr ,size)
    (call $set-pair-cdr ,block ,size))
+
+ ;; (macro %set-block-addr
+ ;;   (expr ,block)
+ ;;   (expr ,addr)
+ ;;   (i32.store ,block ,addr))
+
+ ;; (macro %set-block-size
+ ;;   (expr ,block)
+ ;;   (expr ,size)
+ ;;   (i32.store (i32.add ,block (global.get $block-size)) ,size))
 
  (debug
   (func $get-block-addr (export "get-block-addr")
@@ -297,7 +324,7 @@
  (macro %make-block
    (expr ,addr)
    (expr ,length)
-   (call $make-pair ,addr ,length))
+   (call $make-pair ,addr ,length)) ;;TODO
 
  (macro %get-next-block-addr
    (expr ,block)
@@ -324,7 +351,7 @@
  (macro %make-block-ref
    (expr ,block)
    (expr ,next)
-   (call $make-pair ,block ,next))
+   (call $make-pair ,block ,next)) ;; TODO
 
  (debug
   (func $make-block-ref (export "make-block-ref")

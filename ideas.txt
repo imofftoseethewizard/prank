@@ -256,8 +256,18 @@ tooling improvements
 
       (%block-mgr i32)
 
-symbols:
-  replace sorted list with hash table
-  include table of string hashes
-  on collision, rehash value using kx where k has no factors of 2
-  rebuild when 75% full
+block-mgr
+  replace block, block-ref pairs with a blockset-0 analog of pairs
+  16 bytes ea, allocated in immobile blocks, containing
+    addr
+    size
+    prev
+    next
+
+  remove idea of block-ref
+  use doubly linked list to reduce/eliminate need for find-pred
+  investigate similar transformation of free list into 16 byte units
+    block
+    size? addr?
+    prev
+    next
