@@ -2,8 +2,8 @@
 
  (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32) (result i32)))
  (import "block-mgr" "dealloc-block"      (func $dealloc-block      (param i32 i32)))
- (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr (param i32)     (result i32)))
- (import "block-mgr" "get-block-ref-size" (func $get-block-ref-size (param i32)     (result i32)))
+ (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32)     (result i32)))
+ (import "block-mgr" "get-block-size" (func $get-block-size (param i32)     (result i32)))
  (import "block-mgr" "init-blockset"      (func $init-blockset      (param i32 i32 i32)))
  (import "lists" "get-list-length"        (func $get-list-length    (param i32)     (result i32)))
  (import "pairs" "dealloc-pair"           (func $dealloc-pair       (param i32)))
@@ -49,15 +49,15 @@
    (param $length i32)
    (result i32)
 
-   (local $block-ref i32)
+   (local $block i32)
 
-   (local.set $block-ref (call $alloc-block
+   (local.set $block (call $alloc-block
                                (global.get $vectors-blockset-id)
                                (%calc-vector-size (local.get $length))))
 
-   (i32.store (call $get-block-ref-addr (local.get $block-ref)) (local.get $length))
+   (i32.store (call $get-block-addr (local.get $block)) (local.get $length))
 
-   (%make-box (global.get $type-vector) (local.get $block-ref)))
+   (%make-box (global.get $type-vector) (local.get $block)))
 
  (func $dealloc-vector (export "dealloc-vector")
    (param $v i32)
@@ -123,13 +123,13 @@
  (func $get-vector-addr (export "get-vector-addr")
    (param $v i32)
    (result i32)
-   (i32.add (call $get-block-ref-addr (%get-box-value (local.get $v)))
+   (i32.add (call $get-block-addr (%get-box-value (local.get $v)))
             (global.get $value-size)))
 
  (func $get-vector-length (export "get-vector-length")
    (param $v i32)
    (result i32)
-   (i32.load (call $get-block-ref-addr (%get-box-value (local.get $v)))))
+   (i32.load (call $get-block-addr (%get-box-value (local.get $v)))))
 
  (func $get-vector-element (export "get-vector-element")
    (param $v i32)

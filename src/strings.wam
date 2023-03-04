@@ -2,7 +2,7 @@
 
  (import "block-mgr" "alloc-block"        (func $alloc-block         (param i32 i32) (result i32)))
  (import "block-mgr" "dealloc-block"      (func $dealloc-block       (param i32 i32)))
- (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr  (param i32)     (result i32)))
+ (import "block-mgr" "get-block-addr" (func $get-block-addr  (param i32)     (result i32)))
  (import "block-mgr" "init-blockset"      (func $init-blockset       (param i32 i32 i32)))
  (import "chars" "calc-char-width"        (func $calc-char-width     (param i32)     (result i32)))
  (import "chars" "calc-encoded-length"    (func $calc-encoded-length (param i32)     (result i32)))
@@ -78,7 +78,7 @@
 
  (macro %get-string-block-addr
    (expr ,s)
-   (call $get-block-ref-addr (%get-box-value ,s)))
+   (call $get-block-addr (%get-box-value ,s)))
 
  (macro %get-string-length
    (label $type)
@@ -141,7 +141,7 @@
    (result i32)
 
    (local $addr i32)
-   (local $block-ref i32)
+   (local $block i32)
    (local $header-size i32)
    (local $index-size i32)
    (local $type i32)
@@ -150,13 +150,13 @@
    (local.set $header-size (%calc-data-offset (local.get $type)))
    (local.set $index-size (%calc-index-size (local.get $type) (local.get $length)))
 
-   (local.set $block-ref (call $alloc-block
+   (local.set $block (call $alloc-block
                                (global.get $strings-blockset-id)
                                (i32.add (local.get $header-size)
                                         (i32.add (local.get $size)
                                                  (local.get $index-size)))))
 
-   (local.set $addr (call $get-block-ref-addr (local.get $block-ref)))
+   (local.set $addr (call $get-block-addr (local.get $block)))
 
    (if (i32.eq (local.get $type) (global.get $string-type-simple))
        (then
@@ -178,7 +178,7 @@
             (i32.store (local.get $addr) (local.get $size))
             (i32.store (i32.add (local.get $addr) (i32.const 4)) (local.get $length))))))))
 
-   (%make-box (local.get $type) (local.get $block-ref)))
+   (%make-box (local.get $type) (local.get $block)))
 
  (func $make-string-type (debug (export "make-string-type"))
    (param $length i32)

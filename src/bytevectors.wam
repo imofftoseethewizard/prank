@@ -2,8 +2,8 @@
 
  (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32) (result i32)))
  (import "block-mgr" "dealloc-block"      (func $dealloc-block      (param i32 i32)))
- (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr (param i32)     (result i32)))
- (import "block-mgr" "get-block-ref-size" (func $get-block-ref-size (param i32)     (result i32)))
+ (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32)     (result i32)))
+ (import "block-mgr" "get-block-size" (func $get-block-size (param i32)     (result i32)))
  (import "block-mgr" "init-blockset"      (func $init-blockset      (param i32 i32 i32)))
  (import "lists" "get-list-length"        (func $get-list-length    (param i32)     (result i32)))
  (import "pairs" "make-pair"              (func $make-pair          (param i32 i32) (result i32)))
@@ -30,12 +30,12 @@
 
  (macro %get-bytevector-addr
    (expr ,bv)
-   (i32.add (call $get-block-ref-addr (%get-box-value ,bv))
+   (i32.add (call $get-block-addr (%get-box-value ,bv))
             (global.get $value-size)))
 
  (macro %get-bytevector-size
    (expr ,bv)
-   (i32.load (call $get-block-ref-addr (%get-box-value ,bv))))
+   (i32.load (call $get-block-addr (%get-box-value ,bv))))
 
  (func $get-bytevector-size (export "get-bytevector-size")
    (param $bv i32)
@@ -57,15 +57,15 @@
    (param $size i32)
    (result i32)
 
-   (local $block-ref i32)
+   (local $block i32)
 
-   (local.set $block-ref (call $alloc-block
+   (local.set $block (call $alloc-block
                                (global.get $bytevectors-blockset-id)
                                (i32.add (local.get $size) (global.get $value-size))))
 
-   (i32.store (call $get-block-ref-addr (local.get $block-ref)) (local.get $size))
+   (i32.store (call $get-block-addr (local.get $block)) (local.get $size))
 
-   (%make-box (global.get $type-bytevector) (local.get $block-ref)))
+   (%make-box (global.get $type-bytevector) (local.get $block)))
 
  (func $dealloc-bytevector (export "dealloc-bytevector")
    (param $bv i32)

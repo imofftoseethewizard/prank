@@ -2,7 +2,7 @@
 
  (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32)     (result i32)))
  (import "block-mgr" "dealloc-block"        (func $dealloc-block        (param i32 i32) ))
- (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr (param i32)         (result i32)))
+ (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32)         (result i32)))
  (import "block-mgr" "init-blockset"      (func $init-blockset      (param i32 i32 i32)))
  (import "block-mgr" "resize-block"       (func $resize-block       (param i32 i32 i32) (result i32)))
  (import "strings" "dealloc-string"         (func $dealloc-string       (param i32)   ))
@@ -19,10 +19,10 @@
 
  (global $hash-offset-mask       (debug (export "hash-offset-mask"))       (mut i32) (i32.const 0))
  (global $hash-table-addr        (debug (export "hash-table-addr"))        (mut i32) (i32.const 0))
- (global $hash-table-block-ref   (debug (export "hash-table-block-ref"))   (mut i32) (i32.const 0))
+ (global $hash-table-block   (debug (export "hash-table-block"))   (mut i32) (i32.const 0))
  (global $symbol-count           (debug (export "symbol-count"))           (mut i32) (i32.const 0))
  (global $symbol-table-addr      (debug (export "symbol-table-addr"))      (mut i32) (i32.const 0))
- (global $symbol-table-block-ref (debug (export "symbol-table-block-ref")) (mut i32) (i32.const 0))
+ (global $symbol-table-block (debug (export "symbol-table-block")) (mut i32) (i32.const 0))
  (global $symbol-table-capacity  (debug (export "symbol-table-capacity"))  (mut i32) (i32.const 0))
  (global $symbol-table-size      (debug (export "symbol-table-size"))      (mut i32) (i32.const 0))
 
@@ -87,23 +87,23 @@
    (global.set $symbol-table-capacity (%calc-symbol-table-capacity))
    (global.set $hash-offset-mask (%calc-hash-offset-mask))
 
-   (global.set $hash-table-block-ref
+   (global.set $hash-table-block
                (call $alloc-block
                      (global.get $symbols-blockset-id)
                      (i32.shl (global.get $initial-table-size)
                               (global.get $value-size-bits))))
 
-   (global.set $symbol-table-block-ref
+   (global.set $symbol-table-block
                (call $alloc-block
                      (global.get $symbols-blockset-id)
                      (i32.shl (global.get $initial-table-size)
                               (global.get $symbol-table-entry-size-bits))))
 
-   (global.set $symbol-table-addr (call $get-block-ref-addr
-                                        (global.get $symbol-table-block-ref)))
+   (global.set $symbol-table-addr (call $get-block-addr
+                                        (global.get $symbol-table-block)))
 
-   (global.set $hash-table-addr (call $get-block-ref-addr
-                                      (global.get $hash-table-block-ref)))
+   (global.set $hash-table-addr (call $get-block-addr
+                                      (global.get $hash-table-block)))
 
    (memory.fill
     (global.get $hash-table-addr)
@@ -187,28 +187,28 @@
 
    (call $dealloc-block
          (global.get $symbols-blockset-id)
-         (global.get $hash-table-block-ref))
+         (global.get $hash-table-block))
 
-   (global.set $symbol-table-block-ref
+   (global.set $symbol-table-block
                (call $resize-block
                      (global.get $symbols-blockset-id)
-                     (global.get $symbol-table-block-ref)
+                     (global.get $symbol-table-block)
                      (i32.shl (global.get $symbol-table-size)
                               (global.get $symbol-table-entry-size-bits))))
 
    (local.set $hash-table-size (i32.shl (global.get $symbol-table-size)
                                         (global.get $value-size-bits)))
 
-   (global.set $hash-table-block-ref
+   (global.set $hash-table-block
                (call $alloc-block
                      (global.get $symbols-blockset-id)
                      (local.get $hash-table-size)))
 
-   (global.set $symbol-table-addr (call $get-block-ref-addr
-                                        (global.get $symbol-table-block-ref)))
+   (global.set $symbol-table-addr (call $get-block-addr
+                                        (global.get $symbol-table-block)))
 
-   (global.set $hash-table-addr (call $get-block-ref-addr
-                                      (global.get $hash-table-block-ref)))
+   (global.set $hash-table-addr (call $get-block-addr
+                                      (global.get $hash-table-block)))
 
    (memory.fill
     (global.get $hash-table-addr)

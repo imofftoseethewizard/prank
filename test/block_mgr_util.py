@@ -105,12 +105,16 @@ def validate_block_list(blockset):
     block = block_list
     turtle = block
     count = 0
+    total_size = 0
     while block != NULL:
         assert block_mgr.get_previous_block(block) == last
         if block_mgr.get_block_addr(block) != addr:
             print(format_addr(block), format_addr(block_mgr.get_block_addr(block)), format_addr(addr))
         assert block_mgr.get_block_addr(block) == addr
-        addr += block_mgr.get_block_size(block)
+        size = block_mgr.get_block_size(block)
+        assert size > 0
+        addr += size
+        total_size += size
         last = block
         block = block_mgr.get_next_block(block)
         count += 1
@@ -119,6 +123,8 @@ def validate_block_list(blockset):
             assert turtle != block
         assert count <= block_count
 
+    # free_space = block_mgr.get_blockset_free_space(blockset)
+    # print(total_size-free_space, free_space, total_size, (total_size-free_space)/count)
     assert count == block_count
     assert block_mgr.get_blockset_end_block(blockset) == last
 

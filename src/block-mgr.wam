@@ -1635,9 +1635,8 @@
    (local.set $free-list-length (%get-blockset-free-list-length (local.get $blockset)))
    (local.set $heap-size (%get-blockset-heap-size (local.get $blockset)))
 
-   (if (i32.gt_u (i32.mul (local.get $free-list-length)
-                          (%get-blockset-relocation-size-limit (local.get $blockset)))
-                 (call $get-blockset-total-size (local.get $blockset)))
+   (if (i32.gt_u (local.get $free-list-length)
+                 (call $estimate-sqrt (%get-blockset-block-count (local.get $blockset))))
        (then
         (call $step-defragment-blockset-free-list (local.get $blockset))
         (call $step-clean-heap (local.get $blockset)))))
@@ -2003,17 +2002,11 @@
 
              (else
               ;; At this point, the conditions for a defragmentation step are satisfied.
-              ;; Scan the cursor forward so that its successor is the free entry.
-              (local.set $free-block (%get-free-entry-block (local.get $free-entry)))
-
-              (loop $again
-                (local.set $next (%get-next-block (local.get $cursor)))
-                (if (i32.ne (local.get $next) (local.get $free-block))
-                    (then
-                     (local.set $cursor (local.get $next))
-                     (br $again))))
-
-              (%set-blockset-defrag-cursor (local.get $blockset) (local.get $cursor))))))))
+              ;; Set the cursor forward so that its successor is the free entry.
+              (%set-blockset-defrag-cursor
+               (local.get $blockset)
+               (%get-previous-block
+                (%get-free-entry-block (local.get $free-entry))))))))))
 
    ;; Return values
    (local.get $prior-free-entry)
@@ -2062,8 +2055,8 @@
              ;; If there is an allocated block after the now single initial free
              ;; block, then swap them.
 
-             ;; The car of free head is the first block ref in the block list,
-             ;; and its cadr is the second.
+             ;; The block of free head is the first block in the block list, and
+             ;; its successor is the second.
              (local.set $free-block (%get-free-entry-block (local.get $free-head)))
              (local.set $head (%get-next-block (local.get $free-block)))
 
@@ -2335,7 +2328,7 @@
    (param $end-block i32)
    (param $size i32)
 
-   (local $head i32)
+   (local $block i32)
    (local $offset i32)
    (local $source-addr i32)
 
@@ -2348,17 +2341,17 @@
                   (local.get $size)
                   (%get-blockset-id (local.get $blockset)))
 
-   (local.set $head (local.get $start-block))
+   (local.set $block (local.get $start-block))
    (local.set $offset (i32.sub (local.get $source-addr) (local.get $dest-addr)))
 
    (loop $again
-     (if (i32.ne (local.get $head) (local.get $end-block))
+     (if (i32.ne (local.get $block) (local.get $end-block))
          (then
           (%set-block-addr
-           (local.get $head)
-           (i32.sub (%get-block-addr (local.get $head))
+           (local.get $block)
+           (i32.sub (%get-block-addr (local.get $block))
                     (local.get $offset)))
-          (local.set $head (%get-next-block (local.get $head)))
+          (local.set $block (%get-next-block (local.get $block)))
           (br $again)))))
 
  (func $insert-heap-node (debug (export "insert-heap-node"))

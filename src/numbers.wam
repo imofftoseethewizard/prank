@@ -126,8 +126,8 @@
 
  (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32) (result i32)))
  (import "block-mgr" "dealloc-block"      (func $dealloc-block      (param i32 i32)))
- (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr (param i32)     (result i32)))
- (import "block-mgr" "get-block-ref-size" (func $get-block-ref-size (param i32)     (result i32)))
+ (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32)     (result i32)))
+ (import "block-mgr" "get-block-size" (func $get-block-size (param i32)     (result i32)))
  (import "block-mgr" "init-blockset"      (func $init-blockset      (param i32 i32 i32)))
  (import "pairs" "make-pair"              (func $make-pair          (param i32 i32) (result i32)))
  (import "pairs" "make-pair-f32"          (func $make-pair-f32      (param i32 f32) (result i32)))
@@ -191,7 +191,7 @@
 
  (macro %get-integer-addr
    (expr ,int)
-   (call $get-block-ref-addr (%get-box-value ,int)))
+   (call $get-block-addr (%get-box-value ,int)))
 
  (macro %get-integer-size
    (expr ,int)
@@ -210,21 +210,21 @@
    (result i32)
 
    (local $addr i32)
-   (local $block-ref i32)
+   (local $block i32)
    (local $size i32)
 
    (local.set $size (i32.shl (local.get $i64-digits) (i32.const 3)))
 
-   (local.set $block-ref (call $alloc-block
+   (local.set $block (call $alloc-block
                                (global.get $numbers-blockset-id)
                                (local.get $size)))
 
-   (local.set $addr (call $get-block-ref-addr (local.get $block-ref)))
+   (local.set $addr (call $get-block-addr (local.get $block)))
 
    (memory.fill (local.get $addr) (local.get $size) (i32.const 0))
 
    (%make-box (%make-integer-number-type (local.get $i64-digits))
-              (local.get $block-ref)))
+              (local.get $block)))
 
  (func $alloc-x64 (debug (export "alloc-x64"))
    (result i32)
@@ -242,23 +242,23 @@
  (func $alloc-x64-block (debug (export "alloc-x64-block"))
 
    (local $addr i32)
-   (local $block-ref i32)
+   (local $block i32)
    (local $end-addr i32)
    (local $last-addr i32)
    (local $next-x64 i32)
    (local $x64 i32)
 
-   (local.set $block-ref (call $alloc-block
+   (local.set $block (call $alloc-block
                                (global.get $numbers-blockset-id)
                                (global.get $number-block-size)))
 
    (debug
     (global.set $number-block-list
                 (call $make-pair
-                      (local.get $block-ref)
+                      (local.get $block)
                       (global.get $number-block-list))))
 
-   (local.set $addr (call $get-block-ref-addr (local.get $block-ref)))
+   (local.set $addr (call $get-block-addr (local.get $block)))
    (local.set $end-addr (i32.add (local.get $addr)
                                  (global.get $number-block-size)))
 

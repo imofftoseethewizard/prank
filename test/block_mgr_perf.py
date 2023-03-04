@@ -108,7 +108,7 @@ def stochastic_perf_test(
         b = blocks[b_i]
         blocks[b_i] = blocks[-1]
         blocks.pop()
-        total_allocated -= block_mgr.get_block_ref_size(b)
+        total_allocated -= block_mgr.get_block_size(b)
         tic = time.perf_counter_ns()
         block_mgr.dealloc_block(blockset_id, b)
         toc = time.perf_counter_ns()

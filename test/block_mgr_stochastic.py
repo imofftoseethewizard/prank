@@ -121,7 +121,7 @@ def stochastic_perf_test(
             raise
         nonlocal elapsed_ns
         elapsed_ns += toc - tic
-        blocks.append(b)
+        blocks.append((b, size))
         total_allocated += size
 
     def dealloc_block(i):
@@ -130,13 +130,13 @@ def stochastic_perf_test(
         nonlocal deallocs
         deallocs += 1
         b_i = random.randrange(len(blocks))
-        b = blocks[b_i]
+        b, size = blocks[b_i]
         blocks[b_i] = blocks[-1]
         blocks.pop()
         if i == problem_step:
             print(format_addr(b))
         #blocks = blocks[:b_i] + blocks[b_i+1:]
-        total_allocated -= block_mgr.get_block_size(b)
+        total_allocated -= size
         if i == problem_step:
             block_mgr.DEBUG.value = 1
             print('pre free')
@@ -198,7 +198,19 @@ def stochastic_perf_test(
     l_min = N
     default_depth = 2
 
+    def report():
+        print(f'raw allocator time: {elapsed_ns/1_000_000_000:0.4f}')
+        adjusted_elapsed_ns = elapsed_ns - allocs * alloc_overhead_ns - deallocs * dealloc_overhead_ns
+        print(f'adjusted allocator time: {adjusted_elapsed_ns/1_000_000_000:0.4f}')
+        print(f'amortized ns per alloc-dealloc pair:', adjusted_elapsed_ns/(N/2))
+        print(alloc_overhead_ns, dealloc_overhead_ns)
+        print(allocs, deallocs)
+
     for i in range(N):
+        if (i+1) % (N/100) == 0:
+            report()
+            print()
+
         if i >= l_min:
             print(f'{[i]}')
             print_blockset(blockset, default_depth)
@@ -215,16 +227,11 @@ def stochastic_perf_test(
             raise
 
     print_block_mgr_state(blockset)
-    print(f'raw allocator time: {elapsed_ns/1_000_000_000:0.4f}')
-    adjusted_elapsed_ns = elapsed_ns - allocs * alloc_overhead_ns - deallocs * dealloc_overhead_ns
-    print(f'adjusted allocator time: {adjusted_elapsed_ns/1_000_000_000:0.4f}')
-    print(f'amortized ns per alloc-dealloc pair:', adjusted_elapsed_ns/(N/2))
-    print(alloc_overhead_ns, dealloc_overhead_ns)
-    print(allocs, deallocs)
+    report()
     # print(i)
     # # validate_blockset(blockset)
     # print('done')
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(M=10_000_000, N=50_000_000)
+    stochastic_perf_test(M=100_000_000, N=50_000_000)
