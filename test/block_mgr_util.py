@@ -106,6 +106,7 @@ def validate_block_list(blockset):
     turtle = block
     count = 0
     while block != NULL:
+        assert block_mgr.get_previous_block(block) == last
         if block_mgr.get_block_addr(block) != addr:
             print(format_addr(block), format_addr(block_mgr.get_block_addr(block)), format_addr(addr))
         assert block_mgr.get_block_addr(block) == addr
@@ -136,17 +137,20 @@ def validate_free_list(blockset):
     defrag_cursor = block_mgr.get_blockset_defrag_cursor(blockset)
     assert defrag_cursor == NULL or defrag_cursor in blocks
 
+    last = NULL
     entry = free_list
     last_free_addr = -1
     free_space = 0
     turtle = entry
     count = 0
     while entry != NULL:
+        assert block_mgr.get_previous_free_entry(entry) == last
         assert block_mgr.get_free_entry_block(entry) in blocks
         free_addr = block_mgr.get_free_entry_addr(entry)
         free_space += block_mgr.get_free_entry_size(entry)
         assert free_addr  > last_free_addr
         last_free_addr = free_addr
+        last = entry
         entry = block_mgr.get_next_free_entry(entry)
         count += 1
         if count % 2 == 0:

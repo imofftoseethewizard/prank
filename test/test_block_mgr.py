@@ -354,24 +354,9 @@ def test_defrag_two_small_alloc_three_free_blocks():
 
     validate_blockset(blockset)
 
+    print_blockset(blockset)
     step_defragment_blockset_free_list(blockset)
-
-    validate_blockset(blockset)
-
-def test_defrag_two_small_alloc_three_free_blocks():
-    init_test()
-
-    b0 = alloc_block(blockset_id, 48)
-    b1 = alloc_block(blockset_id, 48)
-    b2 = alloc_block(blockset_id, 48)
-    b3 = alloc_block(blockset_id, 48)
-
-    add_free_block(blockset, b0)
-    add_free_block(blockset, b2)
-
-    validate_blockset(blockset)
-
-    step_defragment_blockset_free_list(blockset)
+    print_blockset(blockset)
 
     validate_blockset(blockset)
 

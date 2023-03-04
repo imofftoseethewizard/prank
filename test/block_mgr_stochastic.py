@@ -49,24 +49,24 @@ def stochastic_perf_test(
     deallocs = 0
 
     alloc_overhead_ns = 0
-    for i in range(10100):
+    for i in range(101000):
         tic = time.perf_counter_ns()
         block_mgr.stub_alloc_block(blockset_id, 1)
         toc = time.perf_counter_ns()
-        if i > 100:
+        if i > 1000:
             alloc_overhead_ns += toc - tic
 
-    alloc_overhead_ns /= 10000
+    alloc_overhead_ns /= 100000
 
     dealloc_overhead_ns = 0
-    for i in range(10100):
+    for i in range(101000):
         tic = time.perf_counter_ns()
         block_mgr.stub_dealloc_block(blockset_id, 1)
         toc = time.perf_counter_ns()
-        if i > 100:
+        if i > 1000:
             dealloc_overhead_ns += toc - tic
 
-    dealloc_overhead_ns /= 10000
+    dealloc_overhead_ns /= 100000
 
     def step_action_linear(i):
         r = total_allocated / M
@@ -214,7 +214,7 @@ def stochastic_perf_test(
             print(i)
             raise
 
-    #print_block_mgr_state(blockset)
+    print_block_mgr_state(blockset)
     print(f'raw allocator time: {elapsed_ns/1_000_000_000:0.4f}')
     adjusted_elapsed_ns = elapsed_ns - allocs * alloc_overhead_ns - deallocs * dealloc_overhead_ns
     print(f'adjusted allocator time: {adjusted_elapsed_ns/1_000_000_000:0.4f}')
@@ -227,4 +227,4 @@ def stochastic_perf_test(
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(N=10_000_000)
+    stochastic_perf_test(M=10_000_000, N=50_000_000)
