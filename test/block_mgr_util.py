@@ -53,7 +53,7 @@ def collect_allocated_pairs():
     return addrs
 
 def print_all():
-    list_allocated_pairs()
+    #list_allocated_pairs()
     print()
     print_blockset()
 
@@ -85,15 +85,15 @@ def validate_blockset(blockset):
     validate_free_list(blockset)
     validate_heap(blockset)
 
-    pair_count = pairs.pair_count.value
+    # pair_count = pairs.pair_count.value
 
-    block_mgr_pair_count = count_blockset_pairs(mgr_blockset)
-    blockset_pair_count = 0
+    # block_mgr_pair_count = count_blockset_pairs(mgr_blockset)
+    # blockset_pair_count = 0
 
-    if blockset != mgr_blockset:
-        blockset_pair_count = count_blockset_pairs(blockset)
+    # if blockset != mgr_blockset:
+    #     blockset_pair_count = count_blockset_pairs(blockset)
 
-    assert pair_count == block_mgr_pair_count + blockset_pair_count
+    # assert pair_count == block_mgr_pair_count + blockset_pair_count
 
 def validate_block_list(blockset):
 
@@ -101,25 +101,25 @@ def validate_block_list(blockset):
     block_list = block_mgr.get_blockset_block_list(blockset)
 
     last = NULL
-    addr = block_mgr.get_block_ref_addr(block_list) if block_list != NULL else NULL
-    ref = block_list
-    turtle = ref
+    addr = block_mgr.get_block_addr(block_list) if block_list != NULL else NULL
+    block = block_list
+    turtle = block
     count = 0
-    while ref != NULL:
-        if block_mgr.get_block_ref_addr(ref) != addr:
-            print(format_addr(ref), format_addr(block_mgr.get_block_ref_addr(ref)), format_addr(addr))
-        assert block_mgr.get_block_ref_addr(ref) == addr
-        addr += block_mgr.get_block_ref_size(ref)
-        last = ref
-        ref = pairs.get_pair_cdr(ref)
+    while block != NULL:
+        if block_mgr.get_block_addr(block) != addr:
+            print(format_addr(block), format_addr(block_mgr.get_block_addr(block)), format_addr(addr))
+        assert block_mgr.get_block_addr(block) == addr
+        addr += block_mgr.get_block_size(block)
+        last = block
+        block = block_mgr.get_next_block(block)
         count += 1
         if count % 2 == 0:
-            turtle = pairs.get_pair_cdr(turtle)
-            assert turtle != ref
+            turtle = block_mgr.get_next_block(turtle)
+            assert turtle != block
         assert count <= block_count
 
     assert count == block_count
-    assert block_mgr.get_blockset_end_block_ref(blockset) == last
+    assert block_mgr.get_blockset_end_block(blockset) == last
 
 def validate_free_list(blockset):
 
@@ -127,14 +127,14 @@ def validate_free_list(blockset):
     free_list = block_mgr.get_blockset_free_list(blockset)
     free_list_length = block_mgr.get_blockset_free_list_length(blockset)
 
-    refs = set()
-    ref = block_list
-    while ref != NULL:
-        refs.add(ref)
-        ref = pairs.get_pair_cdr(ref)
+    blocks = set()
+    block = block_list
+    while block != NULL:
+        blocks.add(block)
+        block = block_mgr.get_next_block(block)
 
     defrag_cursor = block_mgr.get_blockset_defrag_cursor(blockset)
-    assert defrag_cursor == NULL or defrag_cursor in refs
+    assert defrag_cursor == NULL or defrag_cursor in blocks
 
     entry = free_list
     last_free_addr = -1
@@ -142,15 +142,15 @@ def validate_free_list(blockset):
     turtle = entry
     count = 0
     while entry != NULL:
-        assert pairs.get_pair_car(entry) in refs
+        assert block_mgr.get_free_entry_block(entry) in blocks
         free_addr = block_mgr.get_free_entry_addr(entry)
         free_space += block_mgr.get_free_entry_size(entry)
         assert free_addr  > last_free_addr
         last_free_addr = free_addr
-        entry = pairs.get_pair_cdr(entry)
+        entry = block_mgr.get_next_free_entry(entry)
         count += 1
         if count % 2 == 0:
-            turtle = pairs.get_pair_cdr(turtle)
+            turtle = block_mgr.get_next_free_entry(turtle)
             assert turtle != entry
 
         assert count <= free_list_length
@@ -168,7 +168,7 @@ def validate_heap(blockset):
     entry = free_list
     while entry != NULL:
         free_entries.append(entry)
-        entry = pairs.get_pair_cdr(entry)
+        entry = block_mgr.get_next_free_entry(entry)
 
     size = 0
 
@@ -188,20 +188,20 @@ def validate_heap(blockset):
 
         assert block_mgr.get_heap_block(heap, idx) == block_mgr.get_free_entry_block(entry)
 
-def count_blockset_pairs(blockset):
+# def count_blockset_pairs(blockset):
 
-    block_count = block_mgr.get_blockset_block_count(blockset)
-    free_list_length = block_mgr.get_blockset_free_list_length(blockset)
+#     block_count = block_mgr.get_blockset_block_count(blockset)
+#     free_list_length = block_mgr.get_blockset_free_list_length(blockset)
 
-    heap = block_mgr.get_blockset_heap(blockset)
-    heap_size = block_mgr.get_blockset_heap_size(blockset)
-    unused_free_count = sum(block_mgr.is_unused_heap_block(heap, idx)
-                            for idx in range(heap_size))
+#     heap = block_mgr.get_blockset_heap(blockset)
+#     heap_size = block_mgr.get_blockset_heap_size(blockset)
+#     unused_free_count = sum(block_mgr.is_unused_heap_block(heap, idx)
+#                             for idx in range(heap_size))
 
-    # each block ref is 2 pairs (block ref, block)
-    # each unused free entry contains a block not in the block list (block ref, block)
-    # each free entry is an additional pair over the block ref already counted
-    return 3*heap_size + 2*(block_count - free_list_length)
+#     # each block ref is 2 pairs (block ref, block)
+#     # each unused free entry contains a block not in the block list (block ref, block)
+#     # each free entry is an additional pair over the block ref already counted
+#     return 3*heap_size + 2*(block_count - free_list_length)
 
 def print_block_mgr_state(blockset):
 
@@ -214,8 +214,8 @@ def print_block_mgr_state(blockset):
 
     print("get_blockset_block_count:", block_mgr.get_blockset_block_count(blockset))
     print("get_blockset_block_list:", format_addr(block_mgr.get_blockset_block_list(blockset)))
-    print("get_blockset_defrag_cursor:", format_addr(defrag_cursor), '' if defrag_cursor == NULL else f'@ {format_addr(block_mgr.get_block_ref_addr(defrag_cursor))}')
-    print("get_blockset_end_block_ref:", format_addr(block_mgr.get_blockset_end_block_ref(blockset)))
+    print("get_blockset_defrag_cursor:", format_addr(defrag_cursor), '' if defrag_cursor == NULL else f'@ {format_addr(block_mgr.get_block_addr(defrag_cursor))}')
+    print("get_blockset_end_block:", format_addr(block_mgr.get_blockset_end_block(blockset)))
     print("get_blockset_heap:", format_addr(heap))
     print("get_blockset_heap_size:", block_mgr.get_blockset_heap_size(blockset))
     print("get_blockset_free_list:", format_addr(block_mgr.get_blockset_free_list(blockset)))
@@ -265,16 +265,16 @@ def format_heap_node(heap, n, depth):
 
 def print_block_list(blockset, start=NULL, end=NULL):
 
-    ref = start if start != NULL else block_mgr.get_blockset_block_list(blockset)
+    block = start if start != NULL else block_mgr.get_blockset_block_list(blockset)
 
-    while ref != end:
+    while block != end:
 
-        addr = block_mgr.get_block_ref_addr(ref)
-        size = block_mgr.get_block_ref_size(ref)
+        addr = block_mgr.get_block_addr(block)
+        size = block_mgr.get_block_size(block)
 
-        print(f'{format_addr(ref)}: {format_addr(addr)} [{size}]')
+        print(f'{format_addr(block)}: {format_addr(addr)} [{size}]')
 
-        ref = pairs.get_pair_cdr(ref)
+        block = block_mgr.get_next_block(block)
 
 def print_free_list(blockset, start=NULL, end=NULL):
 
@@ -282,9 +282,10 @@ def print_free_list(blockset, start=NULL, end=NULL):
 
     while entry != end:
 
-        addr = block_mgr.get_block_ref_addr(pairs.get_pair_car(entry))
-        size = block_mgr.get_block_ref_size(pairs.get_pair_car(entry))
+        block = block_mgr.get_free_entry_block(entry)
+        addr = block_mgr.get_block_addr(block)
+        size = block_mgr.get_block_size(block)
 
-        print(f'{format_addr(entry)}: {size} @ {format_addr(addr)}')
+        print(f'{format_addr(entry)}: {size} @ {format_addr(addr)} [{block_mgr.get_free_entry_addr(entry)}]')
 
-        entry = pairs.get_pair_cdr(entry)
+        entry = block_mgr.get_next_free_entry(entry)

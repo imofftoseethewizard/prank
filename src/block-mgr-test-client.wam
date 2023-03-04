@@ -2,8 +2,8 @@
 
  (include "./block-mgr-memory-proxy-imports.wam")
  (import "block-mgr" "init-blockset" (func $init-blockset (param i32 i32 i32)))
- (import "block-mgr" "get-block-ref-addr" (func $get-block-ref-addr (param i32) (result i32)))
- (import "block-mgr" "get-block-ref-size" (func $get-block-ref-size (param i32) (result i32)))
+ (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32) (result i32)))
+ (import "block-mgr" "get-block-size" (func $get-block-size (param i32) (result i32)))
 
  (include "./globals.wam")
  (include "./block-mgr-memory-proxies.wam")
@@ -24,24 +24,24 @@
    (call $init-blockset-memory-proxies (local.get $blockset-id)))
 
  (func $fill (export "fill")
-   (param $block-ref i32)
+   (param $block i32)
    (param $value i32)
 
-   (memory.fill (call $get-block-ref-addr (local.get $block-ref))
+   (memory.fill (call $get-block-addr (local.get $block))
                 (local.get $value)
-                (call $get-block-ref-size (local.get $block-ref))))
+                (call $get-block-size (local.get $block))))
 
  (func $check-fill (export "check-fill")
-   (param $block-ref i32)
+   (param $block i32)
    (param $value i32)
    (result i32)
 
    (local $addr i32)
    (local $end i32)
 
-   (local.set $addr (call $get-block-ref-addr (local.get $block-ref)))
+   (local.set $addr (call $get-block-addr (local.get $block)))
    (local.set $end (i32.add (local.get $addr)
-                            (call $get-block-ref-size (local.get $block-ref))))
+                            (call $get-block-size (local.get $block))))
 
    (loop $again
      (if (i32.lt_u (local.get $addr) (local.get $end))

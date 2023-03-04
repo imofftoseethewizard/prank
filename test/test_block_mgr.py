@@ -21,10 +21,10 @@ def test_init_block_mgr():
     init_pairs()
     init_blockset_manager()
 
-    assert get_blockset_block_count(mgr_blockset) == 2
+    assert get_blockset_block_count(mgr_blockset) == 3
     assert get_blockset_block_list(mgr_blockset) != NULL
     assert get_blockset_defrag_cursor(mgr_blockset) == NULL
-    assert get_blockset_end_block_ref(mgr_blockset) != NULL
+    assert get_blockset_end_block(mgr_blockset) != NULL
     assert get_blockset_heap(mgr_blockset) != NULL
     assert get_blockset_heap_size(mgr_blockset) == 1
     assert get_blockset_free_list(mgr_blockset) != NULL
@@ -38,7 +38,7 @@ def test_init_blockset():
     assert get_blockset_block_count(blockset) == 0
     assert get_blockset_block_list(blockset) == NULL
     assert get_blockset_defrag_cursor(blockset) == NULL
-    assert get_blockset_end_block_ref(blockset) == NULL
+    assert get_blockset_end_block(blockset) == NULL
     assert get_blockset_heap(blockset) != NULL
     assert get_blockset_heap_size(blockset) == 0
     assert get_blockset_free_list(blockset) == NULL
@@ -68,17 +68,17 @@ def test_set_blockset_defrag_cursor():
     set_blockset_defrag_cursor(blockset, 1)
     assert get_blockset_defrag_cursor(blockset) == 1
 
-def test_set_blockset_end_block_ref():
+def test_set_blockset_end_block():
     init(blockset_id)
-    assert get_blockset_end_block_ref(blockset) == NULL
-    set_blockset_end_block_ref(blockset, 1)
-    assert get_blockset_end_block_ref(blockset) == 1
+    assert get_blockset_end_block(blockset) == NULL
+    set_blockset_end_block(blockset, 1)
+    assert get_blockset_end_block(blockset) == 1
 
-def test_set_blockset_heap_ref():
+def test_set_blockset_heap_block():
     init(blockset_id)
     assert get_blockset_heap(blockset) != NULL
-    set_blockset_heap_ref(blockset, NULL)
-    assert get_blockset_heap_ref(blockset) == NULL
+    set_blockset_heap_block(blockset, NULL)
+    assert get_blockset_heap_block(blockset) == NULL
 
 def test_set_blockset_heap_size():
     init(blockset_id)
@@ -147,63 +147,45 @@ def test_incr_blockset_free_list_length():
     assert get_blockset_free_list_length(blockset) == 2
 
 def test_make_block():
-    b = make_block(64, 4)
+    b = make_block_item(64, 4, NULL)
     assert get_block_addr(b) == 64
     assert get_block_size(b) == 4
 
 def test_get_next_block_addr():
-    b = make_block(64, 4)
+    b = make_block_item(64, 4, NULL)
     assert get_next_block_addr(b) == 68
 
 def test_set_block_addr():
-    b = make_block(64, 4)
+    b = make_block_item(64, 4, NULL)
     set_block_addr(b, 72)
     assert get_block_addr(b) == 72
 
 def test_set_block_size():
-    b = make_block(64, 4)
+    b = make_block_item(64, 4, NULL)
     set_block_size(b, 8)
     assert get_block_size(b) == 8
 
-def test_block_ref_accessors():
-    r = make_pair(make_block(64, 4), NULL)
-    assert get_block_ref_addr(r) == 64
-    assert get_block_ref_size(r) == 4
-
-def test_set_block_ref_addr():
-    r = make_pair(make_block(64, 4), NULL)
-    set_block_ref_addr(r, 72)
-    assert get_block_ref_addr(r) == 72
-
-def test_set_block_ref_size():
-    r = make_pair(make_block(64, 4), NULL)
-    set_block_ref_size(r, 8)
-    assert get_block_ref_size(r) == 8
-
-def test_block_ref_accessors():
-    e = make_pair(make_pair(make_block(64, 4), NULL), NULL)
-    assert get_free_entry_addr(e) == 64
-    assert get_free_entry_size(e) == 4
-
 def test_set_free_entry_addr():
-    e = make_pair(make_pair(make_block(64, 4), NULL), NULL)
+    e = make_free_entry(make_block_item(64, 4, NULL), NULL)
     set_free_entry_addr(e, 72)
     assert get_free_entry_addr(e) == 72
 
 def test_alloc_block():
     init_test()
 
+    print_blockset(blockset)
     b = alloc_block(blockset_id, 48)
-    assert get_block_ref_size(b) == 48
+    print_blockset(blockset)
+    assert get_block_size(b) == 48
     validate_blockset(blockset)
 
 def test_alloc_2_blocks():
     init_test()
 
     b0 = alloc_block(blockset_id, 1024)
-    assert get_block_ref_size(b0) == 1024
+    assert get_block_size(b0) == 1024
     b1 = alloc_block(blockset_id, 1024)
-    assert get_block_ref_size(b1) == 1024
+    assert get_block_size(b1) == 1024
     assert get_block_addr(b0) != get_block_addr(b1)
     validate_blockset(blockset)
 
@@ -213,13 +195,13 @@ def test_alloc_64k_block():
 
     b = alloc_block(blockset_id, 1<<16)
     validate_blockset(blockset)
-    assert get_block_ref_size(b) == 1<<16
+    assert get_block_size(b) == 1<<16
 
 def test_alloc_128k_block():
     init_test()
 
     b = alloc_block(blockset_id, 1<<17)
-    assert get_block_ref_size(b) == 1<<17
+    assert get_block_size(b) == 1<<17
     validate_blockset(blockset)
 
 def test_alloc_128_1k_blocks():
@@ -350,9 +332,12 @@ def test_defrag_two_free_blocks():
     init_test()
 
     b = alloc_block(blockset_id, 48)
+    print_blockset(blockset)
     add_free_block(blockset, b)
 
+    print_blockset(blockset)
     step_defragment_blockset_free_list(blockset)
+    print_blockset(blockset)
 
     validate_blockset(blockset)
 

@@ -5,10 +5,9 @@ import time
 from block_mgr_util import (blockset_id, validate_blockset, print_blockset, print_heap,
                             print_block_mgr_state, format_addr)
 
-from modules import block_mgr, block_mgr_test_client, lists, pairs
+from modules.debug import block_mgr, block_mgr_test_client, lists, pairs
 import util
 
-#blockset = block_mgr.get_blockset(blockset_id)
 mgr_blockset_id = block_mgr.block_mgr_blockset_id.value
 
 NULL = block_mgr.NULL.value
@@ -20,9 +19,8 @@ def stochastic_perf_test(
 ):
     print()
 
-#    pairs.init_pairs()
-#    block_mgr.init_blockset_manager()
     block_mgr_test_client.init(blockset_id)
+    blockset = block_mgr.get_blockset(blockset_id)
 
     # default 0x1000
     block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x1000)
@@ -43,7 +41,7 @@ def stochastic_perf_test(
     # a linear envelope, starting at 95% at 0 total allocated, dropping
     # to 50% at M, and then falling to 0 by M * 1.25.
 
-    problem_step = 199_9930000
+    problem_step = 4453_0000000
     log_action_min = problem_step-5
 
     elapsed_ns = 0
@@ -99,7 +97,7 @@ def stochastic_perf_test(
     distribution = util.sample_poisson
 
     def alloc_block(i):
-        if i == 1:
+        if i == problem_step:
             block_mgr.DEBUG.value = 1
         nonlocal total_allocated
         nonlocal allocs
@@ -117,9 +115,9 @@ def stochastic_perf_test(
             b = block_mgr.alloc_block(blockset_id, size)
             toc = time.perf_counter_ns()
         except:
-            print(format_addr(block_mgr.p1.value))
-            print(format_addr(block_mgr.p2.value))
-            print(format_addr(block_mgr.p3.value))
+            # print(format_addr(block_mgr.p1.value))
+            # print(format_addr(block_mgr.p2.value))
+            # print(format_addr(block_mgr.p3.value))
             raise
         nonlocal elapsed_ns
         elapsed_ns += toc - tic
@@ -138,7 +136,7 @@ def stochastic_perf_test(
         if i == problem_step:
             print(format_addr(b))
         #blocks = blocks[:b_i] + blocks[b_i+1:]
-        total_allocated -= block_mgr.get_block_ref_size(b)
+        total_allocated -= block_mgr.get_block_size(b)
         if i == problem_step:
             block_mgr.DEBUG.value = 1
             print('pre free')
@@ -193,7 +191,7 @@ def stochastic_perf_test(
             elapsed_ns += toc - tic
 
     # Validation interval (in simulation steps)
-    I = N+1
+    I = N
 
     # Used for narrowing to identify the step that corrupts the blockset
     v_min = 0
@@ -229,4 +227,4 @@ def stochastic_perf_test(
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test()
+    stochastic_perf_test(N=10_000_000)
