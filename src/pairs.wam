@@ -71,6 +71,12 @@
    (i32.store (i32.add ,pair (global.get $value-size))
               ,value))
 
+ (macro %set-pair-cdr-f32
+   (expr ,pair)
+   (expr ,value)
+   (f32.store (i32.add ,pair (global.get $value-size))
+              ,value))
+
  (func $get-pair-car (export "get-pair-car")
    (param $pair i32)
    (result i32)
@@ -303,6 +309,20 @@
 
    (%set-pair-car (local.get $pair-addr) (local.get $car))
    (%set-pair-cdr (local.get $pair-addr) (local.get $cdr))
+
+   (local.get $pair-addr))
+
+ (func $make-pair-f32 (export "make-pair-f32")
+   (param $car i32)
+   (param $cdr f32)
+   (result i32)
+
+   (local $pair-addr i32)
+
+   (local.set $pair-addr (%alloc-pair))
+
+   (%set-pair-car (local.get $pair-addr) (local.get $car))
+   (%set-pair-cdr-f32 (local.get $pair-addr) (local.get $cdr))
 
    (local.get $pair-addr))
 

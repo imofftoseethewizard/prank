@@ -63,6 +63,24 @@ def test_string_hash():
     hashes = set(hash_string(init_string(i)) for i in range(100))
     assert len(hashes) == 100
 
+def test_inter_1k_hashes():
+    init_test()
+
+    results = []
+    hashes = set()
+    for i in range(1000):
+        text = str(i)
+        k = len(text)
+        s = alloc_string(k, k)
+        addr = get_string_addr(s)
+        for j in range(k):
+            set_string_bytes(addr+j, ord(text[j]), 1)
+        hash = hash_string(s)
+        hashes.add(hash)
+        results.append((i, text, s, hash))
+
+    assert len(hashes) == 1000
+
 def test_string_equal():
     init_test()
 

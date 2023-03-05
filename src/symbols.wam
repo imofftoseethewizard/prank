@@ -1,13 +1,13 @@
 (module
 
- (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32)     (result i32)))
- (import "block-mgr" "dealloc-block"        (func $dealloc-block        (param i32 i32) ))
+ (import "block-mgr" "alloc-block"    (func $alloc-block    (param i32 i32)     (result i32)))
+ (import "block-mgr" "dealloc-block"  (func $dealloc-block  (param i32 i32) ))
  (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32)         (result i32)))
- (import "block-mgr" "init-blockset"      (func $init-blockset      (param i32 i32 i32)))
- (import "block-mgr" "resize-block"       (func $resize-block       (param i32 i32 i32) (result i32)))
- (import "strings" "dealloc-string"         (func $dealloc-string       (param i32)   ))
- (import "strings" "string-equal"         (func $string-equal       (param i32 i32)     (result i32)))
- (import "strings" "hash-string"          (func $hash-string        (param i32)         (result i32)))
+ (import "block-mgr" "init-blockset"  (func $init-blockset  (param i32 i32 i32)))
+ (import "block-mgr" "resize-block"   (func $resize-block   (param i32 i32 i32) (result i32)))
+ (import "strings" "dealloc-string"   (func $dealloc-string (param i32)   ))
+ (import "strings" "string-equal"     (func $string-equal   (param i32 i32)     (result i32)))
+ (import "strings" "hash-string"      (func $hash-string    (param i32)         (result i32)))
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
@@ -17,19 +17,19 @@
 
  (memory (debug (export "memory")) 1)
 
- (global $hash-offset-mask       (debug (export "hash-offset-mask"))       (mut i32) (i32.const 0))
- (global $hash-table-addr        (debug (export "hash-table-addr"))        (mut i32) (i32.const 0))
- (global $hash-table-block   (debug (export "hash-table-block"))   (mut i32) (i32.const 0))
- (global $symbol-count           (debug (export "symbol-count"))           (mut i32) (i32.const 0))
- (global $symbol-table-addr      (debug (export "symbol-table-addr"))      (mut i32) (i32.const 0))
- (global $symbol-table-block (debug (export "symbol-table-block")) (mut i32) (i32.const 0))
- (global $symbol-table-capacity  (debug (export "symbol-table-capacity"))  (mut i32) (i32.const 0))
- (global $symbol-table-size      (debug (export "symbol-table-size"))      (mut i32) (i32.const 0))
+ (global $hash-offset-mask      (debug (export "hash-offset-mask"))       (mut i32) (i32.const 0))
+ (global $hash-table-addr       (debug (export "hash-table-addr"))        (mut i32) (i32.const 0))
+ (global $hash-table-block      (debug (export "hash-table-block"))   (mut i32) (i32.const 0))
+ (global $symbol-count          (debug (export "symbol-count"))           (mut i32) (i32.const 0))
+ (global $symbol-table-addr     (debug (export "symbol-table-addr"))      (mut i32) (i32.const 0))
+ (global $symbol-table-block    (debug (export "symbol-table-block")) (mut i32) (i32.const 0))
+ (global $symbol-table-capacity (debug (export "symbol-table-capacity"))  (mut i32) (i32.const 0))
+ (global $symbol-table-size     (debug (export "symbol-table-size"))      (mut i32) (i32.const 0))
 
- (global $initial-table-size (debug (export "initial-table-size")) i32 (i32.const 0x1000))
+ (global $initial-table-size    (debug (export "initial-table-size"))   i32 (i32.const 0x1000))
  (global $next-hash-coefficient (debug (export "next-hash-coefficient") i32 (i32.const 1220703125))) ;; 5^13
 
- (global $symbol-table-entry-size (debug (export "symbol-table-entry-size")) i32 (i32.const 8))
+ (global $symbol-table-entry-size      (debug (export "symbol-table-entry-size"))      i32 (i32.const 8))
  (global $symbol-table-entry-size-bits (debug (export "symbol-table-entry-size-bits")) i32 (i32.const 3))
 
  (macro %calc-symbol-table-capacity

@@ -1,0 +1,238 @@
+ (func $is-bytevector (export "is-bytevector")
+   (param $value i32)
+   (result i32)
+   (if (result i32) (i32.eq (%get-value-tag (local.get $value)) (global.get $tag-box))
+     (then
+      (i32.eq (i32.and (%get-box-type (local.get $value))
+                       (global.get $box-type-mask))
+              (global.get $type-bytevector)))
+     (else
+      (i32.const 0))))
+
+
+ (func $make-bytevector (export "make-bytevector")
+   (param $size i32)
+   (param $fill-value i32)
+   (result i32)
+
+   (local $bv i32)
+
+   (local.set $bv (call $alloc-bytevector (local.get $size)))
+
+   (memory.fill
+    (%get-bytevector-addr (local.get $bv))
+    (local.get $size)
+    (local.get $fill-value))
+
+   (local.get $bv))
+
+ (func $build-bytevector (export "build-bytevector")
+   (param $list i32)
+   (result i32)
+
+   (local $byte-addr i32)
+   (local $bv i32)
+   (local $head i32)
+   (local $idx i32)
+
+   (local.set $bv (call $alloc-bytevector (call $get-list-length (local.get $list))))
+
+   (local.set $byte-addr (%get-bytevector-addr (local.get $bv)))
+   (local.set $head (local.get $list))
+
+   (loop $again
+     (if (i32.ne (local.get $head) (global.get $null))
+         (then
+          (i32.store8 (local.get $byte-addr) (call $get-pair-car (local.get $head)))
+          (%incr i32 $byte-addr)
+          (local.set $head (call $get-pair-cdr (local.get $head)))
+          (br $again))))
+
+   (local.get $bv))
+
+ (func $get-bytevector-i16-s (export "get-bytevector-i16-s")
+   (param $bv i32)
+   (param $offset i32)
+   (result i32)
+
+   (if (result i32) (i32.le_u (i32.add (local.get $offset) (i32.const 2))
+                              (%get-bytevector-size (local.get $bv)))
+     (then
+      (i32.load16_s (i32.add (%get-bytevector-addr (local.get $bv))
+                             (local.get $offset))))
+     (else
+      (i32.const 0)
+      (unreachable))))
+
+ (func $get-bytevector-i16-u (export "get-bytevector-i16-u")
+   (param $bv i32)
+   (param $offset i32)
+   (result i32)
+
+   (if (result i32) (i32.le_u (i32.add (local.get $offset) (i32.const 2))
+                              (%get-bytevector-size (local.get $bv)))
+     (then
+      (i32.load16_u (i32.add (%get-bytevector-addr (local.get $bv))
+                             (local.get $offset))))
+     (else
+      (i32.const 0)
+      (unreachable))))
+
+ (func $get-bytevector-i32 (export "get-bytevector-i32")
+   (param $bv i32)
+   (param $offset i32)
+   (result i32)
+
+   (if (result i32) (i32.le_u (i32.add (local.get $offset) (i32.const 4))
+                              (%get-bytevector-size (local.get $bv)))
+     (then
+      (i32.load (i32.add (%get-bytevector-addr (local.get $bv))
+                         (local.get $offset))))
+     (else
+      (i32.const 0)
+      (unreachable))))
+
+ (func $get-bytevector-i8-s (export "get-bytevector-i8-s")
+   (param $bv i32)
+   (param $offset i32)
+   (result i32)
+
+   (if (result i32) (i32.lt_u (local.get $offset) (%get-bytevector-size (local.get $bv)))
+     (then
+      (i32.load8_s (i32.add (%get-bytevector-addr (local.get $bv))
+                            (local.get $offset))))
+     (else
+      (i32.const 0)
+      (unreachable))))
+
+ (func $set-bytevector-i16 (export "set-bytevector-i16")
+   (param $bv i32)
+   (param $offset i32)
+   (param $value i32)
+
+   (if (i32.le_u (i32.add (local.get $offset) (i32.const 2))
+                 (%get-bytevector-size (local.get $bv)))
+       (then
+        (i32.store16 (i32.add (%get-bytevector-addr (local.get $bv))
+                              (local.get $offset))
+                     (local.get $value)))
+     (else
+      (unreachable))))
+
+ (func $set-bytevector-i32 (export "set-bytevector-i32")
+   (param $bv i32)
+   (param $offset i32)
+   (param $value i32)
+
+   (if (i32.le_u (i32.add (local.get $offset) (i32.const 4))
+                 (%get-bytevector-size (local.get $bv)))
+       (then
+        (i32.store (i32.add (%get-bytevector-addr (local.get $bv))
+                            (local.get $offset))
+                   (local.get $value)))
+     (else
+      (unreachable))))
+
+ (func $set-bytevector-i8 (export "set-bytevector-i8")
+   (param $bv i32)
+   (param $offset i32)
+   (param $value i32)
+
+   (if (i32.lt_u (local.get $offset) (%get-bytevector-size (local.get $bv)))
+       (then
+        (i32.store8 (i32.add (%get-bytevector-addr (local.get $bv))
+                             (local.get $offset))
+                    (local.get $value)))
+     (else
+      (unreachable))))
+
+ (func $make-bytevector-copy (export "make-bytevector-copy")
+   (param $bv i32)
+   (param $start i32)
+   (param $end i32)
+   (result i32)
+
+   (local $new-bv i32)
+
+   (local.set $new-bv (call $alloc-bytevector (i32.sub (local.get $end)
+                                                       (local.get $start))))
+
+   (memory.copy (%get-bytevector-addr (local.get $new-bv))
+                (i32.add (%get-bytevector-addr (local.get $bv))
+                         (local.get $start))
+                (%get-bytevector-size (local.get $bv)))
+
+   (local.get $new-bv))
+
+ (func $can-make-bytevector-copy (export "can-make-bytevector-copy")
+   (param $bv i32)
+   (param $start i32)
+   (param $end i32)
+   (result i32)
+
+   (local $new-bv i32)
+
+   (i32.and (i32.lt_u (local.get $end) (%get-bytevector-size (local.get $bv)))
+            (i32.le_u (local.get $start) (local.get $end))))
+
+ (func $copy-bytevector-range (export "copy-bytevector-range")
+   (param $bv-to i32)
+   (param $at i32)
+   (param $bv-from i32)
+   (param $start i32)
+   (param $end i32)
+
+   (memory.copy (i32.add (%get-bytevector-addr (local.get $bv-to))
+                         (local.get $at))
+                (i32.add (%get-bytevector-addr (local.get $bv-from))
+                         (local.get $start))
+                (i32.sub (local.get $end) (local.get $start))))
+
+ (func $can-copy-bytevector-range (export "can-copy-bytevector-range")
+   (param $bv-to i32)
+   (param $at i32)
+   (param $bv-from i32)
+   (param $start i32)
+   (param $end i32)
+   (result i32)
+
+   (local $to-size i32)
+   (local.set $to-size (%get-bytevector-size (local.get $bv-to)))
+
+   (i32.and (call $can-make-bytevector-copy
+                  (local.get $bv-from)
+                  (local.get $start)
+                  (local.get $end))
+            (i32.and (i32.ge_u (local.get $to-size) (local.get $at))
+                     (i32.ge_u (i32.sub (local.get $to-size) (local.get $at))
+                               (i32.sub (local.get $end) (local.get $start))))))
+
+ (func $append-bytevectors (export "append-bytevectors")
+   (param $bv-1 i32)
+   (param $bv-2 i32)
+   (result i32)
+
+   (local $block-addr i32)
+   (local $bv i32)
+   (local $size-1 i32)
+   (local $size-2 i32)
+
+   (local.set $size-1 (%get-bytevector-size (local.get $bv-1)))
+   (local.set $size-2 (%get-bytevector-size (local.get $bv-2)))
+
+   (local.set $bv (call $alloc-bytevector
+                        (i32.add (local.get $size-1) (local.get $size-2))))
+
+   (local.set $block-addr (%get-bytevector-addr (local.get $bv)))
+
+   (memory.copy
+    (local.get $block-addr)
+    (%get-bytevector-addr (local.get $bv-1))
+    (local.get $size-1))
+
+   (memory.copy
+    (i32.add (local.get $block-addr) (local.get $size-1))
+    (%get-bytevector-addr (local.get $bv-2))
+    (local.get $size-2))
+
+   (local.get $bv))

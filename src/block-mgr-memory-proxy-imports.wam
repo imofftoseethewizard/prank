@@ -1,3 +1,9 @@
+;; This fragment is to be included into any client module of block-mgr.
+;;
+;; These import the tables from the block manager module to allow
+;; its clients to register functions to access their memory. See
+;; block-mgr-memory-proxies.wam.
+
 (import "block-mgr" "memory-copy" (table $block-mgr-memory-copy 1 funcref))
 (import "block-mgr" "memory-grow" (table $block-mgr-memory-grow 1 funcref))
 (import "block-mgr" "memory-size" (table $block-mgr-memory-size 1 funcref))

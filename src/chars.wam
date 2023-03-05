@@ -10,7 +10,6 @@
  ;; In particular code points are never stored in memory without a tag value
  ;; applied.
  ;;
- ;;
  ;; The encoding/decoding logic below is based on https://en.wikipedia.org/wiki/UTF-8
  ;;
 
@@ -158,4 +157,6 @@
                                              (i32.const 6))
                                     (i32.shr_u (i32.and (local.get $utf-8)
                                                         (i32.const 0x3f000000))
-                                               (i32.const 24)))))))))))))
+                                               (i32.const 24))))))))))))
+ ;; end of module
+ )

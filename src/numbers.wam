@@ -144,11 +144,11 @@
 
  (memory $memory (debug (export "memory")) 1)
 
-;;     i64              xxxx xxxx xxxx xxxx xxxx 0001 0000 0001
-;;     f64              xxxx xxxx xxxx xxxx xxxx 0?00 0000 0001
-;;     rational         xxxx xxxx xxxx xxxx xxxx 0011 0000 0001
-;;     complex          xxxx xxxx xxxx xxxx xxxx 0101 0000 0001
-;;     integer          rrrr rrrr rrrr rrrr rrrr 1001 0000 0001
+ ;;     i64              xxxx xxxx xxxx xxxx xxxx 0001 0000 0001
+ ;;     f64              xxxx xxxx xxxx xxxx xxxx 0?00 0000 0001
+ ;;     rational         xxxx xxxx xxxx xxxx xxxx 0011 0000 0001
+ ;;     complex          xxxx xxxx xxxx xxxx xxxx 0101 0000 0001
+ ;;     integer          rrrr rrrr rrrr rrrr rrrr 1001 0000 0001
 
  (global $number-block-size (debug (export "number-block-size") i32 (i32.const 0x4000)))
 
@@ -173,7 +173,7 @@
          (i32.const 0x1000)
          (global.get $number-block-size))
 
-   (call $init-blockset-memory-proxies (global.get $bytevectors-blockset-id))
+   (call $init-blockset-memory-proxies (global.get $numbers-blockset-id))
 
    (global.set $x64-free-list (global.get $null))
    (debug
@@ -200,6 +200,16 @@
                                 (i32.const -1)))
               (i32.const 12)))
 
+ (macro %get-i64-digit-addr
+   (expr ,int)
+   (expr ,idx)
+   (i32.add (%get-integer-addr ,int) (i32.shl ,idx (i32.const 3))))
+
+ (macro %get-i32-digit-addr
+   (expr ,int)
+   (expr ,idx)
+   (i32.add (%get-integer-addr ,int) (i32.shl ,idx (i32.const 2))))
+
  ;;-----------------------------------------------------------------------------
  ;;
  ;; Allocation
@@ -216,12 +226,12 @@
    (local.set $size (i32.shl (local.get $i64-digits) (i32.const 3)))
 
    (local.set $block (call $alloc-block
-                               (global.get $numbers-blockset-id)
-                               (local.get $size)))
+                           (global.get $numbers-blockset-id)
+                           (local.get $size)))
 
    (local.set $addr (call $get-block-addr (local.get $block)))
 
-   (memory.fill (local.get $addr) (local.get $size) (i32.const 0))
+   (memory.fill (local.get $addr) (i32.const 0) (local.get $size))
 
    (%make-box (%make-integer-number-type (local.get $i64-digits))
               (local.get $block)))
@@ -249,8 +259,8 @@
    (local $x64 i32)
 
    (local.set $block (call $alloc-block
-                               (global.get $numbers-blockset-id)
-                               (global.get $number-block-size)))
+                           (global.get $numbers-blockset-id)
+                           (global.get $number-block-size)))
 
    (debug
     (global.set $number-block-list
@@ -337,7 +347,7 @@
  ;; Number Constructors
  ;;
 
-  (func $make-small-integer (export "make-small-integer")
+ (func $make-small-integer (export "make-small-integer")
    (param $x i32)
    (result i32)
    (%make-value (i32.shl (local.get $x) (global.get $tag-size-bits))
@@ -406,7 +416,7 @@
 
  ;;-----------------------------------------------------------------------------
  ;;
- ;; Parsing support for integers
+ ;; Parsing and display support for integers
  ;;
 
  (func $multiply-add-integer-i32 (export "multiply-add-integer-i32")
@@ -466,14 +476,37 @@
           (%incr-n i32 $addr 8)
           (br $again)))))
 
+ (func $get-integer-size (export "get-integer-size")
+   (param $int i32)
+   (result i32)
+   (%get-integer-size (local.get $int)))
+
+ (func $get-integer-digit-i32 (export "get-integer-digit-i32")
+   (param $int i32)
+   (param $idx i32)
+   (result i32)
+
+   (i32.load (%get-i32-digit-addr (local.get $int) (local.get $idx))))
+
+ (func $get-integer-digit-i64 (export "get-integer-digit-i64")
+   (param $int i32)
+   (param $idx i32)
+   (result i64)
+
+   (i64.load (%get-i64-digit-addr (local.get $int) (local.get $idx))))
+
+ (func $set-integer-i32-digit (export "set-integer-i32-digit")
+   (param $int i32)
+   (param $idx i32)
+   (param $digit i32)
+
+   (i32.store (%get-i32-digit-addr (local.get $int) (local.get $idx))
+              (local.get $digit)))
+
  (func $set-integer-i64-digit (export "set-integer-i64-digit")
    (param $int i32)
-   (param $i i32)
-   (param $d i64)
+   (param $idx i32)
+   (param $digit i64)
 
-   (i64.store (i32.add (%get-integer-addr (local.get $int))
-                       (i32.shl (local.get $i)
-                                (i32.const 3)))
-              (local.get $d)))
-
- )
+   (i64.store (%get-i64-digit-addr (local.get $int) (local.get $idx))
+              (local.get $digit))))

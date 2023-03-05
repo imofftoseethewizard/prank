@@ -1,3 +1,11 @@
+;; This fragment is to be included into any client module of block-mgr.
+;;
+;; It defines access to the client modules memory system so that the
+;; during allocation, block manager can detect the size of the client
+;; module's memory and add new pages during allocations as needed, and
+;; so that during defragmentation, the block manager can move blocks
+;; to compact allocations and shorten the free list.
+
 (func $init-blockset-memory-proxies (export "init-blockset-memory-proxies")
   (param $blockset-id i32)
 

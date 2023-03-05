@@ -2,31 +2,10 @@
 ;;
 ;; Box values
 ;;
-;;
-;; Block values
-;;
-;; Block values are pairs which serve as the fixed reference point of a block.
-;; A block can be relocated, but pairs cannot, so these are stable addresses.
-;; Each block that is referenced in a procedurally managed pair must have
-;; exactly one block value associated with it.  Since blocks are used to
-;; represent bytevectors, strings, and vectors, the value used to represent them
-;; in pairs is a the block-tagged address of the corresponding block value.
-;;
-;; For example, a one element list referencing a string in its car would have
-;; the following structure in memory:
-;;
-;;     pair addr: ( <block value addr | $tag-block > . $null )
-;;
-;;     block value addr: ( $type-string . < block addr > )
-;;
-;;     block addr:
-;;       < block value addr >
-;;       < length of block in values >
-;;       < length of string in bytes >
-;;       < bytes ... >
-;;
-
-(global $box-value-type-weakref (export "box-value-type-weakref") i32 (i32.const 0))
+;; A box is essentially an alias for pair.  It's meant to distinguish the source
+;; usage of a pair generally from that where the car of the pair encodes a tag
+;; and flags describing how to interpret the cdr.  Boxes will also therefore
+;; have special treatment by the garbage collector, depending on the type.
 
 (macro %get-box-type
   (expr ,box)

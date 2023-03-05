@@ -35,3 +35,24 @@ def test_inter_symbol_match():
 
     assert s1 != s2
     assert sym1 == sym2
+
+def test_inter_1k_symbols():
+    init_test()
+
+    results = []
+    syms = set()
+    for i in range(1000):
+        text = str(i)
+        k = len(text)
+        s = alloc_string(k, k)
+        addr = get_string_addr(s)
+        for j in range(k):
+            set_string_bytes(addr+j, ord(text[j]), i)
+        sym = inter_symbol(s)
+        syms.add(sym)
+        results.append((i, text, s, sym))
+
+    for idx, text, s, sym in results:
+        print(idx, text, s, sym)
+
+    assert len(syms) == 1000

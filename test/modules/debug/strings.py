@@ -1,4 +1,4 @@
 from .._loader import init_module
-from . import block_mgr, chars, lists, pairs
+from . import block_mgr, chars, pairs
 
-init_module(globals(), 'strings', block_mgr, chars, lists, pairs, debug=True)
+init_module(globals(), 'strings', block_mgr, chars, pairs, debug=True)

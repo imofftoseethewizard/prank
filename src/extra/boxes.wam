@@ -1,0 +1,1 @@
+(global $box-value-type-weakref (export "box-value-type-weakref") i32 (i32.const 0))

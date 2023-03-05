@@ -100,7 +100,7 @@ def test_set_blockset_free_list_length():
 
 def test_set_blockset_immobile_block_size():
     init(blockset_id)
-    assert get_blockset_immobile_block_size(blockset_id) == 0x2000
+    assert get_blockset_immobile_block_size(blockset_id) == 0x8000
     set_blockset_immobile_block_size(blockset_id, 1)
     assert get_blockset_immobile_block_size(blockset_id) == 1
 
