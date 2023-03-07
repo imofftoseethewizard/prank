@@ -44,7 +44,7 @@ lexemes = {
     'comment': re.compile(';;[^\n]*'),
     'whitespace': re.compile('[ \t]+'),
     'newline': re.compile('\n'),
-    'label': re.compile(r'[A-Z$%,][-a-z0-9._/]+'),
+    'label': re.compile(r'[A-Z$%,#][-a-z0-9._/]+'),
     'string': re.compile(r'"([^"\\]|\\.)*"'),
     'token': re.compile(r'[-a-z0-9._]+'),
 }
@@ -114,7 +114,10 @@ def parse(src, path):
 def translate(expr, env):
 
     if type(expr) == tuple:
-        return expr
+        if expr[0] == 'label' and expr[1] in env['constants']:
+            return ('label', env['constants'][expr[1]], *expr[2:])
+        else:
+            return expr
 
     op = None
     rest = expr
@@ -139,6 +142,9 @@ def translate(expr, env):
 
     if op == 'macro':
         return define_macro(expr, env)
+
+    if op == 'const':
+        return define_constant(expr, env)
 
     return [
         e1
@@ -372,6 +378,36 @@ def define_param(expr):
 
     return (param_type, param_name)
 
+def define_constant(expr, env):
+    name = None
+    value = None
+
+    for e in expr[1:]:
+
+        if type(e) == tuple and e[0] in ('comment', 'newline', 'whitespace'):
+            continue
+
+        if name is None:
+            if e[0] != 'label':
+                raise DefineConstantNameExpected(expr)
+
+            name = e[1]
+
+        elif value is None and type(e) == tuple:
+
+            value = e[1]
+
+        else:
+            raise UnexpectedExprInConstant(expr, e)
+
+    if name is None:
+        raise DefineConstantNameMissing(expr)
+
+    if name in env['constants']:
+        raise ConstantRedefinition(name, expr)
+
+    env['constants'][name] = value
+
 def emit(expr):
 
     if type(expr) == tuple:
@@ -396,7 +432,12 @@ def process(args):
 
     for expr in parse(open(args.filename).read(), args.filename):
         with current_directory(Path(args.filename).parent):
-            emit(translate(expr, { 'debug': args.debug, 'macros': {} }))
+            env = {
+                'debug': args.debug,
+                'constants': {},
+                'macros': {},
+            }
+            emit(translate(expr, env))
 
 if __name__ == '__main__':
     try:

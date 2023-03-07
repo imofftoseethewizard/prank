@@ -1,15 +1,15 @@
 (module
 
- (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32) (result i32)))
- (import "block-mgr" "dealloc-block"      (func $dealloc-block      (param i32 i32)))
- (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32)     (result i32)))
- (import "block-mgr" "get-block-size" (func $get-block-size (param i32)     (result i32)))
- (import "block-mgr" "init-blockset"      (func $init-blockset      (param i32 i32 i32)))
- (import "lists" "get-list-length"        (func $get-list-length    (param i32)     (result i32)))
- (import "pairs" "dealloc-pair"           (func $dealloc-pair       (param i32)))
- (import "pairs" "get-pair-car"           (func $get-pair-car       (param i32)     (result i32)))
- (import "pairs" "get-pair-cdr"           (func $get-pair-cdr       (param i32)     (result i32)))
- (import "pairs" "make-pair"              (func $make-pair          (param i32 i32) (result i32)))
+ (import "block-mgr" "alloc-block"    (func $alloc-block     (param i32 i32) (result i32)))
+ (import "block-mgr" "dealloc-block"  (func $dealloc-block   (param i32 i32)))
+ (import "block-mgr" "get-block-addr" (func $get-block-addr  (param i32)     (result i32)))
+ (import "block-mgr" "get-block-size" (func $get-block-size  (param i32)     (result i32)))
+ (import "block-mgr" "init-blockset"  (func $init-blockset   (param i32 i32 i32)))
+ (import "lists" "get-list-length"    (func $get-list-length (param i32)     (result i32)))
+ (import "pairs" "dealloc-pair"       (func $dealloc-pair    (param i32)))
+ (import "pairs" "get-pair-car"       (func $get-pair-car    (param i32)     (result i32)))
+ (import "pairs" "get-pair-cdr"       (func $get-pair-cdr    (param i32)     (result i32)))
+ (import "pairs" "make-pair"          (func $make-pair       (param i32 i32) (result i32)))
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
@@ -36,14 +36,29 @@
    (i32.add (i32.shl ,length (global.get $value-size-bits))
             (global.get $value-size)))
 
- (func $is-vector (export "is-vector")
-   (param $value i32)
-   (result i32)
-   (if (result i32) (i32.eq (%get-value-tag (local.get $value)) (global.get $tag-box))
-       (then
-        (i32.eq (call $get-pair-car (local.get $value) (global.get $type-vector))))
-     (else
-      (i32.const 0))))
+ (macro %get-vector-block-addr
+   (expr ,v)
+   (call $get-block-addr (%get-box-value ,v)))
+
+ (macro %get-vector-addr
+   (expr ,v)
+   (i32.add (%get-vector-block-addr ,v) (global.get $value-size)))
+
+ (macro %get-vector-length
+   (expr ,v)
+   (i32.load (%get-vector-block-addr ,v)))
+
+ (macro %get-vector-element-addr
+   (expr ,v)
+   (expr ,idx)
+   (i32.add (%get-vector-block-addr ,v)
+                      (i32.shl (i32.add ,idx (i32.const 1))
+                               (global.get $value-size-bits))))
+
+ (macro %get-vector-element
+   (expr ,v)
+   (expr ,idx)
+   (i32.load (%get-vector-element-addr ,v ,idx)))
 
  (func $alloc-vector (export "alloc-vector")
    (param $length i32)
@@ -52,8 +67,8 @@
    (local $block i32)
 
    (local.set $block (call $alloc-block
-                               (global.get $vectors-blockset-id)
-                               (%calc-vector-size (local.get $length))))
+                           (global.get $vectors-blockset-id)
+                           (%calc-vector-size (local.get $length))))
 
    (i32.store (call $get-block-addr (local.get $block)) (local.get $length))
 
@@ -68,76 +83,28 @@
 
    (%dealloc-box (local.get $v)))
 
- (func $make-vector (export "make-vector")
-   (param $length i32)
-   (param $value i32)
-   (result i32)
-
-   (local $addr i32)
-   (local $end-addr i32)
-   (local $v i32)
-
-   (local.set $v (call $alloc-vector (local.get $length)))
-   (local.set $addr (call $get-vector-addr (local.get $v)))
-
-   (local.set $end-addr (i32.shl (local.get $length) (global.get $value-size-bits)))
-
-   (loop $again
-     (i32.store (local.get $addr) (local.get $value))
-
-     (call $add-ref (local.get $v) (local.get $value))
-
-     (if (i32.lt_u (local.get $addr) (local.get $end-addr))
-         (then
-          (%incr-n i32 $addr 4)
-          (br $again))))
-
-   (local.get $v))
-
- (func $build-vector (export "build-vector")
-   (param $list i32)
-   (result i32)
-
-   (local $addr i32)
-   (local $head i32)
-   (local $v i32)
-   (local $value i32)
-
-   (local.set $v (call $alloc-vector (call $get-list-length (local.get $list))))
-
-   (local.set $addr (call $get-vector-addr (local.get $v)))
-   (local.set $head (local.get $list))
-
-   (loop $again
-     (if (i32.ne (local.get $head) (global.get $null))
-         (then
-          (local.set $value (call $get-pair-car (local.get $list)))
-          (i32.store (local.get $addr) (local.get $value))
-          (call $add-ref (local.get $v) (local.get $value))
-          (%incr-n i32 $addr 4)
-          (%next-cdr $head)
-          (br $again))))
-
-   (local.get $v))
-
  (func $get-vector-addr (export "get-vector-addr")
    (param $v i32)
    (result i32)
-   (i32.add (call $get-block-addr (%get-box-value (local.get $v)))
-            (global.get $value-size)))
+   (%get-vector-addr (local.get $v)))
 
  (func $get-vector-length (export "get-vector-length")
    (param $v i32)
    (result i32)
-   (i32.load (call $get-block-addr (%get-box-value (local.get $v)))))
+   (%get-vector-length (local.get $v)))
 
  (func $get-vector-element (export "get-vector-element")
    (param $v i32)
    (param $idx i32)
    (result i32)
-   (i32.load (i32.add (call $get-vector-addr (local.get $v))
-                      (i32.shl (local.get $idx)
-                               (global.get $value-size-bits)))))
+   (%get-vector-element (local.get $v) (local.get $idx)))
 
+ (func $set-vector-element (export "set-vector-element")
+   (param $v i32)
+   (param $idx i32)
+   (param $x i32)
+   (i32.store (%get-vector-element-addr (local.get $v) (local.get $idx))
+              (local.get $x)))
 
-)
+ ;; end of module
+ )

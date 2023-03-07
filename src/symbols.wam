@@ -1,8 +1,12 @@
 (module
 
+ ;; Symbols are offsets into an array of string references, deduplicated by a
+ ;; simple hash table using the string contents.
+
  (import "block-mgr" "alloc-block"    (func $alloc-block    (param i32 i32)     (result i32)))
  (import "block-mgr" "dealloc-block"  (func $dealloc-block  (param i32 i32) ))
  (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32)         (result i32)))
+ (import "block-mgr" "get-block-size" (func $get-block-size (param i32)         (result i32)))
  (import "block-mgr" "init-blockset"  (func $init-blockset  (param i32 i32 i32)))
  (import "block-mgr" "resize-block"   (func $resize-block   (param i32 i32 i32) (result i32)))
  (import "strings" "dealloc-string"   (func $dealloc-string (param i32)   ))
@@ -12,25 +16,36 @@
  (include "./block-mgr-memory-proxy-imports.wam")
 
  (include "./globals.wam")
- (include "./algorithms.wam")
  (include "./block-mgr-memory-proxies.wam")
 
  (memory (debug (export "memory")) 1)
 
- (global $hash-offset-mask      (debug (export "hash-offset-mask"))       (mut i32) (i32.const 0))
- (global $hash-table-addr       (debug (export "hash-table-addr"))        (mut i32) (i32.const 0))
- (global $hash-table-block      (debug (export "hash-table-block"))   (mut i32) (i32.const 0))
- (global $symbol-count          (debug (export "symbol-count"))           (mut i32) (i32.const 0))
- (global $symbol-table-addr     (debug (export "symbol-table-addr"))      (mut i32) (i32.const 0))
- (global $symbol-table-block    (debug (export "symbol-table-block")) (mut i32) (i32.const 0))
- (global $symbol-table-capacity (debug (export "symbol-table-capacity"))  (mut i32) (i32.const 0))
- (global $symbol-table-size     (debug (export "symbol-table-size"))      (mut i32) (i32.const 0))
+ (const #entry-size      8)
+ (const #entry-size-bits 3)
 
- (global $initial-table-size    (debug (export "initial-table-size"))   i32 (i32.const 0x1000))
+ (global $hash-offset-mask      (debug (export "hash-offset-mask"))      (mut i32) (i32.const 0))
+ (global $hash-table-addr       (debug (export "hash-table-addr"))       (mut i32) (i32.const 0))
+ (global $hash-table-block      (debug (export "hash-table-block"))      (mut i32) (i32.const 0))
+ (global $symbol-count          (debug (export "symbol-count"))          (mut i32) (i32.const 0))
+ (global $symbol-table-addr     (debug (export "symbol-table-addr"))     (mut i32) (i32.const 0))
+ (global $symbol-table-block    (debug (export "symbol-table-block"))    (mut i32) (i32.const 0))
+ (global $symbol-table-capacity (debug (export "symbol-table-capacity")) (mut i32) (i32.const 0))
+ (global $symbol-table-size     (debug (export "symbol-table-size"))     (mut i32) (i32.const 0))
+
+ ;; This should be set to be large enough to include all of the symbols required
+ ;; to start the base system.  Currently 4K, but actual value TBD.
+ (global $initial-table-size    (debug (export "initial-table-size"))   i32 (i32.const 0x10))
+
+ ;; This is used to find the next slot to try when there is a collision
  (global $next-hash-coefficient (debug (export "next-hash-coefficient") i32 (i32.const 1220703125))) ;; 5^13
+ (global $next-hash-constant (debug (export "next-hash-constant") i32 (i32.const 282475249))) ;; 7^10
 
- (global $symbol-table-entry-size      (debug (export "symbol-table-entry-size"))      i32 (i32.const 8))
- (global $symbol-table-entry-size-bits (debug (export "symbol-table-entry-size-bits")) i32 (i32.const 3))
+ (global $symbol-table-entry-size      (debug (export "symbol-table-entry-size"))      i32 (i32.const #entry-size))
+ (global $symbol-table-entry-size-bits (debug (export "symbol-table-entry-size-bits")) i32 (i32.const #entry-size-bits))
+
+ ;; The capacity of the hash table is 75% of its size.  When it is near full, a
+ ;; collision should be expected to happen 75% of the time, and that on average,
+ ;; it will take 4 steps to find an empty slot.
 
  (macro %calc-symbol-table-capacity
    (i32.shr_u (i32.mul (global.get $symbol-table-size) (i32.const 3))
@@ -62,7 +77,9 @@
 
  (macro %next-hash
    (label $var)
-   (local.set $var (i32.mul (local.get $var) (global.get $next-hash-coefficient))))
+   (local.set $var (i32.mul (i32.add (local.get $var)
+                                     (global.get $next-hash-constant))
+                            (global.get $next-hash-coefficient))))
 
  (macro %is-symbol-table-full
    (i32.eq (global.get $symbol-count) (global.get $symbol-table-capacity)))
@@ -71,9 +88,15 @@
    (expr ,hash)
    (i32.add (%get-hash-table) (%calc-hash-offset ,hash)))
 
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Initialization
+ ;;
+
  (start $init-symbols)
  (func $init-symbols (debug (export "init-symbols"))
 
+   ;; Set up the blockset to store the symbol table and the hash table
    (call $init-blockset
          (global.get $symbols-blockset-id)
          (i32.const 0x1000)
@@ -105,13 +128,31 @@
    (global.set $hash-table-addr (call $get-block-addr
                                       (global.get $hash-table-block)))
 
+   ;; This step is important, as it marks each slot unused.
    (memory.fill
     (global.get $hash-table-addr)
     (global.get $null)
-    (i32.shl (global.get $symbol-table-size) (global.get $value-size-bits)))
-   )
+    (i32.shl (global.get $symbol-table-size) (global.get $value-size-bits))))
+
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Inter symbol
+ ;;
 
  (func $inter-symbol (export "inter-symbol")
+
+   ;; inter-symbol checks the hash table for the given string.  If it's not
+   ;; found, then it is added to the hash table, and the new symbol is returned
+   ;; If it is found, then the given string is deallocated, and the existing
+   ;; symbol is returned.  The deallocation is due to the fact that in the case
+   ;; where the string is not found, either the symbol table needs to own the
+   ;; string, or it needs to make a copy, and it's cheaper to simply keep
+   ;; ownership.  It would be awkward if the caller had to distinguish between
+   ;; new symbols and already present symbols, so it makes sense to keep the
+   ;; behavior the same for both branches. The most common case is probably use
+   ;; by the parser, where the parser has no use for the string after
+   ;; inter-symbol, so it would have to deallocate it anyway.
+
    (param $name i32)
    (result i32)
 
@@ -131,20 +172,24 @@
 
      (if (i32.eq (local.get $candidate) (global.get $null))
          (then
+          ;; an unused slot means that this string has not yet been interred
           (local.set $symbol (call $make-symbol
                                    (local.get $name)
                                    (local.get $hash)
                                    (local.get $hash-addr))))
-         (else
-          (if (call $string-equal
-                    (local.get $name)
-                    (%get-symbol-name (local.get $candidate)))
-              (then
-               (local.set $symbol (local.get $candidate))
-               (call $dealloc-string (local.get $name)))
-            (else
-             (%next-hash $h)
-             (br $again))))))
+       (else
+        (if (call $string-equal
+                  (local.get $name)
+                  (%get-symbol-name (local.get $candidate)))
+            (then
+
+             ;; found. This function owns the string, so here we have to be sure
+             ;; to deallocate it.
+             (local.set $symbol (local.get $candidate))
+             (call $dealloc-string (local.get $name)))
+          (else
+           (%next-hash $h)
+           (br $again))))))
 
    (local.get $symbol))
 
@@ -166,8 +211,16 @@
 
    (i32.store (local.get $symbol-addr) (local.get $name))
 
+   ;; Save the hash here so that when the hash table needs to be rebuilt,
+   ;; the strings won't have to be rehashed.
+
    (i32.store (i32.add (local.get $symbol-addr) (global.get $value-size))
               (local.get $hash))
+
+   ;; If the symbol table is full, then grow-symbol-table will insert the new
+   ;; symbol into the hash table as it is rebuilt.  (This is why the symbol
+   ;; is inserted there first).  Otherwise, the offset came from the search
+   ;; in make symbol, and its the proper place to store it.
 
    (if (%is-symbol-table-full)
        (then
@@ -219,6 +272,10 @@
 
  (func $rebuild-hash-table (debug (export "rebuild-hash-table"))
 
+   ;; There is nothing extraordinary about this function. It replays the
+   ;; insertion of every symbol in the symbol table in the order that they were
+   ;; interred.
+
    (local $addr i32)
    (local $end-symbol i32)
    (local $h i32)
@@ -226,9 +283,8 @@
    (local $symbol i32)
 
    (local.set $symbol (i32.const 0))
-   (local.set $end-symbol (i32.add (local.get $symbol)
-                                   (i32.shl (global.get $symbol-count)
-                                            (global.get $symbol-table-entry-size-bits))))
+   (local.set $end-symbol (i32.shl (global.get $symbol-count)
+                                   (global.get $symbol-table-entry-size-bits)))
 
    (local.set $symbol-hash-addr (i32.add (%get-symbol-table) (global.get $value-size)))
 
@@ -248,7 +304,9 @@
 
      (if (i32.lt_u (local.get $symbol) (local.get $end-symbol))
          (then
-          (%incr-n i32 $symbol 8)
-          (%incr-n i32 $symbol-hash-addr 8)
+          (%incr-n i32 $symbol #entry-size)
+          (%incr-n i32 $symbol-hash-addr #entry-size)
           (br $symbols)))))
+
+ ;; end of module
  )

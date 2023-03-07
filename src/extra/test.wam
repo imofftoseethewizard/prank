@@ -1,5 +1,7 @@
 (module
 
+ (const #num 5)
+
  (memory (debug (export "memory")) 1)
  (include "./test-include.wam")
 

@@ -1,0 +1,28 @@
+ ;; todo
+ (func $get-blockset-inactive-free-memory (debug (export "get-blockset-inactive-free-memory"))
+   (param $blockset i32)
+   (result i32)
+   (i32.const 0)
+   ;; (if (result i32) (call $get-blockset-heap-size (local.get $blockset))
+   ;;   (then
+   ;;    (i32.add (i32.mul (call $get-blockset-free-list-length (local.get $blockset))
+   ;;                      (i32.const 48))
+   ;;          (i32.sub (call $get-blockset-free-space (local.get $blockset))
+   ;;                   (call $get-heap-block-size
+   ;;                         (call $get-blockset-heap (local.get $blockset))))))
+   ;;   (else
+   ;;    ))
+   )
+
+ (func $get-blockset-total-size (debug (export "get-blockset-total-size"))
+   (param $blockset i32)
+   (result i32)
+   (if (result i32) (i32.ne (%get-blockset-block-list (local.get $blockset))
+                            (global.get $null))
+     (then
+      (i32.sub (%get-block-addr
+                (%get-blockset-end-block (local.get $blockset)))
+               (%get-block-addr
+                (%get-blockset-block-list (local.get $blockset)))))
+     (else
+      (i32.const 0))))

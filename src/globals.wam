@@ -2,16 +2,22 @@
 ;; in this project.  It should only contain non-mutable globals which are used
 ;; in more than one module.
 
-(global $index-entry-size      (export "index-entry-size")      i32 (i32.const 8))
-(global $page-size             (export "page-size")             i32 (i32.const 0x10000))
-(global $pair-size             (export "pair-size")             i32 (i32.const 8))
-(global $value-size            (export "value-size")            i32 (i32.const 4))
+(const #page-size       0x10000)
+(const #page-size-bits  16)
+(const #pair-size       8)
+(const #pair-size-bits  3)
+(const #tag-size-bits   3)
+(const #value-size      4)
+(const #value-size-bits 2)
 
-(global $index-entry-size-bits (export "index-entry-size-bits") i32 (i32.const 3))
-(global $page-size-bits        (export "page-size-bits")        i32 (i32.const 16))
-(global $pair-size-bits        (export "pair-size-bits")        i32 (i32.const 3))
-(global $tag-size-bits         (export "tag-size-bits")         i32 (i32.const 3))
-(global $value-size-bits       (export "value-size-bits")       i32 (i32.const 2))
+(global $page-size             (export "page-size")             i32 (i32.const #page-size))
+(global $pair-size             (export "pair-size")             i32 (i32.const #pair-size))
+(global $value-size            (export "value-size")            i32 (i32.const #value-size))
+
+(global $page-size-bits        (export "page-size-bits")        i32 (i32.const #page-size-bits))
+(global $pair-size-bits        (export "pair-size-bits")        i32 (i32.const #pair-size-bits))
+(global $tag-size-bits         (export "tag-size-bits")         i32 (i32.const #tag-size-bits))
+(global $value-size-bits       (export "value-size-bits")       i32 (i32.const #value-size-bits))
 
 (global $tag-small-integer     (export "tag-small-integer")     i32 (i32.const 0x00))
 (global $tag-box               (export "tag-box")               i32 (i32.const 0x01))

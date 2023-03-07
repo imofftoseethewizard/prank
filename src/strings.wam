@@ -31,17 +31,49 @@
 
  (memory $memory (debug (export "memory")) 1)
 
- ;;                                  ii iiii dddd  lll tttt tttt
- ;;     simple           xxxx xxxx xx10 0000 0001 x001 0000 0002
- ;;     small            xxxx xxxx xx00 0100 0010 x001 0000 0002
- ;;     medium           xxxx xxxx xx00 0101 0100 x010 0000 0002
- ;;     large            xxxx xxxx xx00 0110 1000 x100 0000 0002
+ ;; The string type constants not only identify the kind of string, but also
+ ;; encode key bits of information which enables the code below to determine the
+ ;; memory layout of the string's data block using just the box tag field.  The
+ ;; table below describes this encoding.
  ;;
- ;; where "ii iiii" is the right shift to calculate index length from string size
- ;;       "dddd" is the length in bytes of the size and length fields/offset to string data
- ;;       "lll" is the length in bytes of the size field/offset to the length field
- ;;       "tttt tttt" is the box type for a string
- ;;       "x" is unused
+ ;;                                  ii iiii dddd  lll tttt tttt
+ ;;     simple           xxxx xxxx xx10 0000 0001 x001 0000 0010
+ ;;     small            xxxx xxxx xx00 0100 0010 x001 0000 0010
+ ;;     medium           xxxx xxxx xx00 0101 0100 x010 0000 0010
+ ;;     large            xxxx xxxx xx00 0110 1000 x100 0000 0010
+ ;;
+ ;; where
+ ;;
+ ;;   "ii iiii" is the right shift to calculate index length from string size
+ ;;
+ ;;   "dddd" is the length in bytes of the size and length fields/offset to
+ ;;          string data
+ ;;
+ ;;   "lll" is the length in bytes of the size field/offset to the length field
+ ;;
+ ;;   "tttt tttt" is the box type for a string
+ ;;
+ ;;   "x" is unused
+ ;;
+ ;; The memory layout of the string within its block starts with 1, 2 or 4 bytes
+ ;; for the size of the string in bytes, then 0, 1, 2, or 4 bytes for the length
+ ;; of the string in characters, followed by the data section holding bytes of
+ ;; the string.  Finally, after the data section is the optional index section,
+ ;; containing a sequence of 1, 2, or 4 byte offsets into the string
+ ;; corresponding to every 16th, 32nd, or 64th character, respectively.
+ ;;
+ ;; Concretely, a simple string has a single byte for the size.  It has no
+ ;; length field since all of its characters are single byte, and for the same
+ ;; reason, it has no index section.  It's just an ordinary length-prefixed
+ ;; string.  A small string has a single byte for the size, followed by a single
+ ;; byte for the length of the string. After that will be the characters of the
+ ;; string.  After the string data, there will be up to 15 bytes of offsets into
+ ;; the string data section for the characters at position 16, 32, 48, ..., 224,
+ ;; and 240.  A medium string is similar to a small string, but the size,
+ ;; length, and offsets are 2 byte values, and the offsets are recorded at
+ ;; positions 32, 64, ..., 65504.  A large string has 4 byte size, length, and
+ ;; offset values, and records index entries every 64th character.
+ ;;
 
  (global $string-type-length-field-offset-mask       (debug (export "string-type-length-field-offset-mask")       i32 (i32.const 0x00000700)))
  (global $string-type-data-offset-mask               (debug (export "string-type-data-offset-mask")               i32 (i32.const 0x0000f000)))
@@ -49,6 +81,7 @@
 
  (global $string-type-length-field-offset-shift-bits (debug (export "string-type-length-field-offset-shift-bits") i32 (i32.const 8)))
  (global $string-type-data-offset-shift-bits         (debug (export "string-type-data-offset-shift-bits")         i32 (i32.const 12)))
+ (global $string-type-idx-mask-shift-bits            (debug (export "string-type-idx-mask-shift-bits")            i32 (i32.const 5)))
  (global $string-type-index-shift-shift-bits         (debug (export "string-type-index-shift-shift-bits")         i32 (i32.const 16)))
 
  (global $string-type-simple (debug (export "type-string-simple")) i32 (i32.const 0x00201102))
@@ -57,9 +90,21 @@
  (global $string-type-large  (debug (export "type-string-large"))  i32 (i32.const 0x00068402))
  (global $string-type-mask   (debug (export "type-string-mask"))   i32 (i32.const 0x003ff7ff))
 
+ ;; These constants are used in hash-string to mix up the bits of the string.  See the
+ ;; comment at the start of the function for an explanation.
  (global $string-hash-shift-bits  (debug (export "string-hash-shift-bits")  i32 (i32.const 5)))
  (global $string-hash-coefficient (debug (export "string-hash-coefficient") i32 (i32.const 3486784401))) ;; 3^20,
  (global $string-hash-constant    (debug (export "string-hash-constant")    i32 (i32.const 1518500249))) ;; floor(2^30 * sqrt(2))
+
+ (macro %calc-idx-mask
+   (expr ,type)
+   (i32.wrap_i64
+    (i64.sub (i64.shl (i64.const 1)
+                      (i64.extend_i32_u
+                       (i32.shr_u (i32.and ,type
+                                           (global.get $string-type-length-field-offset-mask))
+                                  (global.get $string-type-idx-mask-shift-bits))))
+             (i64.const 1))))
 
  (macro %calc-length-field-offset
    (expr ,type)
@@ -80,6 +125,33 @@
    (expr ,type)
    (expr ,length)
    (i32.shr_u ,length (%calc-index-size-shift-bits ,type)))
+
+ (debug
+  (func $calc-idx-mask (export "calc-idx-mask")
+    (param $type i32)
+    (result i32)
+    (%calc-idx-mask (local.get $type)))
+
+  (func $calc-length-field-offset (export "calc-length-field-offset")
+    (param $type i32)
+    (result i32)
+    (%calc-length-field-offset (local.get $type)))
+
+  (func $calc-data-offset (export "calc-data-offset")
+    (param $type i32)
+    (result i32)
+    (%calc-data-offset (local.get $type)))
+
+  (func $calc-index-size-shift-bits (export "calc-index-size-shift-bits")
+    (param $type i32)
+    (result i32)
+    (%calc-index-size-shift-bits (local.get $type)))
+
+  (func $calc-index-size (export "calc-index-size")
+    (param $type i32)
+    (param $length i32)
+    (result i32)
+    (%calc-index-size (local.get $type) (local.get $length))))
 
  (macro %get-string-type
    (expr ,s)
@@ -227,12 +299,6 @@
 
    (%dealloc-box (local.get $s)))
 
- (debug
-  (func $calc-data-offset (export "calc-data-offset")
-    (param $type i32)
-    (result i32)
-    (%calc-data-offset (local.get $type))))
-
  (func $get-string-addr (export "get-string-addr")
    (param $s i32)
    (result i32)
@@ -281,6 +347,11 @@
    (local.set $addr (%get-string-block-addr (local.get $s)))
 
    (%get-string-size $type $addr))
+
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Indexes
+ ;;
 
  (func $build-string-index (export "build-string-index")
    (param $s i32)
@@ -387,6 +458,11 @@
                (%incr-n i32 $idx-addr 4)))
           (br $again)))))
 
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Data Access
+ ;;
+
  (func $get-next-char-addr (export "get-next-char-addr")
    (param $addr i32)
    (result i32)
@@ -443,14 +519,6 @@
            (else
             (i32.load (local.get $addr)))))))))
 
- (macro %update-hash
-   (label $hash)
-   (expr ,value)
-
-   (local.set $hash (i32.xor (i32.rotl (local.get $hash)
-                                       (global.get $string-hash-shift-bits))
-                             ,value)))
-
  ;;-----------------------------------------------------------------------------
  ;;
  ;; Symbols module support
@@ -462,7 +530,7 @@
 
  (func $hash-string (export "hash-string")
 
-   ;; hash-string accumlates the bits of the characters in the string using a
+   ;; hash-string accumulates the bits of the characters in the string using a
    ;; combination of xor and rotate.  Each 4-byte chunk is xor'd with the
    ;; current hash value and then rotated left 5 bit positions. Over longer
    ;; strings this will spread the influence of the bit position of any octet
@@ -470,7 +538,10 @@
    ;; fact that typically the lower 5 bits of the text have the highest entropy
    ;; (think ASCII here).  The final step is to add a number between 2^30 and
    ;; 2^31 and then multiply by an odd number between 2^31 and 2^32.  This
-   ;; distributes even short strings throughout the hash space.
+   ;; distributes even short strings throughout the hash space.  The last two
+   ;; values are arbitrary, the only things being important are the approximate
+   ;; size of values, and the fact that the number used in the multiplication
+   ;; is odd and not -1 or 1.
    ;;
 
    (param $s i32)
@@ -483,6 +554,14 @@
    (local.set $addr (call $get-string-addr (local.get $s)))
    (local.set $count (call $get-string-size (local.get $s)))
    (local.set $hash (i32.const 0))
+
+   (macro %update-hash
+     (label $hash)
+     (expr ,value)
+
+     (local.set $hash (i32.xor (i32.rotl (local.get $hash)
+                                         (global.get $string-hash-shift-bits))
+                               ,value)))
 
    (loop $again
      (if (i32.ge_u (local.get $count) (i32.const 4))

@@ -160,6 +160,15 @@ another refindex design
             filled in.
 
 parser
+  wasi examples
+    https://github.com/bytecodealliance/wasmtime-py/tree/main/examples
+  wasi snapshot preview 1 doc
+    https://docs.rs/wasi/latest/wasi/wasi_snapshot_preview1/
+
+  split lex module into lex and r7rs-lex
+  errors
+    distinguished error objects that cannot be read
+
   interface with string
     scan token to determine string length and size
     call alloc-string
@@ -181,7 +190,15 @@ parser
 
   interface with number
     float
-      ...
+      parse mantissa digits as x64
+        check bit length
+        shift, mask, trim high bit
+      parse abcissa as x64
+        apply sign
+        add bias
+        shift/mask/update abcissa bits
+      reinterpret f64
+      apply sign
     inf/nan
       specialized call
     digits
@@ -196,12 +213,57 @@ tooling improvements
     different face for local.set and local.get
 
   wam.py
+    rename to sweet, create repo
     error messages
     check syntax of expr vs label in macros
-    (const #name value)
-      (const #value-size 4)
-      (i32.const #value-size)
-      (%decr-n i32 $addr #value-size)
+
+    expr comments
+
+      (-<token> ) is a comment.
+
+      that is, to comment out
+        (if (i32.eq (local.get $a) (local.get $b)
+            (then
+              (call $foo (local.get $x)))
+          (else
+            (call $bar))))
+
+      just add a '-' to the start of "if":
+
+        (-if (i32.eq (local.get $a) (local.get $b)
+            (then
+              (call $foo (local.get $x)))
+          (else
+            (call $bar))))
+
+    test support
+      exports beginning with "!" indicate a test
+        no return value
+        execute unreachable if fail
+
+      (test name body) -> (debug (func (export "!name") body)
+
+    length-prefixed string literals
+      use single quotes
+      resolves to, eg
+        'abcd' -> "\04abcd"
+
+    wam-time eval
+      (eval (expr))
+        where expr is an s-exp
+          operators: * + - / % & | ~ ^ log2 pow2
+          literals: integers in base 10, 16, 2
+
+    environment expr
+      (env name [default])
+      error if not present and no default
+
+    conditional processing
+      (config NAME value)
+
+      (option (config-expr)
+        body)
+
 
   test
     tests for non-debug builds
@@ -256,18 +318,56 @@ tooling improvements
 
       (%block-mgr i32)
 
-block-mgr
-  replace block, block-ref pairs with a blockset-0 analog of pairs
-  16 bytes ea, allocated in immobile blocks, containing
-    addr
-    size
-    prev
-    next
+values release punchlist
+  identify required new/updated documentation
+    block-mgr
+      finish header comment
+      review defrag explanation comment
+      move dealloc-free-list-entry
+      function comments
+        link-blocks
+        link-free-entries
+        init-blockset-manager
+        block item fns
+        provision-blockset-heap
+        expand-blockset-heap
+        select-heap-node
+        remove-heap-node
+        split-heap-root
+        add-free-block
+        estimate-free-entry-infimum
+        merge-free-entries
+        relocate-blocks
+        insert-heap-node
+        grow-blockset-heap
+        raise-heap-node
+        sink-heap-node
+        step-clean-heap
+        swap-heap-entries
+        remove-unused-heap-node
+    numbers
+      explain number type flags
+      all fns
+    pairs
+      move stuff to extras
+    values
+      review header comment
+    vectors
+      general comments
 
-  remove idea of block-ref
-  use doubly linked list to reduce/eliminate need for find-pred
-  investigate similar transformation of free list into 16 byte units
-    block
-    size? addr?
-    prev
-    next
+
+  rough in parser to verify interface
+  move to extras all non-required functions (and supporting globals, etc)
+  reorder code to standard order:
+    imports
+    includes
+    globals
+    macros
+    accessors
+    init
+    primary interface
+      alloc
+      dealloc
+
+regular expression implementation
+  https://github.com/c0stya/brzozowski

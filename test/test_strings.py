@@ -13,6 +13,12 @@ def init_test():
 def test_init():
     init_test()
 
+def test_calc_idx_mask():
+    assert calc_idx_mask(make_string_type(5, 5)) == 0xff
+    assert calc_idx_mask(make_string_type(5, 10)) == 0xff
+    assert calc_idx_mask(make_string_type(300, 300)) == 0xffff
+    assert calc_idx_mask(make_string_type(300_000, 300_000)) == -1
+
 def test_alloc():
     init_test()
     s = alloc_string(5, 7)

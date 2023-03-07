@@ -1,9 +1,9 @@
 ;; # Block Allocation Manager
 ;;
 ;; This module manages allocation and deallocation of variable-length blocks of
-;; memory.  It depends on the values and pairs modules.  It is intended to be
-;; used by the bytevectors, numbers, strings, symbols, and vectors modules, and
-;; by the garbage collector for its internal indexes.
+;; memory.It is intended to be used by the bytevectors, numbers, strings,
+;; symbols, and vectors modules, and by the garbage collector for its internal
+;; indexes.
 ;;
 ;;
 ;; ## Design
@@ -35,53 +35,46 @@
 ;; free and allocated -- and indirection of block id and block storage address.
 ;; So that's what we have here: indirection of storage address, an ordered list
 ;; of blocks, an ordered list of free blocks, and a heap of free blocks.
-;; Allocation and deallocation are O(log(#free)).  Defragmentation is
-;; incremental.  Memory management policies can be set to optimize for memory
-;; efficiency, computational efficiency, or low run-time variance.
-;;
+;; Allocation is O(#free^1/2) and deallocation are O(log(#free)).
+;; Defragmentation is incremental.
 ;;
 ;; ## Data Representation
 ;;
-;; A block is a pair. ( addr . length )
+;; A block is a an address of an item in the block list.  Each block contains
+;; the address of the memory it references, the size, and links to the previous
+;; and next blocks in the list.
 ;;
-;; A block ref is a pair in which the car is a block. ( block . * )
+;; A free entry is the address of an item in the free list.  Each free entry
+;; contains the address of the block it references, and links to the previous
+;; and next entries in the list.
 ;;
-;; The block list is a linked list of block refs, ( block1 . ( block2 . ... ) ),
-;; where block2 addr = block1 addr + block1 length.
-;;
-;; A free entry is a block entry whose first value is a block address
-;;
-;; The free list is a linked list of free entries, ( free1. ( free 2 . ... ) ),
-;; such that free block2 addr >= free block1 addr + free block1 length.
-;;
-;; A free heap node is a list, ( block left right . free entry ) where left
-;; and right are also heap nodes, or null, and where block is lifted out of
-;; the referenced free entry to reduce the number of indirections required for
-;; heap maintenance.
-;;
-;; The free heap is a max heap by block size of free heap nodes.
-;;
-;; A heap node is unused if the address in its block is $null (i32_u -1).
+;; The heap is sorted by size and implemented as an array, each element of which
+;; comprises two values, the block and the free entry that contains it.  While
+;; this block is accessible from the free entry by a single memory dereference,
+;; access to the size of the blocks stored in the heap is common within loops in
+;; this module, so the extra memory is probably worth it.  (In simulations of
+;; memory use of 100MB of blocks of typical struct sizes -- Poisson
+;; distribution, expected 5 values of 4 bytes each -- heap sizes typically stay
+;; very close to the square root of the number of allocated blocks, around 2500
+;; elements, indicating that the extra storage cost was aobut 10KB.)
 ;;
 ;; A blockset is an index into an array of structures which capture the state of
 ;; a client's memory.  These structures include pointers to the block list,
 ;; free list, heap, and various values necessary for managing memory.
 ;;
-;;
 ;; ## Memory Access
 ;;
 ;; The block allocation manager has no direct access to the memory it manages.
-;; It has a single memory page to store the state of each client module, and it
-;; uses the pairs module for the representing the blocks, block list, free list,
-;; and heap.  It needs access to client memory when is attempting to allocate a
-;; block larger than any free block in the heap, in which case it uses client
-;; proxies memory.size and memory.grow.  It also needs access during
-;; defragmentation, when it needs to call a proxy for memory.copy.  Access to
-;; these instructions is provided through three tables, one for each of the
-;; memory functions mentioned.  The client module provides a client id, which
-;; is the index into each of the tables for its proxies for the memory it owns.
-;; The clients need to be coordinated to ensure that there are no conflicts.
-;; (The client ids are defined in globals.wam.)
+;; It uses its own memory to store the state of each client module, the block
+;; lists, free lists, and heaps.  It needs access to client memory when it is
+;; attempting to allocate a block larger than any free block in the heap, in
+;; which case it uses client proxies memory.size and memory.grow.  It also needs
+;; access during defragmentation, when it needs to call a proxy for memory.copy.
+;; Access to these instructions is provided through three tables, one for each
+;; of the memory functions mentioned.  The client module provides a client id,
+;; which is the index into each of the tables for its proxies for the memory it
+;; owns.  The clients need to be coordinated to ensure that there are no
+;; conflicts.  (The client ids are defined in globals.wam.)
 ;;
 ;; See $memory-copy-sig, $memory-copy, etc below the import section.
 ;;
@@ -146,38 +139,6 @@
 ;; replace the root with last elemment of the heap, and then swap with its
 ;; largest child until the heap condition is satisfied.  With an array-based
 ;; heap, this is
-;;
-;; Why not implement the heap as an array? Where would it be stored?  .. store
-;; the heaps in the blockmgr memory segment expanding heap requires moving
-;; others heap node is just a pair address, but would be the free entry,
-;; hence size would be caadr adding a free node is possibly proportional to
-;; the sum of the sizes of the other heaps. How big are the heaps likely to get?
-;; memory use: as pairs, and additional 24 bytes (3 pairs) are required, for the
-;; same we'd require 8 bytes in an array, plus a budget for extra stace in the
-;; array, say 1/3 more, so 11 bytes on average per heap node.  These would
-;; need to be managed such that growth of an array could be amortized.  Noting
-;; that this is similar to the service the block manager provides, there is a
-;; temptation to attempt to use the block mgr to manage the storage for its own
-;; heap, but this would require some delicacy in the event the the heap's storage
-;; needs to grow (and move) and the heap is needed to do that.  In particular,
-;; the address of any heap node may not remain on the call stack above a
-;; call which moves the heap, or must be recalculated after the call completes.
-;; A call which inserts an node in the heap can move the heap.  Deallocation
-;; and (possibly) reallocation.
-;;
-;; There is a nearly complete implementation of an array-based heap in the
-;; array-heap branch.  This work was abandoned since it was likely to be slower
-;; than the pair-based heap for the likely heap sizes.  This is primarily due to
-;; ;;
-;; Finding the last node of a heap.  In an array-based heap, finding the last
-;; node is simple.  With a pair-based heap, it requires a walk from the root.
-;; Let h be the root of the heap and let k be the number of nodes in the
-;; heap.  If k = 1 then we are done.  Otherwise if k is even let h = left(h),
-;; and if k is odd, let h = right(h).  Let k = k >> 1 and repeat.
-;;
-;; Removing the root from the heap follows the usual process of removing the
-;; last node of the heap and sink it from the root.  Deallocate 3 pairs, as
-;; identified by their cars: block, left, and right.
 ;;
 ;; Removing a block from the free list
 ;;
@@ -524,6 +485,15 @@
    (i64.store (%calc-heap-node-addr ,heap ,idx)
               (call $make-heap-node ,entry)))
 
+ (macro %is-unused-heap-block
+   (expr ,heap)
+   (expr ,idx)
+   (i32.eq (%get-heap-block-addr ,heap ,idx) (global.get $null)))
+
+ (macro %mark-free-entry-unused
+   (expr ,entry)
+   (%set-free-entry-addr ,entry (global.get $null)))
+
  (debug
   (func $get-heap-node (export "get-heap-node")
     (param $heap i32)
@@ -577,7 +547,13 @@
     (param $heap i32)
     (param $idx i32)
     (param $entry i32)
-    (%set-heap-node-entry (local.get $heap) (local.get $idx) (local.get $entry))))
+    (%set-heap-node-entry (local.get $heap) (local.get $idx) (local.get $entry)))
+
+  (func $is-unused-heap-block (export "is-unused-heap-block")
+    (param $entry i32)
+    (param $idx i32)
+    (result i32)
+    (%is-unused-heap-block (local.get $entry) (local.get $idx))))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -992,7 +968,7 @@
    (global.set $item-free-list (global.get $null))
    (call $init-item-block (local.get $item-block-addr) (local.get $item-block-size))
    (global.set $free-item-count (i32.shr_u (local.get $item-block-size)
-                                           (i32.const 4)))
+                                           (i32.const 4))) ;; #item-size-bits
 
    (local.set $free-block (call $make-block-item
                                 (local.get $free-block-addr)
@@ -1100,7 +1076,7 @@
        (then
         (global.set $free-item-count (i32.add (global.get $free-item-count)
                                               (i32.shr_u (global.get $page-size)
-                                                         (i32.const 4))))
+                                                         (i32.const 4)))) ;; #item-size-bits
         (call $alloc-item-block)))
 
    (debug
@@ -1315,7 +1291,7 @@
    (if (%get-blockset-free-list-length (local.get $blockset))
        (then
         (loop $again
-          (if (call $is-unused-heap-block (local.get $heap) (i32.const 0))
+          (if (%is-unused-heap-block (local.get $heap) (i32.const 0))
               (then
                (call $remove-unused-heap-node (local.get $blockset) (i32.const 0))
                (br $again))))))
@@ -1415,7 +1391,7 @@
      (if (i32.and (i32.gt_u (local.get $min-delta) (i32.const 0))
                   (i32.lt_u (local.get $node-idx) (local.get $heap-size)))
          (then
-          (if (i32.eqz (call $is-unused-heap-block (local.get $heap) (local.get $node-idx)))
+          (if (i32.eqz (%is-unused-heap-block (local.get $heap) (local.get $node-idx)))
               (then
                (local.set $delta
                           (i32.sub (%get-heap-block-size
@@ -1439,7 +1415,7 @@
 
    (local.set $rank (i32.sub (i32.const 32) (i32.clz (local.get $size))))
 
-   (if (result i32) (i32.le_u (local.get $rank) (i32.const 4))
+   (if (result i32) (i32.le_u (local.get $rank) (i32.const 4)) ;; todo: const ?
      (then
       (global.get $value-size))
      (else
@@ -1483,7 +1459,7 @@
 
    (loop $again
      (local.set $end-idx (i32.sub (local.get $heap-size) (i32.const 1)))
-     (if (call $is-unused-heap-block (local.get $heap) (local.get $end-idx))
+     (if (%is-unused-heap-block (local.get $heap) (local.get $end-idx))
          (then
           (call $dealloc-free-list-entry
                 (%get-heap-node-entry (local.get $heap) (local.get $end-idx)))
@@ -1551,60 +1527,33 @@
  ;;
 
  (func $resize-block (export "resize-block")
-   (param $blockset i32)
+   (param $blockset-id i32)
    (param $block i32)
    (param $new-size i32)
    (result i32)
 
-   (local $free-addr i32)
-   (local $free-block i32)
-   (local $free-size i32)
    (local $new-block i32)
-   (local $next-block i32)
    (local $old-size i32)
-   (local $resized-block i32)
+   (local $size i32)
+
+   (local.set $new-block (call $alloc-block (local.get $blockset-id) (local.get $new-size)))
 
    (local.set $old-size (%get-block-size (local.get $block)))
 
-   (if (i32.gt_u (local.get $new-size) (local.get $old-size))
-       (then
-        (local.set $new-block (call $alloc-block (local.get $blockset) (local.get $new-size)))
+   (local.set $size (if (result i32) (i32.gt_u (local.get $new-size) (local.get $old-size))
+                      (then (local.get $old-size))
+                      (else (local.get $new-size))))
 
-        (call_indirect $memory-copy
-                       (type $memory-copy-sig)
-                       (%get-block-addr (local.get $new-block))
-                       (%get-block-addr (local.get $block))
-                       (local.get $old-size)
-                       (%get-blockset-id (local.get $blockset)))
+   (call_indirect $memory-copy
+                  (type $memory-copy-sig)
+                  (%get-block-addr (local.get $new-block))
+                  (%get-block-addr (local.get $block))
+                  (local.get $size)
+                  (local.get $blockset-id))
 
-        (call $dealloc-block (local.get $blockset) (local.get $block))
-        (local.set $resized-block (local.get $new-block)))
+   (call $dealloc-block (local.get $blockset-id) (local.get $block))
 
-     (else
-      (local.set $resized-block (local.get $block))
-
-      (if (i32.gt_u (local.get $old-size) (local.get $new-size))
-          (then
-           (local.set $next-block (%get-next-block (local.get $block)))
-
-           (local.set $free-addr (i32.add (%get-block-addr (local.get $block))
-                                          (local.get $new-size)))
-
-           (local.set $free-size (i32.sub (local.get $old-size) (local.get $new-size)))
-
-           (local.set $free-block (call $make-block-item
-                                        (local.get $free-addr)
-                                        (local.get $free-size)))
-
-           (call $link-blocks (local.get $blockset) (local.get $block) (local.get $free-block))
-           (call $link-blocks (local.get $blockset) (local.get $free-block) (local.get $next-block))
-
-           (%set-block-size (local.get $block) (local.get $new-size))
-
-           (call $add-free-block (local.get $blockset) (local.get $free-block))))))
-
-   (local.get $resized-block))
-
+   (local.get $new-block))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -1678,35 +1627,6 @@
    (%set-blockset-free-space (local.get $blockset)
                              (i32.add (%get-blockset-free-space (local.get $blockset))
                                       (%get-block-size (local.get $block)))))
-
- ;; todo
- (func $get-blockset-inactive-free-memory (debug (export "get-blockset-inactive-free-memory"))
-   (param $blockset i32)
-   (result i32)
-   (i32.const 0)
-   ;; (if (result i32) (call $get-blockset-heap-size (local.get $blockset))
-   ;;   (then
-   ;;    (i32.add (i32.mul (call $get-blockset-free-list-length (local.get $blockset))
-   ;;                      (i32.const 48))
-   ;;          (i32.sub (call $get-blockset-free-space (local.get $blockset))
-   ;;                   (call $get-heap-block-size
-   ;;                         (call $get-blockset-heap (local.get $blockset))))))
-   ;;   (else
-   ;;    ))
-   )
-
- (func $get-blockset-total-size (debug (export "get-blockset-total-size"))
-   (param $blockset i32)
-   (result i32)
-   (if (result i32) (i32.ne (%get-blockset-block-list (local.get $blockset))
-                            (global.get $null))
-     (then
-      (i32.sub (%get-block-addr
-                (%get-blockset-end-block (local.get $blockset)))
-               (%get-block-addr
-                (%get-blockset-block-list (local.get $blockset)))))
-     (else
-      (i32.const 0))))
 
  ;; ## Defragmentation
  ;;
@@ -2296,8 +2216,8 @@
                     (i32.add (%get-free-entry-size (local.get $free-entry))
                              (%get-free-entry-size (local.get $next-free-entry)))))
 
-   (call $mark-free-entry-unused (local.get $free-entry))
-   (call $mark-free-entry-unused (local.get $next-free-entry))
+   (%mark-free-entry-unused (local.get $free-entry))
+   (%mark-free-entry-unused (local.get $next-free-entry))
 
    (local.set $new-free-entry (call $make-free-entry (local.get $new-free-block)))
 
@@ -2353,6 +2273,11 @@
                     (local.get $offset)))
           (local.set $block (%get-next-block (local.get $block)))
           (br $again)))))
+
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Heap
+ ;;
 
  (func $insert-heap-node (debug (export "insert-heap-node"))
    (param $blockset i32)
@@ -2428,17 +2353,6 @@
                (local.set $node-idx (local.get $parent-idx))
                (br $again)))))))
 
- (func $is-unused-heap-block (debug (export "is-unused-heap-block"))
-   (param $heap i32)
-   (param $idx i32)
-   (result i32)
-   (i32.eq (%get-heap-block-addr (local.get $heap) (local.get $idx))
-           (global.get $null)))
-
- (func $mark-free-entry-unused (debug (export "mark-free-entry-unused"))
-   (param $entry i32)
-   (%set-free-entry-addr (local.get $entry) (global.get $null)))
-
  (func $sink-heap-node (debug (export "sink-heap-node"))
    (param $blockset i32)
    (param $node-idx i32)
@@ -2500,10 +2414,7 @@
                 (call $swap-heap-entries
                       (local.get $heap) (local.get $node-idx) (local.get $right-idx))
                 (local.set $node-idx (local.get $right-idx))
-                (br $again)))))
-        ))
-     )
-   )
+                (br $again)))))))))
 
  (func $step-clean-heap (debug (export "step-clean-heap"))
    (param $blockset i32)
@@ -2523,7 +2434,7 @@
    (loop $again
      (if (i32.lt_u (local.get $node-idx) (local.get $end-idx))
          (then
-          (if (call $is-unused-heap-block (local.get $heap) (local.get $node-idx))
+          (if (%is-unused-heap-block (local.get $heap) (local.get $node-idx))
               (then
                (call $remove-unused-heap-node (local.get $blockset) (local.get $node-idx)))
             (else
@@ -2562,7 +2473,7 @@
                                 (i32.const 1)))
 
    (loop $again
-     (if (i32.and (call $is-unused-heap-block (local.get $heap) (local.get $end-idx))
+     (if (i32.and (%is-unused-heap-block (local.get $heap) (local.get $end-idx))
                   (i32.gt_u (local.get $end-idx) (local.get $node-idx)))
          (then
           (call $dealloc-free-list-entry

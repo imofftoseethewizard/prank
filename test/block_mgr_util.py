@@ -216,7 +216,6 @@ def validate_heap(blockset):
 def print_block_mgr_state(blockset):
 
     heap = block_mgr.get_blockset_heap(blockset)
-    inactive_free_memory = block_mgr.get_blockset_inactive_free_memory(blockset)
 #    total_size = block_mgr.get_blockset_total_size(blockset)
     free_space = block_mgr.get_blockset_free_space(blockset)
     heap_root_size = 0 if heap == NULL else block_mgr.get_heap_block_size(heap, 0)
@@ -231,9 +230,7 @@ def print_block_mgr_state(blockset):
     print("get_blockset_free_list:", format_addr(block_mgr.get_blockset_free_list(blockset)))
     print("get_blockset_free_list_length:", block_mgr.get_blockset_free_list_length(blockset))
     print("get_blockset_free_space:", free_space)
-    print("get_blockset_inactive_free_memory:", inactive_free_memory)
 
-#    print("inactive free space ratio:", 0 if total_size == 0 else inactive_free_memory/total_size)
     print("heap root ratio:", 0 if free_space == 0 else heap_root_size/free_space)
 
 def print_heap(blockset, depth=None):
