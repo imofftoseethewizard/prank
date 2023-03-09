@@ -48,13 +48,12 @@
 (global $type-vector           (export "type-vector")           i32 (i32.const 0x00000003))
 (global $type-weakref          (export "typevalue-weakref")     i32 (i32.const 0x00000004))
 
-(global $block-mgr-blockset-id   (export "block-mgr-blockset-id")   i32 (i32.const 0))
-(global $bytevectors-blockset-id (export "bytevectors-blockset-id") i32 (i32.const 1))
-(global $numbers-blockset-id     (export "numbers-blockset-id")     i32 (i32.const 2))
-(global $strings-blockset-id     (export "strings-blockset-id")     i32 (i32.const 3))
-(global $symbols-blockset-id     (export "symbols-blockset-id")     i32 (i32.const 4))
-(global $vectors-blockset-id     (export "vectors-blockset-id")     i32 (i32.const 5))
-(global $max-blockset-id         (export "max-blockset-id")         i32 (i32.const 16))
+(global $bytevectors-blockset (export "bytevectors-blockset") i32 (i32.const 0x00000000))
+(global $numbers-blockset     (export "numbers-blockset")     i32 (i32.const 0x00000040))
+(global $strings-blockset     (export "strings-blockset")     i32 (i32.const 0x00000080))
+(global $symbols-blockset     (export "symbols-blockset")     i32 (i32.const 0x000000c0))
+(global $vectors-blockset     (export "vectors-blockset")     i32 (i32.const 0x00000100))
+(global $blockset-count       (export "blockset-count")       i32 (i32.const 5))
 
 (macro %incr-n
   (class Int)

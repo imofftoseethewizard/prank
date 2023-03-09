@@ -126,6 +126,9 @@ def translate(expr, env):
         op = expr[0][1]
         rest = expr[0:]
 
+    if op and op.startswith('%'):
+        return expand_macro(expr, env)
+
     if op == 'debug':
 
         if not env['debug']:
@@ -134,14 +137,14 @@ def translate(expr, env):
         else:
             return translate_debug(expr[1:], env)
 
-    if op and op.startswith('%'):
-        return expand_macro(expr, env)
-
-    if op == 'include':
-        return include_file(expr, env)
+    if op == 'test':
+        return define_test(expr, env)
 
     if op == 'macro':
         return define_macro(expr, env)
+
+    if op == 'include':
+        return include_file(expr, env)
 
     if op == 'const':
         return define_constant(expr, env)
@@ -151,6 +154,41 @@ def translate(expr, env):
         for e1 in (translate(e0, env) for e0 in rest)
         if e1 is not None
     ]
+
+def define_test(expr, env):
+
+    if not env['debug']:
+        return None
+
+    op = None
+    name = None
+    result = []
+
+    for e in expr:
+        if op is None:
+            op = e
+            result.append(('token', 'func', *op[2:]))
+
+        elif name is None and e[0] == 'label':
+
+            name = e[1]
+            bare_name = name.strip('$')
+
+            result.append(e)
+            result.extend(
+                [
+                    ('whitespace', ' ', *e[2:]),
+                    [
+                        ('token', 'export', *e[2:]),
+                        ('whitespace', ' ', *e[2:]),
+                        ('string', f'"!{bare_name}"', *e[2:]),
+                    ],
+                ])
+
+        else:
+            result.append(e)
+
+    return result
 
 def translate_debug(expr, env):
 

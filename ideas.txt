@@ -236,13 +236,6 @@ tooling improvements
           (else
             (call $bar))))
 
-    test support
-      exports beginning with "!" indicate a test
-        no return value
-        execute unreachable if fail
-
-      (test name body) -> (debug (func (export "!name") body)
-
     length-prefixed string literals
       use single quotes
       resolves to, eg
@@ -371,3 +364,22 @@ values release punchlist
 
 regular expression implementation
   https://github.com/c0stya/brzozowski
+
+another block-mgr rewrite
+  quantize size, min 4 bytes
+  per-size lists of free blocks
+  fn size -> free list
+  alloc splits largest if no matching size is available
+  store free bit in low 2 bits of size
+  addr == -1 => unused
+  no heap
+  no "free list"
+  dealloc marks the block as free and pushes it onto the appropriate list
+  defrag
+  block-mgr's memory has fixed area for free lists per blockset, the rest is for block items
+
+  block-mgr init
+    reserve space for sized free list heads
+
+  blockset init
+    clear free list heads

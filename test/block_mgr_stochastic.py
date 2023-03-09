@@ -198,16 +198,20 @@ def stochastic_perf_test(
     l_min = N
     default_depth = 2
 
+    last_adjusted_elapsed_ns = 0
     def report():
+        nonlocal last_adjusted_elapsed_ns
         print(f'raw allocator time: {elapsed_ns/1_000_000_000:0.4f}')
         adjusted_elapsed_ns = elapsed_ns - allocs * alloc_overhead_ns - deallocs * dealloc_overhead_ns
+        print(f'chg adjusted_allocator_ns: {(adjusted_elapsed_ns - last_adjusted_elapsed_ns)/(N/5)}')
+        last_adjusted_elapsed_ns = adjusted_elapsed_ns
         print(f'adjusted allocator time: {adjusted_elapsed_ns/1_000_000_000:0.4f}')
         print(f'amortized ns per alloc-dealloc pair:', adjusted_elapsed_ns/(N/2))
         print(alloc_overhead_ns, dealloc_overhead_ns)
         print(allocs, deallocs)
 
     for i in range(N):
-        if (i+1) % (N/100) == 0:
+        if (i+1) % (N/5) == 0:
             report()
             print()
 
@@ -234,4 +238,4 @@ def stochastic_perf_test(
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(M=100_000_000, N=50_000_000)
+    stochastic_perf_test(M=2_000_000, N=20_000_000)

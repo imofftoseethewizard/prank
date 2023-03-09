@@ -10,6 +10,11 @@
    (local.set $addr (i32.add (local.get $addr) (i32.const 4)))
    (expand $get-foo (local.get $addr)))
 
+ (test $check-isvalid
+   (if (i32.eq (i32.const 0) (i32.const 1))
+       (then
+        (unreachable))))
+
  (macro $get-foo
    (expr ,addr-expr)
    (i32.load ,addr-expr))
