@@ -38,6 +38,18 @@ class DefineMacroNameMissing(WamException):
         path = self.expr[0][5]
         return f'error: name expected in macro definition at line {line_no} of {path}:\n{line_text}'
 
+class MacroArgumentCountMismatchError(WamException):
+    def __init__(self, name, expr):
+        self.name = name
+        self.expr = expr
+
+    def __str__(self):
+        line_no = self.expr[0][2]
+        line_text = '\n'.join(self.expr[0][4].split('\n')[line_no-1:line_no+2])
+        path = self.expr[0][5]
+        return f'error: argument count mismatch: {self.name} at line {line_no} of {path}:\n{line_text}'
+
+
 lexemes = {
     'open-paren': re.compile(r'\('),
     'close-paren': re.compile(r'\)'),
@@ -106,8 +118,10 @@ def parse(src, path):
             exprs[-1].append((name, match.group(), line, indent, src, path))
 
     if len(exprs) > 1:
-        from pprint import pprint; pprint(exprs)
-        raise Exception('unmatched open paren at end of file')
+        if line == len(src):
+            raise Exception('unmatched open paren at end of file')
+        else:
+            raise Exception(f'tokenization failure at line {line} pos {indent}')
 
     return exprs[0]
 
@@ -318,7 +332,7 @@ class_size = {
     'f64':  '8',
 }
 
-class_size = {
+class_bits = {
     'i8':   '8',
     'i16':  '16',
     'i32':  '32',

@@ -32,8 +32,7 @@
  (global $pair-free-list (debug (export "pair-free-list")) (mut i32) (i32.const 0xffffffff))
 
  ;; create 1 KB of pairs (128 * 8 = 1024) when growing storage
- (global $default-grow-storage-pair-count (export "default-grow-storage-pair-count")
-         i32 (i32.const 128))
+ (global $grow-storage-pair-count (export "grow-storage-pair-count") i32 (i32.const 128))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -290,7 +289,7 @@
  (macro %alloc-pair
    (if (i32.eq (global.get $pair-free-list) (global.get $null))
        (then
-        (call $grow-storage (global.get $default-grow-storage-pair-count))))
+        (call $grow-storage (global.get $grow-storage-pair-count))))
 
    (debug
     (%global.incr i32 $pair-count))

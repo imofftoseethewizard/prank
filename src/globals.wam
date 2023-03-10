@@ -48,12 +48,22 @@
 (global $type-vector           (export "type-vector")           i32 (i32.const 0x00000003))
 (global $type-weakref          (export "typevalue-weakref")     i32 (i32.const 0x00000004))
 
-(global $bytevectors-blockset (export "bytevectors-blockset") i32 (i32.const 0x00000000))
-(global $numbers-blockset     (export "numbers-blockset")     i32 (i32.const 0x00000040))
-(global $strings-blockset     (export "strings-blockset")     i32 (i32.const 0x00000080))
-(global $symbols-blockset     (export "symbols-blockset")     i32 (i32.const 0x000000c0))
-(global $vectors-blockset     (export "vectors-blockset")     i32 (i32.const 0x00000100))
-(global $blockset-count       (export "blockset-count")       i32 (i32.const 5))
+(global $bytevectors-blockset-id (export "bytevectors-blockset-id") i32 (i32.const 0x00000001))
+(global $numbers-blockset-id     (export "numbers-blockset-id")     i32 (i32.const 0x00000002))
+(global $strings-blockset-id     (export "strings-blockset-id")     i32 (i32.const 0x00000003))
+(global $symbols-blockset-id     (export "symbols-blockset-id")     i32 (i32.const 0x00000004))
+(global $vectors-blockset-id     (export "vectors-blockset-id")     i32 (i32.const 0x00000005))
+(global $blockset-count          (export "blockset-count")          i32 (i32.const 5))
+
+(macro %incr
+  (class Int)
+  (label $var)
+  (%incr-n Int $var 1))
+
+(macro %decr
+  (class Int)
+  (label $var)
+  (%decr-n Int $var 1))
 
 (macro %incr-n
   (class Int)
@@ -66,16 +76,6 @@
   (label $var)
   (expr ,n)
   (local.set $var (Int.sub (local.get $var) (Int.const ,n))))
-
-(macro %incr
-  (class Int)
-  (label $var)
-  (%incr-n Int $var 1))
-
-(macro %decr
-  (class Int)
-  (label $var)
-  (%decr-n Int $var 1))
 
 (macro %global.incr
   (class Int)
@@ -100,3 +100,8 @@
   (class Int)
   (label $var)
   (global.set $var (Int.shl (global.get $var) (Int.const 1))))
+
+(macro %rank
+  (class Int)
+  (expr ,n)
+  (Int.sub (Int.const Int.bits) (Int.clz ,n)))
