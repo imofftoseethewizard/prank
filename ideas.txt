@@ -217,6 +217,8 @@ tooling improvements
     error messages
     check syntax of expr vs label in macros
 
+    non-debug equivalent to (debug ...)
+
     expr comments
 
       (-<token> ) is a comment.

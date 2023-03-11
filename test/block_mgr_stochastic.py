@@ -2,13 +2,11 @@ import random
 import sys
 import time
 
-from block_mgr_util import (blockset_id, validate_blockset, print_blockset, print_heap,
+from block_mgr_util import (blockset_id, validate_blockset, print_blockset,
                             print_block_mgr_state, format_addr)
 
 from modules.debug import block_mgr, block_mgr_test_client, lists, pairs
 import util
-
-mgr_blockset_id = block_mgr.block_mgr_blockset_id.value
 
 NULL = block_mgr.NULL.value
 
@@ -41,7 +39,7 @@ def stochastic_perf_test(
     # a linear envelope, starting at 95% at 0 total allocated, dropping
     # to 50% at M, and then falling to 0 by M * 1.25.
 
-    problem_step = 4453_0000000
+    problem_step = 128_5390000
     log_action_min = problem_step-5
 
     elapsed_ns = 0
@@ -105,10 +103,8 @@ def stochastic_perf_test(
         size = w * max(1, distribution(L))
         assert size > 0
         if i == problem_step:
-            print_blockset(blockset, depth=2)
             block_mgr.DEBUG.value = 1
             print('size:', size)
-            block_mgr.provision_blockset_heap(blockset, size)
             print_blockset(blockset, depth=2)
         try:
             tic = time.perf_counter_ns()
@@ -123,6 +119,8 @@ def stochastic_perf_test(
         elapsed_ns += toc - tic
         blocks.append((b, size))
         total_allocated += size
+        if i == problem_step:
+            print_blockset(blockset, depth=2)
 
     def dealloc_block(i):
         nonlocal blocks
@@ -145,7 +143,6 @@ def stochastic_perf_test(
             print_blockset(blockset)
             sys.stdout = stdout
             print_blockset(blockset, depth=2)
-            print_heap(blockset, 2)
             validate_blockset(blockset)
             block_mgr.add_free_block(blockset, b)
             print()
@@ -191,7 +188,7 @@ def stochastic_perf_test(
             elapsed_ns += toc - tic
 
     # Validation interval (in simulation steps)
-    I = N
+    I = N/10
 
     # Used for narrowing to identify the step that corrupts the blockset
     v_min = 0
@@ -199,20 +196,20 @@ def stochastic_perf_test(
     default_depth = 2
 
     last_adjusted_elapsed_ns = 0
-    def report():
+    def report(i):
         nonlocal last_adjusted_elapsed_ns
         print(f'raw allocator time: {elapsed_ns/1_000_000_000:0.4f}')
         adjusted_elapsed_ns = elapsed_ns - allocs * alloc_overhead_ns - deallocs * dealloc_overhead_ns
-        print(f'chg adjusted_allocator_ns: {(adjusted_elapsed_ns - last_adjusted_elapsed_ns)/(N/5)}')
+        print(f'chg adjusted_allocator_ns: {(adjusted_elapsed_ns - last_adjusted_elapsed_ns)/(N/5/2)}')
         last_adjusted_elapsed_ns = adjusted_elapsed_ns
         print(f'adjusted allocator time: {adjusted_elapsed_ns/1_000_000_000:0.4f}')
-        print(f'amortized ns per alloc-dealloc pair:', adjusted_elapsed_ns/(N/2))
+        print(f'amortized ns per alloc-dealloc pair:', adjusted_elapsed_ns/(i/2))
         print(alloc_overhead_ns, dealloc_overhead_ns)
         print(allocs, deallocs)
 
     for i in range(N):
         if (i+1) % (N/5) == 0:
-            report()
+            report(i)
             print()
 
         if i >= l_min:
@@ -231,11 +228,11 @@ def stochastic_perf_test(
             raise
 
     print_block_mgr_state(blockset)
-    report()
+    report(i)
     # print(i)
     # # validate_blockset(blockset)
     # print('done')
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(M=2_000_000, N=20_000_000)
+    stochastic_perf_test(M=1_000_000, N=10_000_000)

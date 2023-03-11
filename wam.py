@@ -151,6 +151,14 @@ def translate(expr, env):
         else:
             return translate_debug(expr[1:], env)
 
+    if op == 'release':
+
+        if env['debug']:
+            return None
+
+        else:
+            return translate_release(expr[1:], env)
+
     if op == 'test':
         return define_test(expr, env)
 
@@ -217,6 +225,20 @@ def translate_debug(expr, env):
             debug_exprs.append(e)
 
     return ('splice', [translate(e, env) for e in debug_exprs], -1)
+
+def translate_release(expr, env):
+
+    exprs = []
+
+    for e in expr[1:]:
+
+        if not exprs and type(e) == tuple and e[0] in ('comment', 'newline', 'whitespace'):
+            continue
+
+        else:
+            exprs.append(e)
+
+    return ('splice', [translate(e, env) for e in exprs], -1)
 
 
 def expand_macro(expr, env):
