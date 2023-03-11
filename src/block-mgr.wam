@@ -1197,6 +1197,7 @@
    (local $relo-size i32)
    (local $relo-start i32)
 
+   (return)
    (local.set $cursor (%get-blockset-defrag-cursor (local.get $blockset)))
 
    (if (i32.eq (local.get $cursor) (global.get $null))

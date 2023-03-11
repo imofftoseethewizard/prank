@@ -3,7 +3,7 @@ import sys
 import time
 
 from block_mgr_util import (blockset_id, validate_blockset, print_blockset,
-                            print_block_mgr_state, format_addr)
+                            print_block_mgr_state, format_addr, count_free_blocks)
 
 from modules.debug import block_mgr, block_mgr_test_client, lists, pairs
 import util
@@ -21,10 +21,13 @@ def stochastic_perf_test(
     blockset = block_mgr.get_blockset(blockset_id)
 
     # default 0x1000
-    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x1000)
+    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x800)
 
     # default 0x1000
     block_mgr.set_blockset_immobile_block_size(blockset_id, 0x8000)
+
+    b = block_mgr.alloc_block(blockset_id, M)
+    block_mgr.dealloc_block(blockset_id, b)
 
     # This will hold the blocks that have been allocated
     blocks = []
@@ -188,7 +191,7 @@ def stochastic_perf_test(
             elapsed_ns += toc - tic
 
     # Validation interval (in simulation steps)
-    I = N/10
+    I = N
 
     # Used for narrowing to identify the step that corrupts the blockset
     v_min = 0
@@ -197,10 +200,11 @@ def stochastic_perf_test(
 
     last_adjusted_elapsed_ns = 0
     def report(i):
+        print("free block count:", count_free_blocks(blockset))
         nonlocal last_adjusted_elapsed_ns
         print(f'raw allocator time: {elapsed_ns/1_000_000_000:0.4f}')
         adjusted_elapsed_ns = elapsed_ns - allocs * alloc_overhead_ns - deallocs * dealloc_overhead_ns
-        print(f'chg adjusted_allocator_ns: {(adjusted_elapsed_ns - last_adjusted_elapsed_ns)/(N/5/2)}')
+        print(f'chg adjusted_allocator_ns: {(adjusted_elapsed_ns - last_adjusted_elapsed_ns)/(N/10/2)}')
         last_adjusted_elapsed_ns = adjusted_elapsed_ns
         print(f'adjusted allocator time: {adjusted_elapsed_ns/1_000_000_000:0.4f}')
         print(f'amortized ns per alloc-dealloc pair:', adjusted_elapsed_ns/(i/2))
@@ -208,7 +212,7 @@ def stochastic_perf_test(
         print(allocs, deallocs)
 
     for i in range(N):
-        if (i+1) % (N/5) == 0:
+        if (i+1) % (N/10) == 0:
             report(i)
             print()
 
@@ -235,4 +239,4 @@ def stochastic_perf_test(
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(M=1_000_000, N=10_000_000)
+    stochastic_perf_test(M=20_000_000, N=10_000_000)
