@@ -144,6 +144,8 @@
 
  (memory $memory (debug (export "memory")) 1)
 
+ (debug (global $debug (export "#debug") (mut i32) (i32.const 0)))
+
  ;;     i64              xxxx xxxx xxxx xxxx xxxx 0001 0000 0001
  ;;     f64              xxxx xxxx xxxx xxxx xxxx 0?00 0000 0001
  ;;     rational         xxxx xxxx xxxx xxxx xxxx 0011 0000 0001
@@ -159,6 +161,12 @@
  (global $number-type-rational        (debug (export "number-type-rational")        i32 (i32.const 0x00000301)))
  (global $number-type-integer         (debug (export "number-type-integer")         i32 (i32.const 0x00000901)))
  (global $number-type-mask            (debug (export "number-type-mask")            i32 (i32.const 0x00000fff)))
+
+ (const #i32-size 4)
+ (const #i64-size 8)
+
+ (const #i32-size-bits 2)
+ (const #i64-size-bits 3)
 
  (global $x64-free-list (debug (export "x64-free-list")) (mut i32) (i32.const 0))
  (debug
@@ -195,7 +203,7 @@
 
  (macro %get-integer-size
    (expr ,int)
-   (i32.shr_u (i32.and (%get-box-value ,int)
+   (i32.shr_u (i32.and (%get-box-type ,int)
                        (i32.xor (global.get $number-type-mask)
                                 (i32.const -1)))
               (i32.const 12)))
@@ -203,12 +211,12 @@
  (macro %get-i64-digit-addr
    (expr ,int)
    (expr ,idx)
-   (i32.add (%get-integer-addr ,int) (i32.shl ,idx (i32.const 3))))
+   (i32.add (%get-integer-addr ,int) (i32.shl ,idx (i32.const #i64-size-bits))))
 
  (macro %get-i32-digit-addr
    (expr ,int)
    (expr ,idx)
-   (i32.add (%get-integer-addr ,int) (i32.shl ,idx (i32.const 2))))
+   (i32.add (%get-integer-addr ,int) (i32.shl ,idx (i32.const #i32-size-bits))))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -223,7 +231,7 @@
    (local $block i32)
    (local $size i32)
 
-   (local.set $size (i32.shl (local.get $i64-digits) (i32.const 3)))
+   (local.set $size (i32.shl (local.get $i64-digits) (i32.const #i64-size-bits)))
 
    (local.set $block (call $alloc-block
                            (global.get $numbers-blockset-id)
@@ -278,7 +286,7 @@
          (then
           (i32.store (local.get $addr) (local.get $last-addr))
           (local.set $last-addr (local.get $addr))
-          (%incr-n i32 $addr 8)
+          (%incr-n i32 $addr #i64-size)
           (br $again))))
 
    (global.set $x64-free-list (local.get $last-addr)))
@@ -434,7 +442,9 @@
    (local.set $c (i64.extend_i32_u (local.get $k)))
 
    (local.set $addr (%get-integer-addr (local.get $int)))
-   (local.set $end-addr (i32.add (local.get $addr) (%get-integer-size (local.get $int))))
+   (local.set $end-addr (i32.add (local.get $addr)
+                                 (i32.shl (%get-integer-size (local.get $int))
+                                          (i32.const #i64-size-bits))))
 
    (loop $again
      (if (i32.lt_u (local.get $addr) (local.get $end-addr))
@@ -444,7 +454,7 @@
                                  (local.get $c)))
           (i32.store (local.get $addr) (i32.wrap_i64 (local.get $v)))
           (local.set $c (i64.shr_u (local.get $v) (i64.const 32)))
-          (%incr-n i32 $addr 4)
+          (%incr-n i32 $addr #i32-size)
           (br $again)))))
 
  (func $negate-integer (export "negate-integer")
@@ -473,7 +483,7 @@
               (then
                (local.set $c (i64.const 0))))
 
-          (%incr-n i32 $addr 8)
+          (%incr-n i32 $addr #i64-size)
           (br $again)))))
 
  (func $get-integer-size (export "get-integer-size")
