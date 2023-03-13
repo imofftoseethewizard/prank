@@ -105,6 +105,19 @@ def validate_block_list(blockset):
 
 def validate_free_lists(blockset):
 
+    c1 = count_fragments(blockset)
+    c2 = block_mgr.get_blockset_fragment_count(blockset)
+    if c1 != c2:
+        print('fragments', c1, c2)
+
+    d1 = count_free_blocks(blockset)
+    d2 = block_mgr.get_blockset_free_count(blockset)
+    if d1 != d2:
+        print('free', d1, d2)
+
+    assert count_free_blocks(blockset) == block_mgr.get_blockset_free_count(blockset)
+    assert count_fragments(blockset) == block_mgr.get_blockset_fragment_count(blockset)
+
     for idx, free_list in enumerate(free_lists(blockset)):
         if free_list is not NULL:
             min_size = free_list_idx_to_size(idx)
@@ -115,17 +128,16 @@ def validate_free_lists(blockset):
 def print_block_mgr_state(blockset):
 
     free_space = block_mgr.get_blockset_free_space(blockset)
-    defrag_cursor = block_mgr.get_blockset_defrag_cursor(blockset)
 
     print("get_blockset_block_count:", block_mgr.get_blockset_block_count(blockset))
+    print("get_blockset_fragment_count:", block_mgr.get_blockset_fragment_count(blockset))
+    print("get_blockset_free_count:", block_mgr.get_blockset_free_count(blockset))
     print("get_blockset_block_list:", format_addr(block_mgr.get_blockset_block_list(blockset)))
-    print("get_blockset_defrag_cursor:", format_addr(defrag_cursor), '' if defrag_cursor == NULL else f'@ {format_addr(block_mgr.get_block_addr(defrag_cursor))}')
     print("get_blockset_end_block:", format_addr(block_mgr.get_blockset_end_block(blockset)))
     print("get_blockset_free_space:", free_space)
     print("get_blockset_free_lists_base:", format_addr(block_mgr.get_blockset_free_lists_base(blockset)))
     print("get_blockset_free_lists_top:", format_addr(block_mgr.get_blockset_free_lists_top(blockset)))
     print("free block count:", count_free_blocks(blockset))
-    print("unused block count:", count_unused_blocks(blockset))
 
 def print_block_list(blockset, start=NULL, end=NULL):
 
@@ -148,9 +160,7 @@ def print_free_lists(blockset):
             for block in free_list_blocks(free_list):
                 addr = block_mgr.get_block_addr(block)
                 size = block_mgr.get_block_size(block)
-                is_unused = block_mgr.is_unused_block(block)
-
-                print(f'  {format_addr(block)}: {size} @ {format_addr(addr)} {"unused" if is_unused else ""}')
+                print(f'  {format_addr(block)}: {size} @ {format_addr(addr)}')
 
 def free_lists(blockset):
 
@@ -173,11 +183,12 @@ def free_blocks(free_list):
         if not block_mgr.is_unused_block(block):
             yield block
 
-def unused_blocks(free_list):
+def fragments(free_list):
 
     for block in free_list_blocks(free_list):
-        if block_mgr.is_unused_block(block):
-            yield block
+        if not block_mgr.is_unused_block(block):
+            if block_mgr.get_block_size(block) <= block_mgr.fragment_size.value:
+                yield block
 
 def count_free_blocks(blockset):
 
@@ -189,11 +200,36 @@ def count_unused_blocks(blockset):
     return sum(len(list(unused_blocks(free_list)))
                for free_list in free_lists(blockset))
 
+def fragment_lists(blockset):
+
+    free_list = block_mgr.get_blockset_free_lists_base(blockset)
+    free_list_top = block_mgr.get_blockset_free_lists_top(blockset)
+    count = 0
+    while free_list < free_list_top and count <= block_mgr.fragment_size.value:
+        yield block_mgr.get_free_list_head(free_list)
+        free_list += 4
+        count += 1
+
+def count_fragments(blockset):
+
+    return sum(len(list(fragments(free_list)))
+               for free_list in fragment_lists(blockset))
+
 def free_list_offset_to_size(offset):
     return free_idx_list_idx_to_size(offset >> 2)
 
 def free_list_idx_to_size(idx):
-    shift = block_mgr.alloc_precision_bits.value
-    mask = (1 << shift)-1
-    rank = ((idx & ~mask) >> shift)
-    return (idx & mask) << rank
+    shift = block_mgr.alloc_precision_bits.value - 1
+    mask = (1 << shift) - 1
+    rank = (idx >> shift) - 1
+    return ((0 if rank < 0 else 1) << (rank + shift)) + ((idx & mask) << max(0, rank))
+
+def summarize_free_list(blockset):
+
+    for idx, free_list in enumerate(free_lists(blockset)):
+        if free_list is not NULL:
+            sizes = set(
+                get_block_size(b)
+                for b in free_blocks(free_list)
+            )
+            print(f'{idx} {free_list_idx_to_size(idx)}: {get_list_length(free_list)} -- {list(sorted(sizes))}')

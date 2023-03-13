@@ -19,8 +19,8 @@
    ;; can be moved.
    (call $init-blockset
          (local.get $blockset-id)
-         (i32.const 0x8000)  ;; immobile block size
-         (i32.const 0x1000)) ;; aggregate block move size limit
+         (i32.const 0x8000) ;; immobile block size
+         (i32.const 0x100)) ;; aggregate block move size limit
 
    (call $init-blockset-memory-proxies (local.get $blockset-id)))
 

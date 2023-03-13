@@ -18,6 +18,18 @@ def test_alloc_integer():
 
     n = alloc_integer(1)
 
+def test_get_integer_size():
+    init_test()
+
+    n = alloc_integer(1)
+    assert get_integer_size(n) == 1
+
+    n = alloc_integer(2)
+    assert get_integer_size(n) == 2
+
+    n = alloc_integer(20)
+    assert get_integer_size(n) == 20
+
 def test_alloc_integer_zero():
 
     init_test()

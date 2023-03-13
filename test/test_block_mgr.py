@@ -1,6 +1,8 @@
+import pytest
+
 from block_mgr_util import (
     blockset_id, validate_blockset, print_blockset, print_block_mgr_state, print_free_lists,
-    format_addr, count_free_blocks
+    format_addr, count_free_blocks, summarize_free_list
 )
 from modules.debug.block_mgr import *
 from modules.debug.block_mgr_test_client import *
@@ -20,16 +22,13 @@ def init_test():
 def test_init_block_mgr():
     init_pairs()
     init_blockset_manager()
-    print(format_addr(block_mgr.refs_top.value))
 
 def test_init_blockset():
     init_test()
 
     assert get_blockset_block_count(blockset) == 0
     assert get_blockset_block_list(blockset) == NULL
-    assert get_blockset_defrag_cursor(blockset) == NULL
     assert get_blockset_end_block(blockset) == NULL
-    print_block_mgr_state(blockset)
 
 def test_get_blockset_id():
     assert get_blockset_id(blockset) == blockset_id
@@ -49,12 +48,6 @@ def test_set_blockset_block_list():
     set_blockset_block_list(blockset, 1)
     assert get_blockset_block_list(blockset) == 1
 
-def test_set_blockset_defrag_cursor():
-    init(blockset_id)
-    assert get_blockset_defrag_cursor(blockset) == NULL
-    set_blockset_defrag_cursor(blockset, 1)
-    assert get_blockset_defrag_cursor(blockset) == 1
-
 def test_set_blockset_end_block():
     init(blockset_id)
     assert get_blockset_end_block(blockset) == NULL
@@ -69,9 +62,10 @@ def test_set_blockset_immobile_block_size():
 
 def test_set_blockset_relocation_size_limit():
     init(blockset_id)
-    assert get_blockset_relocation_size_limit(blockset_id) == 0x1000
     set_blockset_relocation_size_limit(blockset_id, 1)
     assert get_blockset_relocation_size_limit(blockset_id) == 1
+    set_blockset_relocation_size_limit(blockset_id, 2)
+    assert get_blockset_relocation_size_limit(blockset_id) == 2
 
 def test_decr_blockset_block_count():
     init(blockset_id)
@@ -168,10 +162,10 @@ def test_calc_free_list_offset():
         assert 4*i == calc_free_list_offset(i)
 
     for i in range(8, 16):
-        assert 32 + 4*(i>>1) == calc_free_list_offset(i)
+        assert 4*(4+(i>>1)) == calc_free_list_offset(i)
 
     for i in range(16, 32):
-        assert 64 + 4*(i>>2) == calc_free_list_offset(i)
+        assert 4*(8+(i>>2)) == calc_free_list_offset(i)
 
     block_mgr.alloc_precision_bits.value = 4
 
@@ -179,10 +173,10 @@ def test_calc_free_list_offset():
         assert 4*i == calc_free_list_offset(i)
 
     for i in range(16, 32):
-        assert 64 + 4*(i>>1) == calc_free_list_offset(i)
+        assert 4*(8+(i>>1)) == calc_free_list_offset(i)
 
     for i in range(32, 64):
-        assert 128 + 4*(i>>2) == calc_free_list_offset(i)
+        assert 4*(16+(i>>2)) == calc_free_list_offset(i)
 
 def test_pop_free_block_initial():
     init_test()
@@ -209,10 +203,16 @@ def test_select_blockset_free_list_initial():
 def test_alloc_block():
     init_test()
 
-    print_blockset(blockset)
     b = alloc_block(blockset_id, 48)
-    print_blockset(blockset)
     assert get_block_size(b) == 48
+    validate_blockset(blockset)
+
+def test_alloc_block_fragment():
+    init_test()
+
+    b = alloc_block(blockset_id, 4)
+    assert get_block_size(b) == 4
+    print_blockset(blockset)
     validate_blockset(blockset)
 
 def test_alloc_2_blocks():
@@ -343,7 +343,6 @@ def test_defrag_empty():
     init_test()
 
     step_defragment_blockset(blockset)
-    print_blockset(blockset)
 
     validate_blockset(blockset)
 
@@ -367,68 +366,36 @@ def test_defrag_two_free_blocks():
     init_test()
 
     b = alloc_block(blockset_id, 48)
-    print_blockset(blockset)
     add_free_block(blockset, b)
 
-    print_blockset(blockset)
     step_defragment_blockset(blockset)
-    print_blockset(blockset)
 
     validate_blockset(blockset)
 
-def test_defrag_two_small_alloc_three_free_blocks():
+def test_defrag():
     init_test()
 
-    b0 = alloc_block(blockset_id, 48)
-    b1 = alloc_block(blockset_id, 48)
-    b2 = alloc_block(blockset_id, 48)
-    b3 = alloc_block(blockset_id, 48)
+    for rank in range(16, 0, -1):
+        bs = [
+            alloc_block(blockset_id, 1<<rank)
+            for n in range(0, 1<<(16-rank))
+        ]
 
-    add_free_block(blockset, b0)
-    add_free_block(blockset, b2)
+        for i, b in enumerate(bs):
+            if False and rank == 4:
+                print_block_mgr_state(blockset)
+                summarize_free_list(blockset)
+            dealloc_block(blockset_id, b)
+            if False and rank == 4:
+                print_block_mgr_state(blockset)
+                summarize_free_list(blockset)
+                print(i)
+                validate_blockset(blockset)
 
-    validate_blockset(blockset)
+    print_block_mgr_state(blockset)
+    summarize_free_list(blockset)
 
-    print_blockset(blockset)
-    step_defragment_blockset(blockset)
-    print_blockset(blockset)
-
-    validate_blockset(blockset)
-
-    step_defragment_blockset(blockset)
-
-    validate_blockset(blockset)
-
-def test_defrag_several_add_free_blocks():
-    init_test()
-
-    N = 256
-    k = 64
-
-    bs = [
-        alloc_block(blockset_id, N)
-        for i in range(k)
-    ]
-
-    for b in bs:
-        add_free_block(blockset, b)
-
-    step_defragment_blockset(blockset)
-
-    validate_blockset(blockset)
-
-    count = 0
-
-    while get_blockset_defrag_cursor(blockset) != NULL and count < k:
-
-        step_defragment_blockset(blockset)
-
-        validate_blockset(blockset)
-
-        count += 1
-
-    assert count < k
-
+@pytest.mark.skip('no defrag')
 def test_defrag_many_1k_blocks():
     init_test()
 
@@ -514,6 +481,7 @@ def test_defrag_many_1k_blocks():
     assert count < k/4
     assert count_free_blocks(blockset) == 1
 
+@pytest.mark.skip('no defrag')
 def test_relocation():
     init_test()
 
