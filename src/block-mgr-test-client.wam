@@ -2,7 +2,7 @@
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
- (import "block-mgr" "init-blockset" (func $init-blockset (param i32 i32 i32)))
+ (import "block-mgr" "init-blockset" (func $init-blockset (param i32 i32)))
  (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32) (result i32)))
  (import "block-mgr" "get-block-size" (func $get-block-size (param i32) (result i32)))
 
@@ -19,7 +19,6 @@
    ;; can be moved.
    (call $init-blockset
          (local.get $blockset-id)
-         (i32.const 0x8000) ;; immobile block size
          (i32.const 0x100)) ;; aggregate block move size limit
 
    (call $init-blockset-memory-proxies (local.get $blockset-id)))

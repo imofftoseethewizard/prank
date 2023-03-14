@@ -27,10 +27,7 @@ def stochastic_perf_test(
     blockset = block_mgr.get_blockset(blockset_id)
 
     # default 0x1000
-    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x100)
-
-    # default 0x1000
-    block_mgr.set_blockset_immobile_block_size(blockset_id, 0x8000)
+    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x400)
 
     b = block_mgr.alloc_block(blockset_id, M<<1)
     block_mgr.dealloc_block(blockset_id, b)
@@ -98,10 +95,10 @@ def stochastic_perf_test(
     # random.seed(time.time_ns())
 
     # Word size
-    w = 4
+    w = 1
 
     # average number of w-byte words in each alloc_block request
-    L = 5
+    L = 3
 
     # distribution of alloc_block request sizes (in units of w, with exp length L)
     distribution = util.sample_poisson
@@ -213,7 +210,7 @@ def stochastic_perf_test(
     v_min = 1_432_848
     l_min = N
     default_depth = 2
-    I_r = 10
+    I_r = 4
 
     last_adjusted_elapsed_ns = 0
     def report(i):
@@ -259,4 +256,4 @@ def stochastic_perf_test(
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(M=50_000_000, N=50_000_000)
+    stochastic_perf_test(M=100_000, N=10_000_000)

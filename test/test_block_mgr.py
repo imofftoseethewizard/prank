@@ -54,12 +54,6 @@ def test_set_blockset_end_block():
     set_blockset_end_block(blockset, 1)
     assert get_blockset_end_block(blockset) == 1
 
-def test_set_blockset_immobile_block_size():
-    init(blockset_id)
-    assert get_blockset_immobile_block_size(blockset_id) == 0x8000
-    set_blockset_immobile_block_size(blockset_id, 1)
-    assert get_blockset_immobile_block_size(blockset_id) == 1
-
 def test_set_blockset_relocation_size_limit():
     init(blockset_id)
     set_blockset_relocation_size_limit(blockset_id, 1)

@@ -187,7 +187,7 @@ def fragments(free_list):
 
     for block in free_list_blocks(free_list):
         if not block_mgr.is_unused_block(block):
-            if block_mgr.get_block_size(block) <= block_mgr.fragment_size.value:
+            if block_mgr.get_block_size(block) < block_mgr.fragment_size.value:
                 yield block
 
 def count_free_blocks(blockset):
@@ -205,7 +205,7 @@ def fragment_lists(blockset):
     free_list = block_mgr.get_blockset_free_lists_base(blockset)
     free_list_top = block_mgr.get_blockset_free_lists_top(blockset)
     count = 0
-    while free_list < free_list_top and count <= block_mgr.fragment_size.value:
+    while free_list < free_list_top and count < block_mgr.fragment_size.value:
         yield block_mgr.get_free_list_head(free_list)
         free_list += 4
         count += 1

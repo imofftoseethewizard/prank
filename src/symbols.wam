@@ -7,7 +7,7 @@
  (import "block-mgr" "dealloc-block"  (func $dealloc-block  (param i32 i32) ))
  (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32)         (result i32)))
  (import "block-mgr" "get-block-size" (func $get-block-size (param i32)         (result i32)))
- (import "block-mgr" "init-blockset"  (func $init-blockset  (param i32 i32 i32)))
+ (import "block-mgr" "init-blockset"  (func $init-blockset  (param i32 i32)))
  (import "block-mgr" "resize-block"   (func $resize-block   (param i32 i32 i32) (result i32)))
  (import "strings" "dealloc-string"   (func $dealloc-string (param i32)   ))
  (import "strings" "string-equal"     (func $string-equal   (param i32 i32)     (result i32)))
@@ -97,10 +97,7 @@
  (func $init-symbols (debug (export "init-symbols"))
 
    ;; Set up the blockset to store the symbol table and the hash table
-   (call $init-blockset
-         (global.get $symbols-blockset-id)
-         (i32.const 0x1000)
-         (i32.const 0x8000))
+   (call $init-blockset (global.get $symbols-blockset-id) (i32.const 0x1000))
 
    ;; defined in block-mgr-memory-proxies.wam
    (call $init-blockset-memory-proxies (global.get $symbols-blockset-id))

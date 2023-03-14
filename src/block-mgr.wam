@@ -174,7 +174,6 @@
  (global $blockset-free-lists-base       (export "blockset-free-lists-base")       i32 (i32.const 0x14))
  (global $blockset-free-lists-top        (export "blockset-free-lists-top")        i32 (i32.const 0x18))
  (global $blockset-free-space            (export "blockset-free-space")            i32 (i32.const 0x1c))
- (global $blockset-immobile-block-size   (export "blockset-immobile-block-size")   i32 (i32.const 0x20))
  (global $blockset-last-free-list        (export "blockset-last-free-list")        i32 (i32.const 0x24))
  (global $blockset-relocation-size-limit (export "blockset-relocation-size-limit") i32 (i32.const 0x28))
  (global $blockset-total-size          (export "blockset-total-size")          i32 (i32.const 0x2c))
@@ -249,6 +248,10 @@
    (expr ,block)
    (i32.eqz (i32.and (i32.load (%get-block-flags-addr ,block))
                      (global.get $block-flags-mask))))
+
+ (macro %is-fragment
+   (expr ,block)
+   (i32.lt_u (%get-block-size ,block) (global.get $fragment-size)))
 
  (macro %is-free-block
    (expr ,block)
@@ -425,10 +428,6 @@
    (expr ,blockset)
    (i32.load (i32.add ,blockset (global.get $blockset-free-space))))
 
- (macro %get-blockset-immobile-block-size
-   (expr ,blockset)
-   (i32.load (i32.add ,blockset (global.get $blockset-immobile-block-size))))
-
  (macro %get-blockset-relocation-size-limit
    (expr ,blockset)
    (i32.load (i32.add ,blockset (global.get $blockset-relocation-size-limit))))
@@ -501,12 +500,6 @@
    (i32.store (i32.add ,blockset (global.get $blockset-end-block))
               ,end-block))
 
- (macro %set-blockset-immobile-block-size
-   (expr ,blockset)
-   (expr ,immobile-block-size)
-   (i32.store (i32.add ,blockset (global.get $blockset-immobile-block-size))
-              ,immobile-block-size))
-
  (macro %set-blockset-relocation-size-limit
    (expr ,blockset)
    (expr ,relocation-size-limit)
@@ -519,20 +512,10 @@
    (i32.store (i32.add ,blockset (global.get $blockset-free-space))
               ,free-space))
 
- (func $get-blockset-immobile-block-size (export "get-blockset-immobile-block-size")
-   (param $blockset-id i32)
-   (result i32)
-   (%get-blockset-immobile-block-size (%get-blockset (local.get $blockset-id))))
-
  (func $get-blockset-relocation-size-limit (export "get-blockset-relocation-size-limit")
    (param $blockset-id i32)
    (result i32)
    (%get-blockset-relocation-size-limit (%get-blockset (local.get $blockset-id))))
-
- (func $set-blockset-immobile-block-size (export "set-blockset-immobile-block-size")
-   (param $blockset-id i32)
-   (param $immobile-block-size i32)
-   (%set-blockset-immobile-block-size (%get-blockset (local.get $blockset-id)) (local.get $immobile-block-size)))
 
  (func $set-blockset-relocation-size-limit (export "set-blockset-relocation-size-limit")
    (param $blockset-id i32)
@@ -724,7 +707,6 @@
 
  (func $init-blockset (export "init-blockset")
    (param $blockset-id i32)
-   (param $immobile-block-size i32)
    (param $relocation-size-limit i32)
 
    (local $blockset i32)
@@ -733,10 +715,6 @@
    (local $free-lists-top i32)
 
    (local.set $blockset (%get-blockset (local.get $blockset-id)))
-
-   (%set-blockset-immobile-block-size
-    (local.get $blockset)
-    (local.get $immobile-block-size))
 
    (%set-blockset-relocation-size-limit
     (local.get $blockset)
@@ -953,7 +931,7 @@
        (then
         (local.set $block (call $provision-free-block (local.get $blockset) (local.get $size)))))
 
-   (if (i32.gt_u (i32.sub (local.get $size) (%get-block-size (local.get $block)))
+   (if (i32.ge_u (i32.sub (local.get $size) (%get-block-size (local.get $block)))
                  (global.get $fragment-size))
        (then
         (call $split-free-block (local.get $blockset) (local.get $block) (local.get $size))))
@@ -1064,7 +1042,7 @@
        (then
         (call $decr-blockset-free-count (local.get $blockset))
 
-        (if (i32.le_u (%get-block-size (local.get $block)) (global.get $fragment-size))
+        (if (%is-fragment (local.get $block))
             (then
              (call $decr-blockset-fragment-count (local.get $blockset))))))
 
@@ -1262,7 +1240,7 @@
    (call $mark-block-free (local.get $block))
    (call $incr-blockset-free-count (local.get $blockset))
 
-   (if (i32.le_u (local.get $size) (global.get $fragment-size))
+   (if (i32.lt_u (local.get $size) (global.get $fragment-size))
        (then
         (call $incr-blockset-fragment-count (local.get $blockset))))
 
@@ -1282,12 +1260,19 @@
                                   (global.get $value-size)))
 
    (loop $again
-     (if (i32.le_u (local.get $size) (global.get $fragment-size))
+     (if (i32.lt_u (local.get $size) (global.get $fragment-size))
          (then
           (local.set $block (call $pop-free-block (local.get $blockset) (local.get $free-list)))
-          (if (i32.eq (local.get $block) (global.get $null))
+          (if (i32.ne (local.get $block) (global.get $null))
               (then
-               (call $relocate-free-block (local.get $blockset) (local.get $block))
+               (call $coalesce-free-blocks (local.get $blockset) (local.get $block))
+
+               (if (%is-fragment (local.get $block))
+                   (then
+                    (call $relocate-free-block (local.get $blockset) (local.get $block))))
+
+               (call $add-free-block (local.get $blockset) (local.get $block))
+
                (%incr-n i32 $free-list #value-size)
                (%incr i32 $size)
                (br $again)))))))
@@ -1301,15 +1286,6 @@
    (local $relo-size i32)
    (local $relo-start i32)
 
-   (if (i32.eq (local.get $free-block) (global.get $null))
-       (then
-        (return)))
-
-   (local.set $free-block
-              (call $coalesce-free-blocks (local.get $blockset) (local.get $free-block)))
-
-   (call $add-free-block (local.get $blockset) (local.get $free-block))
-
    (local.set $relo-start (%get-next-block (local.get $free-block)))
 
    (if (i32.eq (local.get $relo-start) (global.get $null))
@@ -1322,15 +1298,13 @@
               (local.set $relo-size
                          (call $scan-relocatable-blocks
                                (local.get $relo-start)
-                               (%get-blockset-relocation-size-limit (local.get $blockset))
-                               (%get-blockset-immobile-block-size (local.get $blockset)))))
+                               (%get-blockset-relocation-size-limit (local.get $blockset)))))
 
    (local.set $relo-end (%get-next-block (local.get $relo-last)))
 
    (if (i32.eqz (local.get $relo-size))
        (then
-        ;; The block after free-block is too big to move. Move the cursor to that block.
-        ;; See $get-blockset-immobile-block-size below.
+        ;; The block after free-block is too big to move.
         (return)))
 
    ;; Shift the blocks down in memory, adjusting their addresses.
@@ -1341,24 +1315,27 @@
          (local.get $relo-end)
          (local.get $relo-size))
 
+   ;; Move free block up in memory
+   (%set-block-addr
+    (local.get $free-block)
+    (i32.add (%get-block-addr (local.get $relo-start))
+             (local.get $relo-size)))
+
    ;; Remove free-block from before relo-start.
    (call $link-refs
          (local.get $blockset)
          (%get-previous-block (local.get $free-block))
          (local.get $relo-start))
 
-   (%set-block-addr
-    (local.get $free-block)
-    (i32.add (%get-block-addr (local.get $relo-start))
-             (local.get $relo-size)))
-
+   ;; Insert it after the relocated blocks.
    (call $link-refs (local.get $blockset) (local.get $relo-last) (local.get $free-block))
-   (call $link-refs (local.get $blockset) (local.get $free-block) (local.get $relo-end)))
+   (call $link-refs (local.get $blockset) (local.get $free-block) (local.get $relo-end))
+
+   (call $coalesce-free-blocks (local.get $blockset) (local.get $free-block)))
 
  (func $coalesce-free-blocks (debug (export "coalesce-free-blocks"))
    (param $blockset i32)
    (param $block i32)
-   (result i32)
 
    (local $next i32)
    (local $next-size i32)
@@ -1379,7 +1356,7 @@
                     (call $decr-blockset-free-count (local.get $blockset))
                     (call $incr-blockset-unused-count (local.get $blockset))
 
-                    (if (i32.le_u (local.get $next-size) (global.get $fragment-size))
+                    (if (i32.lt_u (local.get $next-size) (global.get $fragment-size))
                         (then
                          (call $decr-blockset-fragment-count (local.get $blockset))))
 
@@ -1388,12 +1365,7 @@
                           (local.get $block)
                           (%get-next-block (local.get $next)))
 
-                    (br $again))
-                 (else
-                  (local.set $block (local.get $next))
-                  (br $again))))))))
-
-   (local.get $block))
+                    (br $again)))))))))
 
  (func $incr-block-size (debug (export "incr-block-size"))
    (param $block i32)
@@ -1420,6 +1392,10 @@
                       (local.get $new-size))))
 
  (func $can-merge-blocks (debug (export "can-merge-blocks"))
+   ;; Returns false if the sum of the sizes of the blocks would be too large to
+   ;; represent, ie. one whose size would trample the flag bits.  This is used
+   ;;
+
    (param $block i32)
    (param $next i32)
    (result i32)
@@ -1428,25 +1404,27 @@
              (global.get $block-size-mask)))
 
  (func $scan-relocatable-blocks (debug (export "scan-relocatable-blocks"))
+
+   ;; Scans upward in memory from $start-block stopping when it finds a free
+   ;; block, or when it has found one or more allocated blocks less than
+   ;; $size-limit, or if free block is followed by a single block
+   ;; larger than $size-limit, but less than $single-block-size-limit.
+
    (param $start-block i32)
-   (param $aggregate-size-limit i32)
-   (param $single-block-size-limit i32)
+   (param $size-limit i32)
    (result i32 i32)
 
    (local $block i32)
    (local $last-block i32)
-   (local $count i32)
    (local $size i32)
    (local $size-remaining i32)
 
    (local.set $last-block (local.get $start-block))
    (local.set $block (local.get $start-block))
-   (local.set $count (i32.const 0))
-   (local.set $size-remaining (local.get $aggregate-size-limit))
+   (local.set $size-remaining (local.get $size-limit))
 
    ;; The logic is simpler to start with the total number of bytes that can be
    ;; moved and subtract from it the size of each block that will be moved.
-   ;; Note that this is a signed value, unlike all other values in this module.
 
    (loop $again
      (if (%is-allocated-block (local.get $block))
@@ -1461,39 +1439,31 @@
                (local.set $block (%get-next-block (local.get $block)))
                (if (i32.ne (local.get $block) (global.get $null))
                    (then
-                    (%incr i32 $count)
-                    (br $again))))
-            (else
-             ;; The current block won't fit. If this is the first block, then it is
-             ;; be bigger than the size allowable for a sequence of blocks, but it might
-             ;; be relocatable if it's below the single block size limit.
-             (if (i32.and (i32.eqz (local.get $count))
-                          (i32.lt_u (local.get $size)
-                                    (local.get $single-block-size-limit)))
-                 (then
-                  ;; This is the statement that requires aggregate size limit to be
-                  ;; a signed value.
-                  (local.set $size-remaining (i32.sub (local.get $size-remaining)
-                                                      (local.get $size)))
-                  (local.set $last-block (local.get $block))
-                  (local.set $block (%get-next-block (local.get $block))))))))))
+                    (br $again))))))))
 
    ;; Return values
 
    ;; Address of the block beyond the last block that can be moved
    (local.get $last-block)
 
-   ;; The size remaining is the aggregate size limit minus the size of each block
-   ;; that can be moved.  The difference below results in the sum of the sizes
-   ;; of the blocks that can be moved.
-   (i32.sub (local.get $aggregate-size-limit) (local.get $size-remaining)))
+   ;; The size remaining is the size limit minus the size of each block that can
+   ;; be moved.  The difference below results in the sum of the sizes of the
+   ;; blocks that can be moved.
+   (i32.sub (local.get $size-limit) (local.get $size-remaining)))
 
  (func $relocate-blocks (debug (export "relocate-blocks"))
+   ;; Copies the data and updates the address fields of the blocks from
+   ;; $start-block to $end-block.  $start-block is moved to $dest-addr, and the
+   ;; rest of the addresses follow from there.  $size is redundant, but it's
+   ;; produced in $scan-relocatable-blocks above and used in the caller,
+   ;; $relocate-free-block, so passing it in to this function is a very minor
+   ;; optimization.
+
    (param $blockset i32)
    (param $dest-addr i32)
    (param $start-block i32)
    (param $end-block i32)
-   (param $size i32)
+   (param $size i32) ;; todo redundant
 
    (local $block i32)
    (local $offset i32)

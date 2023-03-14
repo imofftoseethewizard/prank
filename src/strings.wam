@@ -13,7 +13,7 @@
  (import "block-mgr" "alloc-block"     (func $alloc-block         (param i32 i32) (result i32)))
  (import "block-mgr" "dealloc-block"   (func $dealloc-block       (param i32 i32)))
  (import "block-mgr" "get-block-addr"  (func $get-block-addr      (param i32)     (result i32)))
- (import "block-mgr" "init-blockset"   (func $init-blockset       (param i32 i32 i32)))
+ (import "block-mgr" "init-blockset"   (func $init-blockset       (param i32 i32)))
  (import "chars" "calc-char-width"     (func $calc-char-width     (param i32)     (result i32)))
  (import "chars" "calc-encoded-length" (func $calc-encoded-length (param i32)     (result i32)))
  (import "chars" "encode-char"         (func $encode-char         (param i32)     (result i32)))
@@ -207,10 +207,7 @@
 
  (start $init-strings)
  (func $init-strings (export "init-strings")
-   (call $init-blockset
-         (global.get $strings-blockset-id)
-         (i32.const 0x1000)
-         (i32.const 0x8000))
+   (call $init-blockset (global.get $strings-blockset-id) (i32.const 0x400))
 
    ;; defined in block-mgr-memory-proxies.wam
    (call $init-blockset-memory-proxies (global.get $strings-blockset-id)))

@@ -5,7 +5,7 @@
  (import "block-mgr" "alloc-block"    (func $alloc-block     (param i32 i32) (result i32)))
  (import "block-mgr" "dealloc-block"  (func $dealloc-block   (param i32 i32)))
  (import "block-mgr" "get-block-addr" (func $get-block-addr  (param i32)     (result i32)))
- (import "block-mgr" "init-blockset"  (func $init-blockset   (param i32 i32 i32)))
+ (import "block-mgr" "init-blockset"  (func $init-blockset   (param i32 i32)))
  (import "pairs" "make-pair"          (func $make-pair       (param i32 i32) (result i32)))
  (import "pairs" "dealloc-pair"       (func $dealloc-pair    (param i32)))
  (import "pairs" "get-pair-car"       (func $get-pair-car    (param i32)     (result i32)))
@@ -41,10 +41,7 @@
 
  (start $init-bytevectors)
  (func $init-bytevectors (debug (export "init-bytevectors"))
-   (call $init-blockset
-         (global.get $bytevectors-blockset-id)
-         (i32.const 0x1000)  ;; relocation size limit
-         (i32.const 0x8000)) ;; immobile block size
+   (call $init-blockset (global.get $bytevectors-blockset-id) (i32.const 0x400))
    (call $init-blockset-memory-proxies (global.get $bytevectors-blockset-id)))
 
  ;;-----------------------------------------------------------------------------

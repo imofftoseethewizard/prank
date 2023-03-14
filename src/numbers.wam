@@ -128,7 +128,7 @@
  (import "block-mgr" "dealloc-block"  (func $dealloc-block  (param i32 i32)))
  (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32)     (result i32)))
  (import "block-mgr" "get-block-size" (func $get-block-size (param i32)     (result i32)))
- (import "block-mgr" "init-blockset"  (func $init-blockset  (param i32 i32 i32)))
+ (import "block-mgr" "init-blockset"  (func $init-blockset  (param i32 i32)))
  (import "pairs" "make-pair"          (func $make-pair      (param i32 i32) (result i32)))
  (import "pairs" "make-pair-f32"      (func $make-pair-f32  (param i32 f32) (result i32)))
  (import "pairs" "dealloc-pair"       (func $dealloc-pair   (param i32)))
@@ -152,7 +152,7 @@
  ;;     complex          xxxx xxxx xxxx xxxx xxxx 0101 0000 0001
  ;;     integer          rrrr rrrr rrrr rrrr rrrr 1001 0000 0001
 
- (global $number-block-size (debug (export "number-block-size") i32 (i32.const 0x4000)))
+ (global $number-block-size (debug (export "number-block-size") i32 (i32.const 0x400)))
 
  (global $number-type-i64             (debug (export "number-type-i64")             i32 (i32.const 0x00000101)))
  (global $number-type-f64             (debug (export "number-type-f64")             i32 (i32.const 0x00000001)))
@@ -176,10 +176,7 @@
  (start $init-numbers)
  (func $init-numbers (debug (export "init-numbers"))
 
-   (call $init-blockset
-         (global.get $numbers-blockset-id)
-         (i32.const 0x1000)
-         (global.get $number-block-size))
+   (call $init-blockset (global.get $numbers-blockset-id) (global.get $number-block-size))
 
    (call $init-blockset-memory-proxies (global.get $numbers-blockset-id))
 

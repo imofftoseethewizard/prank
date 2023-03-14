@@ -317,29 +317,31 @@ values release punchlist
   identify required new/updated documentation
     block-mgr
       finish header comment
-      review defrag explanation comment
-      move dealloc-free-list-entry
+        explain
+          free lists
+          fragments
+          defragmentation
+          allocated vs free vs unused
+          block refs
       function comments
         link-blocks
-        link-free-entries
         init-blockset-manager
-        block item fns
-        provision-blockset-heap
-        expand-blockset-heap
-        select-heap-node
-        remove-heap-node
-        split-heap-root
+        init-blockset
+        alloc-blocks
+        quantize-size
+        calc-free-list-offset
+        pop-free-block
+        provision-free-block
+        split-free-block
+        resize-block
+        dealloc-block
         add-free-block
-        estimate-free-entry-infimum
-        merge-free-entries
-        relocate-blocks
-        insert-heap-node
-        grow-blockset-heap
-        raise-heap-node
-        sink-heap-node
-        step-clean-heap
-        swap-heap-entries
-        remove-unused-heap-node
+        step-defragment-blockset
+        relocate-free-block
+        coalesce-free-blocks
+        incr-block-size
+        scan-relocatable-blocks
+
     numbers
       explain number type flags
       all fns
@@ -366,3 +368,5 @@ values release punchlist
 
 regular expression implementation
   https://github.com/c0stya/brzozowski
+
+rework symbols not to use blockset
