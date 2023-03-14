@@ -217,8 +217,6 @@ tooling improvements
     error messages
     check syntax of expr vs label in macros
 
-    non-debug equivalent to (debug ...)
-
     expr comments
 
       (-<token> ) is a comment.
@@ -250,7 +248,7 @@ tooling improvements
           literals: integers in base 10, 16, 2
 
     environment expr
-      (env name [default])
+      (env "name" [default])
       error if not present and no default
 
     conditional processing
@@ -366,7 +364,28 @@ values release punchlist
       alloc
       dealloc
 
+parser/reader
+  parser
+    translates text into data
+    returns partial state when text is incomplete/awaits more text
+
+  the reader uses the parser to transform a text stream into a data stream
+
 regular expression implementation
-  https://github.com/c0stya/brzozowski
+  srfi-115
 
 rework symbols not to use blockset
+
+branch strategy
+  long running messy branches for major work
+  merge to archive when ready
+  git reset main
+  git commit
+  git tag archive
+  curated branches
+    rebased from changes to master
+    needs a make step to assemble after changes
+    policy branch
+      includes licence, etc
+    build branch
+      includes make file tools, etc
