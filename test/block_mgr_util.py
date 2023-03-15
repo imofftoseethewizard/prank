@@ -14,7 +14,7 @@ from modules.debug.pairs import *
 
 from util import format_addr
 
-blockset_id = 4
+blockset_id = 3
 blockset = block_mgr.get_blockset(blockset_id)
 
 NULL = block_mgr.NULL.value

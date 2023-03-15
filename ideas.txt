@@ -374,8 +374,6 @@ parser/reader
 regular expression implementation
   srfi-115
 
-rework symbols not to use blockset
-
 branch strategy
   long running messy branches for major work
   merge to archive when ready

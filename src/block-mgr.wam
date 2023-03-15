@@ -1,9 +1,8 @@
 ;; # Block Allocation Manager
 ;;
 ;; This module manages allocation and deallocation of variable-length blocks of
-;; memory.It is intended to be used by the bytevectors, numbers, strings,
-;; symbols, and vectors modules, and by the garbage collector for its internal
-;; indexes.
+;; memory.  It is intended to be used by the bytevectors, numbers, strings, and
+;; vectors modules, and by the garbage collector for its internal indexes.
 ;;
 ;;
 ;; ## Design
@@ -33,30 +32,22 @@
 ;; which have a long lifetime.  To handle that, we need to be able to relocate
 ;; allocated blocks, but that requires an ordered list of all blocks -- both
 ;; free and allocated -- and indirection of block id and block storage address.
-;; So that's what we have here: indirection of storage address, an ordered list
-;; of blocks, an ordered list of free blocks, and a heap of free blocks.
-;; Allocation is O(#free^1/2) and deallocation are O(log(#free)).
-;; Defragmentation is incremental.
+;; If all of that sounds complicated, it is, and it ends up being slow.  The
+;; first several versions of this module followed that pattern, but they
+;; suffered from increasingly slow performance as the number of managed blocks
+;; grew.
+;;
+;; The current implementation uses a doubly linked list to store the blocks,
+;; and an array of lists of free blocks.  Each free list contains a narrow
+;; range of block sizes.
+;;
+;;
 ;;
 ;; ## Data Representation
 ;;
 ;; A block is a an address of an item in the block list.  Each block contains
 ;; the address of the memory it references, the size, and links to the previous
 ;; and next blocks in the list.
-;;
-;; A free entry is the address of an item in the free list.  Each free entry
-;; contains the address of the block it references, and links to the previous
-;; and next entries in the list.
-;;
-;; The heap is sorted by size and implemented as an array, each element of which
-;; comprises two values, the block and the free entry that contains it.  While
-;; this block is accessible from the free entry by a single memory dereference,
-;; access to the size of the blocks stored in the heap is common within loops in
-;; this module, so the extra memory is probably worth it.  (In simulations of
-;; memory use of 100MB of blocks of typical struct sizes -- Poisson
-;; distribution, expected 5 values of 4 bytes each -- heap sizes typically stay
-;; very close to the square root of the number of allocated blocks, around 2500
-;; elements, indicating that the extra storage cost was aobut 10KB.)
 ;;
 ;; A blockset is an index into an array of structures which capture the state of
 ;; a client's memory.  These structures include pointers to the block list,
@@ -163,29 +154,31 @@
 
  (debug (global $debug (export "#debug") (mut i32) (i32.const 0)))
 
- (global $blockset-size (export "blockset-size") i32 (i32.const 0x0040))
- (global $blockset-size-bits (export "blockset-size-bits") i32 (i32.const 6))
+ (global $blockset-size      (debug (export "blockset-size"))      i32 (i32.const 0x0040))
+ (global $blockset-size-bits (debug (export "blockset-size-bits")) i32 (i32.const 6))
 
- (global $blockset-block-count           (export "blockset-block-count")           i32 (i32.const 0x00))
- (global $blockset-block-list            (export "blockset-block-list")            i32 (i32.const 0x04))
- (global $blockset-end-block             (export "blockset-end-block")             i32 (i32.const 0x08))
- (global $blockset-fragment-count        (export "blockset-fragment-count")        i32 (i32.const 0x0c))
- (global $blockset-free-count            (export "blockset-free-count")            i32 (i32.const 0x10))
- (global $blockset-free-lists-base       (export "blockset-free-lists-base")       i32 (i32.const 0x14))
- (global $blockset-free-lists-top        (export "blockset-free-lists-top")        i32 (i32.const 0x18))
- (global $blockset-free-space            (export "blockset-free-space")            i32 (i32.const 0x1c))
- (global $blockset-last-free-list        (export "blockset-last-free-list")        i32 (i32.const 0x24))
- (global $blockset-relocation-size-limit (export "blockset-relocation-size-limit") i32 (i32.const 0x28))
- (global $blockset-total-size          (export "blockset-total-size")          i32 (i32.const 0x2c))
- (global $blockset-unused-count          (export "blockset-unused-count")          i32 (i32.const 0x2c))
+ (global $blockset-block-list            (debug (export "blockset-block-list"))            i32 (i32.const 0x00))
+ (global $blockset-end-block             (debug (export "blockset-end-block"))             i32 (i32.const 0x04))
+ (global $blockset-fragment-count        (debug (export "blockset-fragment-count"))        i32 (i32.const 0x08))
+ (global $blockset-free-lists-base       (debug (export "blockset-free-lists-base"))       i32 (i32.const 0x0c))
+ (global $blockset-free-lists-top        (debug (export "blockset-free-lists-top"))        i32 (i32.const 0x10))
+ (global $blockset-last-free-list        (debug (export "blockset-last-free-list"))        i32 (i32.const 0x14))
+ (global $blockset-relocation-size-limit (debug (export "blockset-relocation-size-limit")) i32 (i32.const 0x18))
+ (global $blockset-total-size            (debug (export "blockset-total-size"))            i32 (i32.const 0x1c))
 
- (debug (global $alloc-precision-bits (export "alloc-precision-bits") (mut i32) (i32.const 4)))
- (release (global $alloc-precision-bits i32 (i32.const 4)))
+ (debug
+  (global $blockset-block-count  (export "blockset-block-count")  i32 (i32.const 0x24))
+  (global $blockset-free-count   (export "blockset-free-count")   i32 (i32.const 0x28))
+  (global $blockset-free-space   (export "blockset-free-space")   i32 (i32.const 0x2c))
+  (global $blockset-unused-count (export "blockset-unused-count") i32 (i32.const 0x30)))
 
- (debug (global $fragment-size (export "fragment-size") (mut i32) (i32.const 16)))
- (release (global $fragment-size i32 (i32.const 16)))
+ (debug   (global $alloc-precision-bits (export "alloc-precision-bits") (mut i32) (i32.const 4)))
+ (release (global $alloc-precision-bits                                      i32  (i32.const 4)))
 
- (global $ref-size (debug (export "refs-size") i32 (i32.const 0x10)))
+ (debug   (global $fragment-size (export "fragment-size") (mut i32) (i32.const 16)))
+ (release (global $fragment-size                               i32  (i32.const 16)))
+
+ (global $ref-size      (debug (export "refs-size") i32 (i32.const 0x10)))
  (global $ref-size-bits (debug (export "refs-size-bits") i32 (i32.const 4)))
 
  (global $refs-top      (debug (export "refs-top"))      (mut i32) (i32.const 0))
@@ -193,26 +186,34 @@
  (global $ref-free-list (debug (export "ref-free-list")) (mut i32) (i32.const 0))
 
  ;; create 4 KB of block refs (256 * 16 = 4096) when growing storage
- (global $grow-storage-ref-count (export "grow-storage-ref-count") i32 (i32.const 256))
+ (global $grow-storage-ref-count (debug (export "grow-storage-ref-count")) i32 (i32.const 256))
 
- (global $block-addr                (export "block-addr")                i32 (i32.const 0x00))
- (global $block-size                (export "block-size")                i32 (i32.const 0x04))
- (global $block-flags               (export "block-flags")               i32 (i32.const 0x04))
- (global $block-next-block          (export "block-next-block")          i32 (i32.const 0x08))
- (global $block-previous-block      (export "block-previous-block")      i32 (i32.const 0x0c))
+ ;; Offsets into a block ref element.
+ (global $block-addr           (debug (export "block-addr"))           i32 (i32.const 0x00))
+ (global $block-size           (debug (export "block-size"))           i32 (i32.const 0x04))
+ (global $block-flags          (debug (export "block-flags"))          i32 (i32.const 0x04))
+ (global $block-next-block     (debug (export "block-next-block"))     i32 (i32.const 0x08))
+ (global $block-previous-block (debug (export "block-previous-block")) i32 (i32.const 0x0c))
 
+ ;; Flags and masks used to unpack the $block-size/$block-flags value within a
+ ;; block ref.
  (global $block-size-mask   (debug (export "block-size-mask")   i32 (i32.const 0x3fffffff)))
  (global $block-flags-mask  (debug (export "block-flags-mask")  i32 (i32.const 0xc0000000)))
  (global $block-free-flag   (debug (export "block-free-flag")   i32 (i32.const 0x80000000)))
  (global $block-unused-flag (debug (export "block-unused-flag") i32 (i32.const 0x40000000)))
 
- (type $memory-copy-sig (func (param i32 i32 i32)))
- (type $memory-grow-sig (func (param i32) (result i32)))
- (type $memory-size-sig (func (result i32)))
+ ;; The block manager does not have direct access to the managed memory.
+ ;; Instead the clients register proxies for memory.copy, memory.grow, and
+ ;; memory.size in the following tables.  See block-mgr-memory-proxies.wam and
+ ;; block-mgr-memory-proxy-imports.wam.
 
  (table $memory-copy (export "memory-copy") 16 funcref)
  (table $memory-grow (export "memory-grow") 16 funcref)
  (table $memory-size (export "memory-size") 16 funcref)
+
+ (type $memory-copy-sig (func (param i32 i32 i32)))
+ (type $memory-grow-sig (func (param i32) (result i32)))
+ (type $memory-size-sig (func (result i32)))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -603,35 +604,11 @@
  ;; Blockset Utilities
  ;;
 
- (func $decr-blockset-block-count (debug (export "decr-blockset-block-count"))
-   (param $blockset i32)
-   (local $addr i32)
-   (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-block-count)))
-   (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
-
  (func $decr-blockset-fragment-count (debug (export "decr-blockset-fragment-count"))
    (param $blockset i32)
    (local $addr i32)
    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-fragment-count)))
    (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
-
- (func $decr-blockset-free-count (debug (export "decr-blockset-free-count"))
-   (param $blockset i32)
-   (local $addr i32)
-   (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-free-count)))
-   (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
-
- (func $decr-blockset-unused-count (debug (export "decr-blockset-unused-count"))
-   (param $blockset i32)
-   (local $addr i32)
-   (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-unused-count)))
-   (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
-
- (func $incr-blockset-block-count (debug (export "incr-blockset-block-count"))
-   (param $blockset i32)
-   (local $addr i32)
-   (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-block-count)))
-   (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1))))
 
  (func $incr-blockset-fragment-count (debug (export "incr-blockset-fragment-count"))
    (param $blockset i32)
@@ -639,17 +616,42 @@
    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-fragment-count)))
    (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1))))
 
- (func $incr-blockset-free-count (debug (export "incr-blockset-free-count"))
-   (param $blockset i32)
-   (local $addr i32)
-   (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-free-count)))
-   (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1))))
+ (debug
+  (func $decr-blockset-block-count (debug (export "decr-blockset-block-count"))
+    (param $blockset i32)
+    (local $addr i32)
+    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-block-count)))
+    (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
 
- (func $incr-blockset-unused-count (debug (export "incr-blockset-unused-count"))
-   (param $blockset i32)
-   (local $addr i32)
-   (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-unused-count)))
-   (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1))))
+  (func $decr-blockset-free-count (debug (export "decr-blockset-free-count"))
+    (param $blockset i32)
+    (local $addr i32)
+    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-free-count)))
+    (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
+
+  (func $decr-blockset-unused-count (debug (export "decr-blockset-unused-count"))
+    (param $blockset i32)
+    (local $addr i32)
+    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-unused-count)))
+    (i32.store (local.get $addr) (i32.sub (i32.load (local.get $addr)) (i32.const 1))))
+
+  (func $incr-blockset-block-count (debug (export "incr-blockset-block-count"))
+    (param $blockset i32)
+    (local $addr i32)
+    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-block-count)))
+    (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1))))
+
+  (func $incr-blockset-free-count (debug (export "incr-blockset-free-count"))
+    (param $blockset i32)
+    (local $addr i32)
+    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-free-count)))
+    (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1))))
+
+  (func $incr-blockset-unused-count (debug (export "incr-blockset-unused-count"))
+    (param $blockset i32)
+    (local $addr i32)
+    (local.set $addr (i32.add (local.get $blockset) (global.get $blockset-unused-count)))
+    (i32.store (local.get $addr) (i32.add (i32.load (local.get $addr)) (i32.const 1)))))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -658,6 +660,11 @@
  ;;
 
  (func $link-refs (debug (export "link-refs"))
+
+   ;; Links the two block refs. If $a is null, then it implicitly references
+   ;; the blockset's block list head; similarly if $b is null, the end block
+   ;; ref is updated.
+
    (param $blockset i32)
    (param $a i32)
    (param $b i32)
@@ -716,18 +723,18 @@
 
    (local.set $blockset (%get-blockset (local.get $blockset-id)))
 
-   (%set-blockset-relocation-size-limit
-    (local.get $blockset)
-    (local.get $relocation-size-limit))
+   (%set-blockset-relocation-size-limit (local.get $blockset) (local.get $relocation-size-limit))
 
-   (%set-blockset-block-count         (local.get $blockset) (i32.const 0))
-   (%set-blockset-block-list          (local.get $blockset) (global.get $null))
-   (%set-blockset-end-block           (local.get $blockset) (global.get $null))
-   (%set-blockset-fragment-count          (local.get $blockset) (i32.const 0))
-   (%set-blockset-free-count          (local.get $blockset) (i32.const 0))
-   (%set-blockset-free-space          (local.get $blockset) (i32.const 0))
-   (%set-blockset-total-size        (local.get $blockset) (i32.const 0))
-   (%set-blockset-unused-count        (local.get $blockset) (i32.const 0))
+   (%set-blockset-block-list     (local.get $blockset) (global.get $null))
+   (%set-blockset-end-block      (local.get $blockset) (global.get $null))
+   (%set-blockset-fragment-count (local.get $blockset) (i32.const 0))
+   (%set-blockset-total-size     (local.get $blockset) (i32.const 0))
+
+   (debug
+    (%set-blockset-block-count    (local.get $blockset) (i32.const 0))
+    (%set-blockset-free-count     (local.get $blockset) (i32.const 0))
+    (%set-blockset-free-space     (local.get $blockset) (i32.const 0))
+    (%set-blockset-unused-count   (local.get $blockset) (i32.const 0)))
 
    ;; blockset is n * 2^6 for n = 1...
    ;; area required for free lists for precision p is 2^(p+6) bytes, p = 1, 2, ...
@@ -832,7 +839,7 @@
          (then
           (%set-block-addr (local.get $ref) (local.get $next-ref))
           (debug
-           (%set-block-size (local.get $ref) (i32.const 0xdeadce11)))
+           (%set-block-size (local.get $ref) (i32.const 0x0badce11)))
           (local.set $ref (local.get $next-ref))
           (br $again))
        (else
@@ -852,7 +859,7 @@
    (%set-block-addr (local.get $ref) (global.get $ref-free-list))
 
    (debug
-    (%set-block-size (local.get $ref) (i32.const 0xdeadce11))
+    (%set-block-size (local.get $ref) (i32.const 0x0badce11))
     (%global.decr i32 $ref-count))
 
    (global.set $ref-free-list (local.get $ref)))
@@ -899,18 +906,31 @@
    (local $base-free-list i32)
    (local $block i32)
    (local $blockset i32)
+   (local $free-block-size i32)
    (local $free-list i32)
    (local $new-block i32)
 
    (local.set $blockset (%get-blockset (local.get $blockset-id)))
 
-   (local.set $size (call $quantize-size (local.get $size)))
+   ;; $quantize-size is used here to round up the requested size to the next
+   ;; larger free list.  This ensures that every block in the selected free list
+   ;; is big enough to satisfy the allocation.
 
-   (local.set $free-list (%select-blockset-free-list (local.get $blockset) (local.get $size)))
+   (local.set $free-list (%select-blockset-free-list (local.get $blockset)
+                                                     (call $quantize-size (local.get $size))))
+
+   ;; Returns the first block in the free list, or null if the list was empty.
+
    (local.set $block (call $pop-free-block (local.get $blockset) (local.get $free-list)))
 
    (if (i32.eq (local.get $block) (global.get $null))
        (then
+
+        ;; The selected free list was empty.  Search for a large block to split a
+        ;; piece off of.  Most of the larger free lists, for sizes 2^24 and up are
+        ;; probably going to be empty most of the time, so we start from the last
+        ;; free list where a large block was retrieved from.
+
         (local.set $base-free-list (local.get $free-list))
         (local.set $free-list (%get-blockset-last-free-list (local.get $blockset)))
         (loop $again
@@ -920,27 +940,44 @@
                           (call $pop-free-block (local.get $blockset) (local.get $free-list)))
                (if (i32.eq (local.get $block) (global.get $null))
                    (then
+                    ;; List empty, try the next lower size.
                     (%decr-n i32 $free-list #value-size)
                     (br $again))))))
 
+        ;; A block was found, update the last free list so the next time this
+        ;; code is encountered, we're likely to only run through the loop once.
         (if (i32.ne (local.get $block) (global.get $null))
             (then
              (%set-blockset-last-free-list (local.get $blockset) (local.get $free-list))))))
 
    (if (i32.eq (local.get $block) (global.get $null))
        (then
+        ;; The free lists do not contain a block big enough to satisfy the
+        ;; request, so create a new large free block out of one or more
+        ;; additional memory pages.
         (local.set $block (call $provision-free-block (local.get $blockset) (local.get $size)))))
 
-   (if (i32.ge_u (i32.sub (local.get $size) (%get-block-size (local.get $block)))
-                 (global.get $fragment-size))
-       (then
-        (call $split-free-block (local.get $blockset) (local.get $block) (local.get $size))))
+   ;; If the block is more than just a little too big, split it and put the
+   ;; remainder into the appropriate free list.
 
+   (local.set $free-block-size (%get-block-size (local.get $block)))
+
+   (if (i32.ne (local.get $size) (local.get $free-block-size))
+       (then
+        (if (i32.or (i32.lt_u (local.get $size) (global.get $fragment-size))
+                    (i32.ge_u (i32.sub (local.get $size) (local.get $free-block-size))
+                              (global.get $fragment-size)))
+            (then
+             (call $split-free-block (local.get $blockset) (local.get $block) (local.get $size))))))
+
+   ;; Update the block's status.
    (call $mark-block-allocated (local.get $block))
 
-   (%set-blockset-free-space (local.get $blockset)
-                             (i32.sub (%get-blockset-free-space (local.get $blockset))
-                                      (local.get $size)))
+   (debug
+    ;; A little bit of accounting.
+    (%set-blockset-free-space (local.get $blockset)
+                              (i32.sub (%get-blockset-free-space (local.get $blockset))
+                                       (local.get $size))))
 
    (local.get $block))
 
@@ -1023,8 +1060,11 @@
           (if (%is-unused-block (local.get $block))
               (then
                (call $dealloc-ref (local.get $block))
-               (call $decr-blockset-unused-count (local.get $blockset))
                (local.set $block (global.get $null))
+
+               (debug
+                (call $decr-blockset-unused-count (local.get $blockset)))
+
                (br $again))))))
 
    (i32.store (local.get $free-list) (local.get $head))
@@ -1040,7 +1080,9 @@
 
    (if (i32.ne (local.get $block) (global.get $null))
        (then
-        (call $decr-blockset-free-count (local.get $blockset))
+
+        (debug
+         (call $decr-blockset-free-count (local.get $blockset)))
 
         (if (%is-fragment (local.get $block))
             (then
@@ -1108,11 +1150,12 @@
    (call $link-refs (local.get $blockset) (local.get $end-block) (local.get $block))
    (call $link-refs (local.get $blockset) (local.get $block) (global.get $null))
 
-   (call $incr-blockset-block-count (local.get $blockset))
+   (debug
+    (call $incr-blockset-block-count (local.get $blockset))
 
-   (%set-blockset-free-space (local.get $blockset)
-                             (i32.add (%get-blockset-free-space (local.get $blockset))
-                                      (local.get $free-size)))
+    (%set-blockset-free-space (local.get $blockset)
+                              (i32.add (%get-blockset-free-space (local.get $blockset))
+                                       (local.get $free-size))))
 
    (%set-blockset-total-size (local.get $blockset)
                              (i32.add (%get-blockset-total-size (local.get $blockset))
@@ -1146,7 +1189,8 @@
    (call $link-refs (local.get $blockset) (local.get $block) (local.get $new-block))
    (call $link-refs (local.get $blockset) (local.get $new-block) (local.get $next-block))
 
-   (call $incr-blockset-block-count (local.get $blockset))
+   (debug
+    (call $incr-blockset-block-count (local.get $blockset)))
 
    (call $add-free-block (local.get $blockset) (local.get $new-block)))
 
@@ -1211,9 +1255,15 @@
 
    (call $add-free-block (local.get $blockset) (local.get $block))
 
-   (%set-blockset-free-space (local.get $blockset)
-                             (i32.add (%get-blockset-free-space (local.get $blockset))
-                                      (local.get $size)))
+   (debug
+    (%set-blockset-free-space (local.get $blockset)
+                              (i32.add (%get-blockset-free-space (local.get $blockset))
+                                       (local.get $size))))
+
+   ;; If the number of fragments times the relocation size limit is greater than
+   ;; the total amount of memory managed by for this blockset, then each time
+   ;; a fragment is relocated, it will very likely be able to be merged into a
+   ;; nearby free block, also very likely eliminating the fragment.
 
    (if (i32.gt_u (i32.mul (%get-blockset-fragment-count (local.get $blockset))
                           (%get-blockset-relocation-size-limit (local.get $blockset)))
@@ -1222,6 +1272,9 @@
         (call $step-defragment-blockset (local.get $blockset)))))
 
  (func $add-free-block (debug (export "add-free-block"))
+
+   ;; Adds the block to the appropriate free list, based on the block's size.
+
    (param $blockset i32)
    (param $block i32)
 
@@ -1238,7 +1291,9 @@
                     (i32.load (local.get $free-list))))
 
    (call $mark-block-free (local.get $block))
-   (call $incr-blockset-free-count (local.get $blockset))
+
+   (debug
+    (call $incr-blockset-free-count (local.get $blockset)))
 
    (if (i32.lt_u (local.get $size) (global.get $fragment-size))
        (then
@@ -1249,32 +1304,61 @@
         (%set-blockset-last-free-list (local.get $blockset) (local.get $free-list)))))
 
  (func $step-defragment-blockset (debug (export "step-defragment-blockset"))
+
+   ;; Makes one step of incremental defragmentation. That consists of taking the
+   ;; first item from each free list which contains a fragment, and attempting
+   ;; to merge it with some block or blocks within the relocation size limit
+   ;; above it.  It pops one free block from each list to distribute the
+   ;; activity across block sizes, otherwise, one free list might become empty,
+   ;; causing unnecessary block splits (and block splits are computationally
+   ;; more expensive than reuse).
+
    (param $blockset i32)
 
    (local $block i32)
+   (local $end-free-list i32)
    (local $free-list i32)
-   (local $size i32)
 
-   (local.set $size (i32.const 1))
    (local.set $free-list (i32.add (%get-blockset-free-lists-base (local.get $blockset))
                                   (global.get $value-size)))
 
+   (local.set $end-free-list (i32.add (local.get $free-list)
+                                      (i32.shl (global.get $fragment-size)
+                                               (global.get $value-size-bits))))
+
    (loop $again
-     (if (i32.lt_u (local.get $size) (global.get $fragment-size))
+
+     ;; Free list 0 is always empty, since that corresponds to size 0 in
+     ;; $calc-free-list-offset.  This could be adjusted elsewhere with by
+     ;; subtracting 1 or $value-size, but that just adds noise to the code and
+     ;; it's probably not worth the few bytes it would save.  Here, we save one
+     ;; call to $pop-free-block by moving the %incr-n to the top of the loop.
+
+     (%incr-n i32 $free-list #value-size)
+
+     (if (i32.lt_u (local.get $free-list) (local.get $end-free-list))
          (then
           (local.set $block (call $pop-free-block (local.get $blockset) (local.get $free-list)))
           (if (i32.ne (local.get $block) (global.get $null))
               (then
+
+               ;; Join the free block with any adjacent free blocks above it
+
                (call $coalesce-free-blocks (local.get $blockset) (local.get $block))
+
+               ;; Coalesce may have made the free block larger; only relocate blocks
+               ;; if it's still a fragment.
 
                (if (%is-fragment (local.get $block))
                    (then
                     (call $relocate-free-block (local.get $blockset) (local.get $block))))
 
+               ;; Add it back to the free block here, when its final size is
+               ;; known, otherwise a large block might get stranded in a free
+               ;; list for much smaller blocks.
+
                (call $add-free-block (local.get $blockset) (local.get $block))
 
-               (%incr-n i32 $free-list #value-size)
-               (%incr i32 $size)
                (br $again)))))))
 
  (func $relocate-free-block (debug (export "relocate-free-block"))
@@ -1331,6 +1415,7 @@
    (call $link-refs (local.get $blockset) (local.get $relo-last) (local.get $free-block))
    (call $link-refs (local.get $blockset) (local.get $free-block) (local.get $relo-end))
 
+   ;; In case the free block is now adjacent to another free block, merge them.
    (call $coalesce-free-blocks (local.get $blockset) (local.get $free-block)))
 
  (func $coalesce-free-blocks (debug (export "coalesce-free-blocks"))
@@ -1352,9 +1437,11 @@
 
                     (call $incr-block-size (local.get $block) (local.get $next-size))
                     (call $mark-block-unused (local.get $next))
-                    (call $decr-blockset-block-count (local.get $blockset))
-                    (call $decr-blockset-free-count (local.get $blockset))
-                    (call $incr-blockset-unused-count (local.get $blockset))
+
+                    (debug
+                     (call $decr-blockset-block-count (local.get $blockset))
+                     (call $decr-blockset-free-count (local.get $blockset))
+                     (call $incr-blockset-unused-count (local.get $blockset)))
 
                     (if (i32.lt_u (local.get $next-size) (global.get $fragment-size))
                         (then

@@ -51,9 +51,8 @@
 (global $bytevectors-blockset-id (export "bytevectors-blockset-id") i32 (i32.const 0x00000000))
 (global $numbers-blockset-id     (export "numbers-blockset-id")     i32 (i32.const 0x00000001))
 (global $strings-blockset-id     (export "strings-blockset-id")     i32 (i32.const 0x00000002))
-(global $symbols-blockset-id     (export "symbols-blockset-id")     i32 (i32.const 0x00000003))
-(global $vectors-blockset-id     (export "vectors-blockset-id")     i32 (i32.const 0x00000004))
-(global $blockset-count          (export "blockset-count")          i32 (i32.const 5))
+(global $vectors-blockset-id     (export "vectors-blockset-id")     i32 (i32.const 0x00000003))
+(global $blockset-count          (export "blockset-count")          i32 (i32.const 4))
 
 (macro %incr
   (class Int)

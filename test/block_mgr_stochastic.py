@@ -17,7 +17,7 @@ def stochastic_perf_test(
         N=10_000_000 # number of steps
 ):
 
-    precision = 4
+    precision = 5
     block_mgr.alloc_precision_bits.value = precision
     block_mgr.fragment_size.value = 1 << precision
 
@@ -27,7 +27,7 @@ def stochastic_perf_test(
     blockset = block_mgr.get_blockset(blockset_id)
 
     # default 0x1000
-    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x400)
+    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x100)
 
     b = block_mgr.alloc_block(blockset_id, M<<1)
     block_mgr.dealloc_block(blockset_id, b)
@@ -98,7 +98,7 @@ def stochastic_perf_test(
     w = 1
 
     # average number of w-byte words in each alloc_block request
-    L = 3
+    L = 20
 
     # distribution of alloc_block request sizes (in units of w, with exp length L)
     distribution = util.sample_poisson
@@ -256,4 +256,4 @@ def stochastic_perf_test(
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(M=100_000, N=10_000_000)
+    stochastic_perf_test(M=1_000_000, N=10_000_000)
