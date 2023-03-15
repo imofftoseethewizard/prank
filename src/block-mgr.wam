@@ -39,7 +39,8 @@
 ;;
 ;; The current implementation uses a doubly linked list to store the blocks,
 ;; and an array of lists of free blocks.  Each free list contains a narrow
-;; range of block sizes.
+;; range of block sizes, so that an allocation request can be satisfied
+;; in O(1) time by calculating an index and popping the head of a list.
 ;;
 ;;
 ;;
@@ -51,22 +52,22 @@
 ;;
 ;; A blockset is an index into an array of structures which capture the state of
 ;; a client's memory.  These structures include pointers to the block list,
-;; free list, heap, and various values necessary for managing memory.
+;; free lists, and various values necessary for managing memory.
 ;;
 ;;
 ;; ## Memory Access
 ;;
 ;; The block allocation manager has no direct access to the memory it manages.
 ;; It uses its own memory to store the state of each client module, the block
-;; lists, free lists, and heaps.  It needs access to client memory when it is
-;; attempting to allocate a block larger than any free block in the heap, in
-;; which case it uses client proxies memory.size and memory.grow.  It also needs
-;; access during defragmentation, when it needs to call a proxy for memory.copy.
-;; Access to these instructions is provided through three tables, one for each
-;; of the memory functions mentioned.  The client module provides a client id,
-;; which is the index into each of the tables for its proxies for the memory it
-;; owns.  The clients need to be coordinated to ensure that there are no
-;; conflicts.  (The client ids are defined in globals.wam.)
+;; lists and free lists It needs access to client memory when it is attempting
+;; to allocate a block larger than any free block available, in which case it
+;; uses client proxies memory.size and memory.grow.  It also needs access during
+;; defragmentation, when it needs to call a proxy for memory.copy.  Access to
+;; these instructions is provided through three tables, one for each of the
+;; memory functions mentioned.  The client module provides a client id, which is
+;; the index into each of the tables for its proxies for the memory it owns.
+;; The clients need to be coordinated to ensure that there are no conflicts.
+;; (The client ids are defined in globals.wam.)
 ;;
 ;; See $memory-copy-sig, $memory-copy, etc below the import section.
 ;;
@@ -76,69 +77,10 @@
 ;;
 ;; ## Allocation Algorithm
 ;;
-;; The allocation first checks that the largest free block is at least as big as
-;; the request, otherwise a new free block is added, potentially growing the
-;; managed memory. It then searches a representative subset of the heap for the
-;; smallest free block that is at least as big as the requested size.  If that
-;; block is not greater than the maximum allowable overage, then it is used,
-;; otherwise it splits the largest free block to create a new block to return to
-;; the caller.
-;;
 ;;
 ;; ## Deallocation Algorithm
 ;;
-;; Deallocation adds the block to the free list and the heap, and if the
-;; length of the free list is greater than the square root
-;; ## Heap maintenance
-;;
-;; During defragmentation, free blocks are coalesced.  One free block becomes
-;; bigger and another is removed from the block list.  The heap, however, will
-;; still have references to these blocks.  There is no efficient way to find
-;; these blocks, so they must be marked for future disposal and handled when the
-;; heap encounters them.  In order not to corrupt the heap, the sizes of the
-;; blocks must remain unchanged.  The solution here is set the address field to
-;; -1 to signal that a block is unused.  To coalese two free blocks, the two
-;; source blocks are both set to unused and removed from the block list and free
-;; list.  A new block is created to replace them and added to the heap.  When a
-;; traversal of the heap encounters an entry with an unused block, it sets the
-;; block's size field to 0 and sinks it to the bottom.  Later when a new entry
-;; is added, if the would-be parent of the entry is unused, then instead of
-;; becoming a child, it takes the unused entry's place and the unused entry is
-;; deallocated.
-;;
-;; That leaves the question of when the heap checks for unused nodes Obviously,
-;; if the free list and the heap have the same number of items, checking is
-;; unnecessary.  It is also obvious that the root needs to be checked before it
-;; is returned as a free block.  Perhaps less obvious is that if the heap were
-;; half unused items, that would only add one more operation to every full
-;; traversal, on average, and most sink/swim operations do not actually fully
-;; traverse the heap.  A lot of unused items in the heap is does not incur a
-;; large computational penalty, but it does consume pair memory.  On the other
-;; hand, keeping the unused items to a minimum would require more computation,
-;; so we need a policy parameter and a two sets of heap traversal routines.
-;; TODO: When the fraction of unused nodes crosses the policy threshold, heap
-;; operations use the set of routines that check for unused nodes during
-;; traversals.
-;;
-;; Adding an node and removing the head from heap both require knowing where
-;; the last node of the heap is (or, equivalently) where it should go.
-;; Adding an node is straightforward: add it at the appropriate place, and
-;; repeatedly swap it with its parent until the heap condition is satisfied, in
-;; this case, that the block it references is no smaller than its two children,
-;; but no bigger than its parent.  In the case of removing an node, we
-;; replace the root with last elemment of the heap, and then swap with its
-;; largest child until the heap condition is satisfied.  With an array-based
-;; heap, this is
-;;
-;; Removing a block from the free list
-;;
-;; Adding an node to the heap.
-;;
-;; Finding Free Blocks
-;;
-;; (32 - clz(Heap count)) >> 1 levels
-;; compute max <= limit
-;; check for unused blocks, sink if found
+
 
 (module
 
@@ -753,9 +695,7 @@
 
    (%set-blockset-free-lists-base (local.get $blockset) (local.get $free-lists-base))
    (%set-blockset-free-lists-top (local.get $blockset) (local.get $free-lists-top))
-   (%set-blockset-last-free-list (local.get $blockset)
-                                 (i32.sub (local.get $free-lists-top)
-                                          (global.get $value-size)))
+   (%set-blockset-last-free-list (local.get $blockset) (global.get $null))
 
    (memory.fill (local.get $free-lists-base) (global.get $null) (local.get $free-lists-size)))
 
@@ -933,6 +873,12 @@
 
         (local.set $base-free-list (local.get $free-list))
         (local.set $free-list (%get-blockset-last-free-list (local.get $blockset)))
+
+        (if (i32.eq (local.get $free-list) (global.get $null))
+            (then
+             (local.set $free-list (i32.sub (%get-blockset-free-lists-top (local.get $blockset))
+                                            (global.get $value-size)))))
+
         (loop $again
           (if (i32.gt_u (local.get $free-list) (local.get $base-free-list))
               (then
@@ -1071,12 +1017,10 @@
 
    (if (i32.eq (local.get $head) (global.get $null))
        (then
-        (if (i32.eq (local.get $free-list) (%get-blockset-last-free-list (local.get $blockset)))
+        (if (i32.eq (local.get $free-list)
+                    (%get-blockset-last-free-list (local.get $blockset)))
             (then
-             (%set-blockset-last-free-list
-              (local.get $blockset)
-              (i32.sub (%get-blockset-free-lists-top (local.get $blockset))
-                       (global.get $value-size)))))))
+             (%set-blockset-last-free-list (local.get $blockset) (global.get $null))))))
 
    (if (i32.ne (local.get $block) (global.get $null))
        (then
@@ -1279,6 +1223,7 @@
    (param $block i32)
 
    (local $free-list i32)
+   (local $last-free-list i32)
    (local $size i32)
 
    (local.set $size (%get-block-size (local.get $block)))
@@ -1299,7 +1244,10 @@
        (then
         (call $incr-blockset-fragment-count (local.get $blockset))))
 
-   (if (i32.gt_u (local.get $free-list) (%get-blockset-last-free-list (local.get $blockset)))
+   (local.set $last-free-list (%get-blockset-last-free-list (local.get $blockset)))
+
+   (if (i32.or (i32.eq (local.get $last-free-list) (global.get $null))
+               (i32.gt_u (local.get $free-list) (local.get $last-free-list)))
        (then
         (%set-blockset-last-free-list (local.get $blockset) (local.get $free-list)))))
 
@@ -1367,7 +1315,6 @@
 
    (local $relo-end i32)
    (local $relo-last i32)
-   (local $relo-size i32)
    (local $relo-start i32)
 
    (local.set $relo-start (%get-next-block (local.get $free-block)))
@@ -1379,16 +1326,18 @@
    ;; Scan from free block upward for allocated blocks, stopping when
    ;; we've found the limit that we can move or the next free block.
    (local.set $relo-last
-              (local.set $relo-size
-                         (call $scan-relocatable-blocks
-                               (local.get $relo-start)
-                               (%get-blockset-relocation-size-limit (local.get $blockset)))))
+              (call $scan-relocatable-blocks
+                    (local.get $relo-start)
+                    (%get-blockset-relocation-size-limit (local.get $blockset))))
 
    (local.set $relo-end (%get-next-block (local.get $relo-last)))
 
-   (if (i32.eqz (local.get $relo-size))
+   (if (i32.or (i32.eq (local.get $relo-start) (local.get $relo-last))
+               (i32.eq (local.get $relo-end) (global.get $null)))
        (then
-        ;; The block after free-block is too big to move.
+        ;; The block after $free-block is too big to move, or $free-block is the
+        ;; last free block in the block list, and there's not much point in
+        ;; relocating it.
         (return)))
 
    ;; Shift the blocks down in memory, adjusting their addresses.
@@ -1396,14 +1345,10 @@
          (local.get $blockset)
          (%get-block-addr (local.get $free-block))
          (local.get $relo-start)
-         (local.get $relo-end)
-         (local.get $relo-size))
+         (local.get $relo-end))
 
    ;; Move free block up in memory
-   (%set-block-addr
-    (local.get $free-block)
-    (i32.add (%get-block-addr (local.get $relo-start))
-             (local.get $relo-size)))
+   (%set-block-addr (local.get $free-block) (%get-next-block-addr (local.get $relo-last)))
 
    ;; Remove free-block from before relo-start.
    (call $link-refs
@@ -1492,6 +1437,7 @@
 
  (func $scan-relocatable-blocks (debug (export "scan-relocatable-blocks"))
 
+
    ;; Scans upward in memory from $start-block stopping when it finds a free
    ;; block, or when it has found one or more allocated blocks less than
    ;; $size-limit, or if free block is followed by a single block
@@ -1499,7 +1445,7 @@
 
    (param $start-block i32)
    (param $size-limit i32)
-   (result i32 i32)
+   (result i32)
 
    (local $block i32)
    (local $last-block i32)
@@ -1528,29 +1474,17 @@
                    (then
                     (br $again))))))))
 
-   ;; Return values
-
-   ;; Address of the block beyond the last block that can be moved
-   (local.get $last-block)
-
-   ;; The size remaining is the size limit minus the size of each block that can
-   ;; be moved.  The difference below results in the sum of the sizes of the
-   ;; blocks that can be moved.
-   (i32.sub (local.get $size-limit) (local.get $size-remaining)))
+   (local.get $last-block))
 
  (func $relocate-blocks (debug (export "relocate-blocks"))
    ;; Copies the data and updates the address fields of the blocks from
    ;; $start-block to $end-block.  $start-block is moved to $dest-addr, and the
-   ;; rest of the addresses follow from there.  $size is redundant, but it's
-   ;; produced in $scan-relocatable-blocks above and used in the caller,
-   ;; $relocate-free-block, so passing it in to this function is a very minor
-   ;; optimization.
+   ;; rest of the addresses follow from there.
 
    (param $blockset i32)
    (param $dest-addr i32)
    (param $start-block i32)
    (param $end-block i32)
-   (param $size i32) ;; todo redundant
 
    (local $block i32)
    (local $offset i32)
@@ -1562,7 +1496,8 @@
                   (type $memory-copy-sig)
                   (local.get $dest-addr)
                   (local.get $source-addr)
-                  (local.get $size)
+                  (i32.sub (%get-block-addr (local.get $end-block))
+                           (%get-block-addr (local.get $start-block)))
                   (%get-blockset-id (local.get $blockset)))
 
    (local.set $block (local.get $start-block))

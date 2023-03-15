@@ -29,7 +29,7 @@ def stochastic_perf_test(
     # default 0x1000
     block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x100)
 
-    b = block_mgr.alloc_block(blockset_id, M<<1)
+    b = block_mgr.alloc_block(blockset_id, M)
     block_mgr.dealloc_block(blockset_id, b)
 
     # This will hold the blocks that have been allocated
@@ -48,6 +48,8 @@ def stochastic_perf_test(
     problem_step = 1_432_8480000
     log_action_min = problem_step-5
 
+    elapsed_alloc_ns = 0
+    elapsed_dealloc_ns = 0
     elapsed_ns = 0
     allocs = 0
     deallocs = 0
@@ -98,7 +100,7 @@ def stochastic_perf_test(
     w = 1
 
     # average number of w-byte words in each alloc_block request
-    L = 20
+    L = 3
 
     # distribution of alloc_block request sizes (in units of w, with exp length L)
     distribution = util.sample_poisson
@@ -124,8 +126,9 @@ def stochastic_perf_test(
             # print(format_addr(block_mgr.p2.value))
             # print(format_addr(block_mgr.p3.value))
             raise
-        nonlocal elapsed_ns
+        nonlocal elapsed_ns, elapsed_alloc_ns
         elapsed_ns += toc - tic
+        elapsed_alloc_ns += toc - tic
         blocks.append((b, size))
         total_allocated += size
         if i == problem_step:
@@ -200,8 +203,9 @@ def stochastic_perf_test(
             tic = time.perf_counter_ns()
             block_mgr.dealloc_block(blockset_id, b)
             toc = time.perf_counter_ns()
-            nonlocal elapsed_ns
+            nonlocal elapsed_ns, elapsed_dealloc_ns
             elapsed_ns += toc - tic
+            elapsed_dealloc_ns += toc - tic
 
     # Validation interval (in simulation steps)
     I = N
@@ -219,11 +223,15 @@ def stochastic_perf_test(
         print("fragment count:", block_mgr.get_blockset_fragment_count(blockset))
         summarize_free_list(blockset)
         nonlocal last_adjusted_elapsed_ns
+        adjusted_elapsed_alloc_ns = elapsed_alloc_ns - allocs * alloc_overhead_ns
+        adjusted_elapsed_dealloc_ns = elapsed_dealloc_ns - deallocs * dealloc_overhead_ns
         adjusted_elapsed_ns = elapsed_ns - allocs * alloc_overhead_ns - deallocs * dealloc_overhead_ns
         print(f'raw allocator time: {elapsed_ns/1_000_000_000:0.4f}')
         print(f'adjusted allocator time: {adjusted_elapsed_ns/1_000_000_000:0.4f}')
         print(f'chg adjusted_allocator_ns: {(adjusted_elapsed_ns - last_adjusted_elapsed_ns)/(N/I_r/2)}')
         print(f'amortized ns per alloc-dealloc pair:', adjusted_elapsed_ns/(i/2))
+        print(f'amortized ns per alloc:', adjusted_elapsed_alloc_ns/allocs)
+        print(f'amortized ns per dealloc:', adjusted_elapsed_dealloc_ns/deallocs)
         print(alloc_overhead_ns, dealloc_overhead_ns)
         print(allocs, deallocs)
         last_adjusted_elapsed_ns = adjusted_elapsed_ns
@@ -256,4 +264,4 @@ def stochastic_perf_test(
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(M=1_000_000, N=10_000_000)
+    stochastic_perf_test(M=100_000, N=10_000_000)
