@@ -17,9 +17,10 @@ def stochastic_perf_test(
         N=10_000_000 # number of steps
 ):
 
-    precision = 5
+    precision = 4
     block_mgr.alloc_precision_bits.value = precision
-    block_mgr.fragment_size.value = 1 << precision
+    block_mgr.fragment_size.value = 16
+    block_mgr.fragment_size_bits.value = 4
 
     block_mgr.init_blockset_manager()
 
@@ -27,7 +28,7 @@ def stochastic_perf_test(
     blockset = block_mgr.get_blockset(blockset_id)
 
     # default 0x1000
-    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x100)
+    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x400)
 
     b = block_mgr.alloc_block(blockset_id, M)
     block_mgr.dealloc_block(blockset_id, b)
@@ -57,7 +58,7 @@ def stochastic_perf_test(
     alloc_overhead_ns = 0
     for i in range(101000):
         tic = time.perf_counter_ns()
-        block_mgr.stub_alloc_block(blockset_id, 1)
+        block_mgr.alloc_block(blockset_id, 0)
         toc = time.perf_counter_ns()
         if i > 1000:
             alloc_overhead_ns += toc - tic
@@ -67,7 +68,7 @@ def stochastic_perf_test(
     dealloc_overhead_ns = 0
     for i in range(101000):
         tic = time.perf_counter_ns()
-        block_mgr.stub_dealloc_block(blockset_id, 1)
+        block_mgr.dealloc_block(blockset_id, NULL)
         toc = time.perf_counter_ns()
         if i > 1000:
             dealloc_overhead_ns += toc - tic
@@ -100,7 +101,7 @@ def stochastic_perf_test(
     w = 1
 
     # average number of w-byte words in each alloc_block request
-    L = 3
+    L = 7
 
     # distribution of alloc_block request sizes (in units of w, with exp length L)
     distribution = util.sample_poisson
@@ -214,7 +215,7 @@ def stochastic_perf_test(
     v_min = 1_432_848
     l_min = N
     default_depth = 2
-    I_r = 4
+    I_r = 1
 
     last_adjusted_elapsed_ns = 0
     def report(i):
@@ -264,4 +265,4 @@ def stochastic_perf_test(
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(M=100_000, N=10_000_000)
+    stochastic_perf_test(M=1_000_000, N=10_000_000)

@@ -132,6 +132,7 @@ def print_block_mgr_state(blockset):
     print("get_blockset_block_count:", block_mgr.get_blockset_block_count(blockset))
     print("get_blockset_fragment_count:", block_mgr.get_blockset_fragment_count(blockset))
     print("get_blockset_free_count:", block_mgr.get_blockset_free_count(blockset))
+    print("get_blockset_unused_count:", block_mgr.get_blockset_unused_count(blockset))
     print("get_blockset_block_list:", format_addr(block_mgr.get_blockset_block_list(blockset)))
     print("get_blockset_end_block:", format_addr(block_mgr.get_blockset_end_block(blockset)))
     print("get_blockset_free_space:", free_space)
@@ -228,8 +229,11 @@ def summarize_free_list(blockset):
 
     for idx, free_list in enumerate(free_lists(blockset)):
         if free_list is not NULL:
+            bs = list(free_blocks(free_list))
+            free_count = len(bs)
+            unused_count = get_list_length(free_list) - free_count
             sizes = set(
                 get_block_size(b)
-                for b in free_blocks(free_list)
+                for b in bs
             )
-            print(f'{idx} {free_list_idx_to_size(idx)}: {get_list_length(free_list)} -- {list(sorted(sizes))}')
+            print(f'{idx} {free_list_idx_to_size(idx)}: {free_count} {unused_count}* -- {list(sorted(sizes))}')

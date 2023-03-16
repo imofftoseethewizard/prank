@@ -199,6 +199,7 @@ def test_alloc_block():
 
     b = alloc_block(blockset_id, 48)
     assert get_block_size(b) == 48
+    print_blockset(blockset)
     validate_blockset(blockset)
 
 def test_alloc_block_fragment():

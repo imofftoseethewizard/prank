@@ -387,3 +387,17 @@ branch strategy
       includes licence, etc
     build branch
       includes make file tools, etc
+
+block-mgr
+  problem, during defragmentation free lists for larger fragments
+    get depleted, forcing block splits
+  solution, distribute block defrag over free lists in proportion
+    to fragment free list length
+  impl
+    provision counters for fragment free lists
+    incr/decr in add-free-block pop-free-block when fragment
+    add fn between step-defrag and defrag-free block, defrag-free-list,
+      start with subject free list length + 1/2 average
+      subtracts the average free list length from the
+      length of the subject free list each iteration, and defrags one
+      block from the free list each iteration
