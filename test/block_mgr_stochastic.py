@@ -101,7 +101,7 @@ def stochastic_perf_test(
     w = 1
 
     # average number of w-byte words in each alloc_block request
-    L = 7
+    L = 3
 
     # distribution of alloc_block request sizes (in units of w, with exp length L)
     distribution = util.sample_poisson
@@ -131,6 +131,7 @@ def stochastic_perf_test(
         elapsed_ns += toc - tic
         elapsed_alloc_ns += toc - tic
         blocks.append((b, size))
+        # block_mgr_test_client.fill(b, (b>>4)&0xff)
         total_allocated += size
         if i == problem_step:
             print_blockset(blockset, depth=2)
@@ -201,6 +202,7 @@ def stochastic_perf_test(
             # # print(format_addr(rl), rsz)
             # block_mgr.step_defragment_blockset_free_list(blockset)
         else:
+            # assert block_mgr_test_client.check_fill(b, (b>>4)&0xff)
             tic = time.perf_counter_ns()
             block_mgr.dealloc_block(blockset_id, b)
             toc = time.perf_counter_ns()
@@ -215,7 +217,7 @@ def stochastic_perf_test(
     v_min = 1_432_848
     l_min = N
     default_depth = 2
-    I_r = 1
+    I_r = 2
 
     last_adjusted_elapsed_ns = 0
     def report(i):
@@ -260,9 +262,9 @@ def stochastic_perf_test(
     print_block_mgr_state(blockset)
     report(i)
     # print(i)
-    # # validate_blockset(blockset)
+    validate_blockset(blockset)
     # print('done')
     # assert False
 
 if __name__ == '__main__':
-    stochastic_perf_test(M=1_000_000, N=10_000_000)
+    stochastic_perf_test(M=100_000, N=10_000_000)

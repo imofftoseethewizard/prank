@@ -14,13 +14,7 @@
  (func $init (export "init")
    (param $blockset-id i32)
 
-   ;; Init blockset such that during defrag blocks > 32KB are immobile, single
-   ;; blocks between 4-32KB can be moved, and groups of blocks in aggregate < 4KB
-   ;; can be moved.
-   (call $init-blockset
-         (local.get $blockset-id)
-         (i32.const 0x100)) ;; aggregate block move size limit
-
+   (call $init-blockset (local.get $blockset-id) (i32.const 0x100))
    (call $init-blockset-memory-proxies (local.get $blockset-id)))
 
  (func $fill (export "fill")
@@ -42,6 +36,8 @@
    (local.set $addr (call $get-block-addr (local.get $block)))
    (local.set $end (i32.add (local.get $addr)
                             (call $get-block-size (local.get $block))))
+
+   (local.set $value (i32.and (local.get $value) (i32.const 0xff)))
 
    (loop $again
      (if (i32.lt_u (local.get $addr) (local.get $end))

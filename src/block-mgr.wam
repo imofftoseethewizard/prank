@@ -350,10 +350,6 @@
    (expr ,blockset-id)
    (i32.shl ,blockset-id (global.get $blockset-size-bits)))
 
- (macro %get-blockset-id
-   (expr ,blockset)
-   (i32.shr_u ,blockset (global.get $blockset-size-bits)))
-
  (macro %get-blockset-block-count
    (expr ,blockset)
    (i32.load (i32.add ,blockset (global.get $blockset-block-count))))

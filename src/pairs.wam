@@ -27,9 +27,9 @@
  ;; Pairs are the fundamental data type, from which values of all other types
  ;; are referenced.
 
- (global $pairs-top      (debug (export "pairs-top"))      (mut i32) (i32.const 0xffffffff))
- (global $pair-count     (debug (export "pair-count"))     (mut i32) (i32.const 0x00000000))
- (global $pair-free-list (debug (export "pair-free-list")) (mut i32) (i32.const 0xffffffff))
+ (global $pairs-top      (debug (export "pairs-top"))      (mut i32) (i32.const #null))
+ (global $pair-count     (debug (export "pair-count"))     (mut i32) (i32.const 0))
+ (global $pair-free-list (debug (export "pair-free-list")) (mut i32) (i32.const #null))
 
  ;; create 1 KB of pairs (128 * 8 = 1024) when growing storage
  (global $grow-storage-pair-count (export "grow-storage-pair-count") i32 (i32.const 128))

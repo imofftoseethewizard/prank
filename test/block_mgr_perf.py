@@ -2,28 +2,27 @@ import random
 import sys
 import time
 
-from block_mgr_util import (blockset_id, validate_blockset, print_blockset, print_heap,
+from block_mgr_util import (blockset_id, validate_blockset, print_blockset,
                             print_block_mgr_state, format_addr)
 
-from modules import block_mgr, block_mgr_test_client, lists, pairs, values
+from modules import block_mgr, block_mgr_test_client, lists, pairs
 import util
 
 NULL = block_mgr.NULL.value
 
 def stochastic_perf_test(
-        M=1_000_000, # memory target (in bytes)
+        M=50_000_000, # memory target (in bytes)
         seed=0,      # value given to random.seed()
         N=10_000_000 # number of steps
 ):
     print()
 
     block_mgr_test_client.init(blockset_id)
+    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x400)
 
-    # default 0x1000
-    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x1000)
-
-    # default 0x1000
-    block_mgr.set_blockset_immobile_block_size(blockset_id, 0x8000)
+    # Grow memory to required size.
+    b = block_mgr.alloc_block(blockset_id, M)
+    block_mgr.dealloc_block(blockset_id, b)
 
     # This will hold the blocks that have been allocated
     blocks = []
