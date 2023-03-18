@@ -1,0 +1,52 @@
+ ;; -----------------------------------------------------------------------------
+ ;;
+ ;; Pair Interface Functions
+ ;;
+ ;; These functions comprise the external interface to pairs.
+
+ (func $cons (export "cons")
+   (param $car i32)
+   (param $cdr i32)
+   (result i32)
+
+   (local $pair-addr i32)
+   (local.set $pair-addr (call $make-pair (local.get $car) (local.get $cdr)))
+
+   (call $add-ref (local.get $pair-addr) (local.get $car))
+   (call $add-ref (local.get $pair-addr) (local.get $cdr))
+
+   (i32.or (local.get $pair-addr) (global.get $tag-pair)))
+
+ (func $car (export "car")
+   (param $pair i32)
+   (result i32)
+   (i32.load (i32.xor (local.get $pair) (global.get $tag-pair))))
+
+ (func $cdr (export "cdr")
+   (param $pair i32)
+   (result i32)
+   (i32.load (i32.add
+              (i32.xor (local.get $pair) (global.get $tag-pair))
+              (global.get $value-size))))
+
+ (func $set-car (export "set-car")
+   (param $pair i32)
+   (param $value i32)
+
+   (call $release (local.get $pair) (call $car (local.get $pair)))
+
+   (i32.store (call $get-pair-car-addr (local.get $pair))
+              (local.get $value))
+
+   (call $add-ref (local.get $pair) (local.get $value)))
+
+ (func $set-cdr (export "set-cdr")
+   (param $pair i32)
+   (param $value i32)
+
+   (call $release (local.get $pair) (call $cdr (local.get $pair)))
+
+   (i32.store (call $get-pair-cdr-addr (local.get $pair))
+              (local.get $value))
+
+   (call $add-ref (local.get $pair) (local.get $value)))

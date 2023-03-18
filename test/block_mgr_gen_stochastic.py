@@ -13,15 +13,15 @@ parser = argparse.ArgumentParser(
     prog='block_mgr_gen_stochastic',
     description='Generates stochastic test data sets for alloc/dealloc.')
 
-parser.add_argument('-w', '--word-size', default=4)
-parser.add_argument('-L', '--average-length', default=5)
-parser.add_argument('-M', '--memory-target', default=1_000_000)
-parser.add_argument('-S', '--random-seed', default=0)
-parser.add_argument('-N', '--steps', default=100_000)
+parser.add_argument('-w', '--word-size', default=4, type=int, dest='w')
+parser.add_argument('-L', '--average-length', default=5, type=int, dest='L')
+parser.add_argument('-M', '--memory-target', default=1_000_000, type=int, dest='M')
+parser.add_argument('-S', '--random-seed', default=0, type=int, dest='seed')
+parser.add_argument('-N', '--steps', default=100_000, type=int, dest='N')
 
 nNULL = block_mgr.NULL.value
 
-def stochastic_perf_test(
+def generate_data(
         w=1,  # word size
         L=3,  # average length of alloc request in words
         M=50_000_000, # memory target (in bytes)
@@ -133,11 +133,4 @@ def stochastic_perf_test(
     f.close()
 
 if __name__ == '__main__':
-    args = parser.parse_args()
-
-    stochastic_perf_test(
-        w=args.word_size,
-        L=args.average_length,
-        M=args.memory_target,
-        seed=args.random_seed,
-        N=args.steps)
+    generate_data(**vars(parser.parse_args()))

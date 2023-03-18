@@ -4,7 +4,6 @@
 ;; memory.  It is intended to be used by the bytevectors, numbers, strings, and
 ;; vectors modules, and by the garbage collector for its internal indexes.
 ;;
-;;
 ;; ## Design
 ;;
 ;; The simplest memory management policy is static allocation, common on small,
@@ -144,7 +143,7 @@
  (global $ref-free-list (debug (export "ref-free-list")) (mut i32) (i32.const 0))
 
  ;; create 4 KB of block refs (256 * 16 = 4096) when growing storage
- (global $grow-storage-ref-count (debug (export "grow-storage-ref-count")) i32 (i32.const 256))
+ (global $provision-block-ref-count (debug (export "provision-block-ref-count")) i32 (i32.const 256))
 
  ;; Offsets into a block ref element.
  (global $block-addr           (debug (export "block-addr"))           i32 (i32.const 0x00))
@@ -800,17 +799,9 @@
  ;;
  ;; Block Refs
  ;;
-
- (macro %alloc-ref
-   (if (i32.eq (global.get $ref-free-list) (global.get $null))
-       (then
-        (call $grow-storage (global.get $grow-storage-ref-count))))
-
-   (debug
-    (%global.incr i32 $ref-count))
-
-   (global.get $ref-free-list)
-   (global.set $ref-free-list (i32.load (global.get $ref-free-list))))
+ ;; This is essentially just a copy of the functionality in the pairs module.
+ ;; It could probably be abstracted into a macro or set of macros, though
+ ;; that might just make it more difficult to understand.
 
  (func $make-ref (export "make-ref")
    (param $addr i32)
@@ -819,19 +810,22 @@
 
    (local $ref-addr i32)
 
-   (local.set $ref-addr (%alloc-ref))
+   (if (i32.eq (global.get $ref-free-list) (global.get $null))
+       (then
+        (call $provision-block-refs (global.get $provision-block-ref-count))))
+
+   (debug
+    (%global.incr i32 $ref-count))
+
+   (local.set $ref-addr (global.get $ref-free-list))
+   (global.set $ref-free-list (i32.load (global.get $ref-free-list)))
 
    (%set-block-addr (local.get $ref-addr) (local.get $addr))
    (%set-block-size (local.get $ref-addr) (local.get $size))
 
    (local.get $ref-addr))
 
- (debug
-  (func $alloc-ref (export "alloc-ref")
-    (result i32)
-    (%alloc-ref)))
-
- (func $grow-storage (debug (export "grow-storage"))
+ (func $provision-block-refs (debug (export "provision-block-refs"))
    (param $count i32)
 
    (local $bytes-required i32)
@@ -844,7 +838,7 @@
 
    (local.set $bytes-required (i32.sub (local.get $new-top)
                                        (i32.shl (memory.size)
-                                                (global.get $page-size))))
+                                                (global.get $page-size-bits))))
 
    (if (i32.gt_s (local.get $bytes-required) (i32.const 0))
        (then
@@ -876,6 +870,7 @@
          (then
           (%set-block-addr (local.get $ref) (local.get $next-ref))
           (debug
+           ;; Mark freshly-initialized refs with a distinctive bit pattern
            (%set-block-size (local.get $ref) (i32.const 0x0badce11)))
           (local.set $ref (local.get $next-ref))
           (br $again))
@@ -896,6 +891,7 @@
    (%set-block-addr (local.get $ref) (global.get $ref-free-list))
 
    (debug
+    ;; Mark deallocated refs with a distinctive bit pattern
     (%set-block-size (local.get $ref) (i32.const 0x0badce11))
     (%global.decr i32 $ref-count))
 
@@ -1397,7 +1393,11 @@
 
  (func $defragment-free-list (debug (export "defragment-free-list"))
 
-   ;;
+   ;; Pops floor(count/average) free blocks from the given free list.  Unused
+   ;; blocks are deallocated without being part of the count.  Each block will
+   ;; be merged with any immediately following free blocks, and if the after that
+   ;; the block is still a fragment, then it will be moved upward in memory
+   ;; any for each coalescing it with any free neighbors, e
 
    (param $blockset i32)
    (param $free-list i32)
@@ -1405,10 +1405,12 @@
    (param $average i32)
 
    (local $block i32)
+   (local $next i32)
+   (local $relocated i32)
 
-   ;;(local.set $count (local.get $average))
+   (local.set $relocated (global.get $null))
 
-   (loop $again
+   (loop $relocate
      (if (i32.ge_u (local.get $count) (local.get $average))
          (then
           (local.set $block (call $pop-free-block (local.get $blockset) (local.get $free-list)))
@@ -1426,14 +1428,33 @@
                    (then
                     (call $relocate-free-block (local.get $blockset) (local.get $block))))
 
-               ;; Add it back to the free block here, when its final size is
-               ;; known, otherwise a large block might get stranded in a free
-               ;; list for much smaller blocks.
+               ;; The block has likely increased in size or moved upwards in memory,
+               ;; but it is possible that it has come up against a block that cannot
+               ;; be moved.  To handle this, free blocks are held in a list until
+               ;; required number have been relocated, and only then are they added
+               ;; back into the free lists.
 
-               (call $add-free-block (local.get $blockset) (local.get $block))
+               (local.set $relocated (call $make-pair (local.get $block) (local.get $relocated)))
 
                (local.set $count (i32.sub (local.get $count) (local.get $average)))
-               (br $again)))))))
+               (br $relocate))))))
+
+
+   (loop $add-free
+     (if (i32.ne (local.get $relocated) (global.get $null))
+         (then
+
+          ;; Add it back to the free block here, when its final size is known,
+          ;; otherwise a large block might get stranded in a free list for much
+          ;; smaller blocks.
+
+          (call $add-free-block (local.get $blockset) (call $get-pair-car (local.get $relocated)))
+
+          (local.set $next (call $get-pair-cdr (local.get $relocated)))
+          (call $dealloc-pair (local.get $relocated))
+
+          (local.set $relocated (local.get $next))
+          (br $add-free)))))
 
  (func $relocate-free-block (debug (export "relocate-free-block"))
    (param $blockset i32)
@@ -1659,6 +1680,11 @@
           (br $again)))))
 
  (func $step-clean-free-lists (debug (export "step-clean-free-lists"))
+
+   ;; Finds the next non-empty free list and recreates it, omitting any unused
+   ;; blocks.  The blockset sweep cursor is used to track what "next" free
+   ;; list means between invocations of this function.
+
    (param $blockset i32)
 
    (local $base-free-list i32)
@@ -1680,11 +1706,18 @@
              (call $rebuild-free-list (local.get $blockset) (local.get $head))
              (%decr-n i32 $free-list #value-size))))
        (else
+
+        ;; The search reached the bottom. Reset to the top for the next run.
         (local.set $free-list (%get-blockset-last-free-list (local.get $blockset))))))
 
+   ;; Update the cursor for the next invocation.
    (%set-blockset-sweep-cursor (local.get $blockset) (local.get $free-list)))
 
  (func $rebuild-free-list (debug (export "rebuild-free-list"))
+
+   ;; Filters a free list to omit unused blocks, deallocating block refs and
+   ;; pairs as needed.  This also adjusts the blockset's unused block count.
+
    (param $blockset i32)
    (param $head i32)
 
@@ -1703,6 +1736,8 @@
 
           (if (%is-unused-block (local.get $block))
               (then
+               ;; Unlink from the list and deallocate the block ref and the pair
+
                (local.set $unused (local.get $next))
                (local.set $next (call $get-pair-cdr (local.get $next)))
                (call $set-pair-cdr (local.get $head) (local.get $next))
@@ -1715,6 +1750,9 @@
              (local.set $next (call $get-pair-cdr (local.get $head)))))
 
           (br $again))))
+
+   ;; It's much faster to accumulate the number of unused blocks that were
+   ;; deallocated and subtract them at the end than to do so incrementally.
 
    (%set-blockset-unused-count (local.get $blockset)
                                (i32.sub (%get-blockset-unused-count (local.get $blockset))

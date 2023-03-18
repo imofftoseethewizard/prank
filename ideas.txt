@@ -408,25 +408,3 @@ branch strategy
 
 block-mgr
   release testing
-
-  generate stochastic/perf test data
-    create binary data section with alloc/dealloc info
-      msb = 1 => alloc, low bits are size
-      msb = 0 => dealloc, low bits are index
-    save as file
-
-  perf test runner
-    import memory
-    test arg, length of data, null test
-    reserve area for blocks below data section
-    4 bytes per block, just store its value
-    test loop
-      load action
-      if alloc
-        b = alloc block load next value
-        append b to blocks
-        incr block count
-      else
-        dealloc block (get block at (load next value))
-        move end block to index
-        decr block count

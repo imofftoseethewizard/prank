@@ -130,7 +130,6 @@
  (import "block-mgr" "get-block-size" (func $get-block-size (param i32)     (result i32)))
  (import "block-mgr" "init-blockset"  (func $init-blockset  (param i32 i32)))
  (import "pairs" "make-pair"          (func $make-pair      (param i32 i32) (result i32)))
- (import "pairs" "make-pair-f32"      (func $make-pair-f32  (param i32 f32) (result i32)))
  (import "pairs" "dealloc-pair"       (func $dealloc-pair   (param i32)))
  (import "pairs" "get-pair-car"       (func $get-pair-car   (param i32)     (result i32)))
  (import "pairs" "get-pair-cdr"       (func $get-pair-cdr   (param i32)     (result i32)))

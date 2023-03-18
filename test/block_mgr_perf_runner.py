@@ -19,12 +19,14 @@ parser = argparse.ArgumentParser(
 parser.add_argument('-f', '--fragment-size-bits', default=4, type=int)
 parser.add_argument('-p', '--precision-bits', default=4, type=int)
 parser.add_argument('-r', '--max-relocation-size', default=0x400, type=int)
-parser.add_argument('-M', '--pre-alloc-memory', action='store_true')
+parser.add_argument('-a', '--pre-alloc-memory', action='store_true')
 parser.add_argument('-n', '--step-count', type=int)
+parser.add_argument('-i', '--iterations', type=int, default=1,
+                    help='Average the results over multiple passes.')
 parser.add_argument('filename')
 
 def run_perf(filename, fragment_size_bits, precision_bits, max_relocation_size,
-             pre_alloc_memory, step_count):
+             pre_alloc_memory, step_count, iterations):
 
     data_module = Module(store, Path(filename).read_bytes())
     data_inst = Instance(data_module)
@@ -54,22 +56,26 @@ def run_perf(filename, fragment_size_bits, precision_bits, max_relocation_size,
     init(blockset)
 
     if step_count is None:
-        step_count = (read_i32(bytearray(data_exports['memory'].buffer), 0) >> 2) - 2
+        step_count = data_exports['N'].value
+
+    if pre_alloc_memory:
+        b = block_mgr.alloc_block(blockset, data_exports['M'].value)
+        block_mgr.dealloc_block(blockset, b)
 
     stub_elapsed_ns = 0
 
-    for i in range(10):
+    for i in range(iterations):
         init(blockset)
         tic = time.perf_counter_ns()
         stub_test(step_count)
         toc = time.perf_counter_ns()
         stub_elapsed_ns += toc - tic
 
-    stub_elapsed_ns /= 10
+    stub_elapsed_ns /= iterations
 
     elapsed_ns = 0
 
-    for i in range(10):
+    for i in range(iterations):
         pairs.init_pairs()
         block_mgr.init_blockset(blockset, 0x1000)
         init(blockset)
@@ -78,7 +84,7 @@ def run_perf(filename, fragment_size_bits, precision_bits, max_relocation_size,
         toc = time.perf_counter_ns()
         elapsed_ns += toc - tic
 
-    elapsed_ns /= 10
+    elapsed_ns /= iterations
 
     alloc_dealloc_pair_count = step_count / 2
     print((elapsed_ns - stub_elapsed_ns)/alloc_dealloc_pair_count)
@@ -91,12 +97,5 @@ def read_i32(data, idx):
     return result
 
 if __name__ == '__main__':
-    args = parser.parse_args()
 
-    run_perf(
-        args.filename,
-        fragment_size_bits=args.fragment_size_bits,
-        precision_bits=args.precision_bits,
-        max_relocation_size=args.max_relocation_size,
-        pre_alloc_memory=args.pre_alloc_memory,
-        step_count=args.step_count)
+    run_perf(**vars(parser.parse_args()))
