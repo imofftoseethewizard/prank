@@ -2,7 +2,7 @@ import random
 import sys
 import time
 
-from block_mgr_util import (blockset_id, validate_blockset, print_blockset,
+from block_mgr_util import (blockset, validate_blockset, print_blockset,
                             print_block_mgr_state, format_addr)
 
 from modules import block_mgr, block_mgr_test_client, lists, pairs
@@ -17,12 +17,12 @@ def stochastic_perf_test(
 ):
     print()
 
-    block_mgr_test_client.init(blockset_id)
-    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x400)
+    block_mgr_test_client.init(blockset)
+    block_mgr.set_blockset_relocation_size_limit(blockset, 0x400)
 
     # Grow memory to required size.
-    b = block_mgr.alloc_block(blockset_id, M)
-    block_mgr.dealloc_block(blockset_id, b)
+    b = block_mgr.alloc_block(blockset, M)
+    block_mgr.dealloc_block(blockset, b)
 
     # This will hold the blocks that have been allocated
     blocks = []
@@ -44,7 +44,7 @@ def stochastic_perf_test(
     alloc_overhead_ns = 0
     for i in range(10100):
         tic = time.perf_counter_ns()
-        block_mgr.stub_alloc_block(blockset_id, 1)
+        block_mgr.stub_alloc_block(blockset, 1)
         toc = time.perf_counter_ns()
         if i > 100:
             alloc_overhead_ns += toc - tic
@@ -54,7 +54,7 @@ def stochastic_perf_test(
     dealloc_overhead_ns = 0
     for i in range(10100):
         tic = time.perf_counter_ns()
-        block_mgr.stub_dealloc_block(blockset_id, 1)
+        block_mgr.stub_dealloc_block(blockset, 1)
         toc = time.perf_counter_ns()
         if i > 100:
             dealloc_overhead_ns += toc - tic
@@ -91,7 +91,7 @@ def stochastic_perf_test(
         allocs += 1
         size = w * max(1, distribution(L))
         tic = time.perf_counter_ns()
-        b = block_mgr.alloc_block(blockset_id, size)
+        b = block_mgr.alloc_block(blockset, size)
         toc = time.perf_counter_ns()
         nonlocal elapsed_ns
         elapsed_ns += toc - tic
@@ -109,7 +109,7 @@ def stochastic_perf_test(
         blocks.pop()
         total_allocated -= block_mgr.get_block_size(b)
         tic = time.perf_counter_ns()
-        block_mgr.dealloc_block(blockset_id, b)
+        block_mgr.dealloc_block(blockset, b)
         toc = time.perf_counter_ns()
         nonlocal elapsed_ns
         elapsed_ns += toc - tic

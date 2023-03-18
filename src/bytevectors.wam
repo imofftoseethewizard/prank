@@ -41,8 +41,8 @@
 
  (start $init-bytevectors)
  (func $init-bytevectors (debug (export "init-bytevectors"))
-   (call $init-blockset (global.get $bytevectors-blockset-id) (i32.const 0x400))
-   (call $init-blockset-memory-proxies (global.get $bytevectors-blockset-id)))
+   (call $init-blockset (global.get $bytevectors-blockset) (i32.const 0x400))
+   (call $init-blockset-memory-proxies (global.get $bytevectors-blockset)))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -56,7 +56,7 @@
    (local $block i32)
 
    (local.set $block (call $alloc-block
-                               (global.get $bytevectors-blockset-id)
+                               (global.get $bytevectors-blockset)
                                (i32.add (local.get $size) (global.get $value-size))))
 
    (i32.store (call $get-block-addr (local.get $block)) (local.get $size))
@@ -72,7 +72,7 @@
    (param $bv i32)
 
    (call $dealloc-block
-         (global.get $bytevectors-blockset-id)
+         (global.get $bytevectors-blockset)
          (%get-box-value (local.get $bv)))
 
    (%dealloc-box (local.get $bv)))

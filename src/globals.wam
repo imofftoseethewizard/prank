@@ -2,6 +2,8 @@
 ;; in this project.  It should only contain non-mutable globals which are used
 ;; in more than one module.
 
+(const #null -1)
+
 (const #page-size       0x10000)
 (const #page-size-bits  16)
 (const #pair-size       8)
@@ -48,11 +50,18 @@
 (global $type-vector           (export "type-vector")           i32 (i32.const 0x00000003))
 (global $type-weakref          (export "typevalue-weakref")     i32 (i32.const 0x00000004))
 
-(global $bytevectors-blockset-id (export "bytevectors-blockset-id") i32 (i32.const 0x00000000))
-(global $numbers-blockset-id     (export "numbers-blockset-id")     i32 (i32.const 0x00000001))
-(global $strings-blockset-id     (export "strings-blockset-id")     i32 (i32.const 0x00000002))
-(global $vectors-blockset-id     (export "vectors-blockset-id")     i32 (i32.const 0x00000003))
-(global $blockset-count          (export "blockset-count")          i32 (i32.const 4))
+(global $blockset-size      (debug (export "blockset-size"))      i32 (i32.const 0x0040))
+(global $blockset-size-bits (debug (export "blockset-size-bits")) i32 (i32.const 6))
+
+(macro %get-blockset-id
+  (expr ,blockset)
+  (i32.shr_u ,blockset (global.get $blockset-size-bits)))
+
+(global $bytevectors-blockset (export "bytevectors-blockset") i32 (i32.const 0x00000000))
+(global $numbers-blockset     (export "numbers-blockset")     i32 (i32.const 0x00000040))
+(global $strings-blockset     (export "strings-blockset")     i32 (i32.const 0x00000080))
+(global $vectors-blockset     (export "vectors-blockset")     i32 (i32.const 0x000000c0))
+(global $blockset-count       (export "blockset-count")       i32 (i32.const 4))
 
 (macro %incr
   (class Int)
@@ -85,6 +94,18 @@
   (class Int)
   (label $var)
   (global.set $var (Int.sub (global.get $var) (Int.const 1))))
+
+(macro %global.incr-n
+  (class Int)
+  (label $var)
+  (expr ,n)
+  (global.set $var (Int.add (global.get $var) (Int.const ,n))))
+
+(macro %global.decr-n
+  (class Int)
+  (label $var)
+  (expr ,n)
+  (global.set $var (Int.sub (global.get $var) (Int.const ,n))))
 
 (macro %next-cdr
   (label $var)

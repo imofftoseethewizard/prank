@@ -24,12 +24,12 @@
  (start $init-vectors)
  (func $init-vectors (export "init-vectors")
    (call $init-blockset
-         (global.get $vectors-blockset-id)
+         (global.get $vectors-blockset)
          (i32.const 0x800)   ;; relocate blocks in groups of up to 2KB
          (i32.const 0x4000)) ;; relocate single blocks of up to 16KB
 
    ;; defined in block-mgr-memory-proxies.wam
-   (call $init-blockset-memory-proxies (global.get $vectors-blockset-id)))
+   (call $init-blockset-memory-proxies (global.get $vectors-blockset)))
 
  (macro %calc-vector-size
    (expr ,length)
@@ -67,7 +67,7 @@
    (local $block i32)
 
    (local.set $block (call $alloc-block
-                           (global.get $vectors-blockset-id)
+                           (global.get $vectors-blockset)
                            (%calc-vector-size (local.get $length))))
 
    (i32.store (call $get-block-addr (local.get $block)) (local.get $length))
@@ -78,7 +78,7 @@
    (param $v i32)
 
    (call $dealloc-block
-         (global.get $vectors-blockset-id)
+         (global.get $vectors-blockset)
          (%get-box-value (local.get $v)))
 
    (%dealloc-box (local.get $v)))

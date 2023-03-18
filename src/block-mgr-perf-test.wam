@@ -1,0 +1,70 @@
+(module
+ (import "data" "memory" (memory 1))
+
+ (import "block-mgr" "alloc-block"        (func $alloc-block        (param i32 i32) (result i32)))
+ (import "block-mgr" "dealloc-block"      (func $dealloc-block      (param i32 i32)))
+ (import "block-mgr" "stub-alloc-block"   (func $stub-alloc-block   (param i32 i32) (result i32)))
+ (import "block-mgr" "stub-dealloc-block" (func $stub-dealloc-block (param i32 i32)))
+
+ (global $alloc-action-flag i32 (i32.const 0x80000000))
+ (global $alloc-size-mask   i32 (i32.const 0x3fffffff))
+
+ (global $blocks-base (mut i32) (i32.const 0))
+ (global $blocks-top  (mut i32) (i32.const 0))
+ (global $blockset    (mut i32) (i32.const 0))
+ (global $data-addr   (mut i32) (i32.const 0))
+
+ (include "./globals.wam")
+
+ (func $init (export "init")
+   (param $blockset i32)
+
+   (global.set $data-addr (i32.const 8))
+
+   (global.set $blocks-base (i32.load (i32.const 0)))
+   (global.set $blocks-top (i32.load (i32.const 0)))
+
+   ;; (if (i32.lt_u (memory.size) (local.get $page-count))
+   ;;     (then
+   ;;      (drop
+   ;;       (memory.grow (i32.sub (local.get $page-count) (memory.size))))))
+   )
+
+ (macro %runner-func
+   (label $name)
+   (expr ,export-name)
+   (label $alloc)
+   (label $dealloc)
+
+   (func $name (export ,export-name)
+     (param $count i32)
+
+     (local $action i32)
+     (local $block i32)
+
+     (loop $again
+       (if (i32.and (i32.lt_u (global.get $data-addr) (global.get $blocks-base))
+                    (i32.gt_u (local.get $count) (i32.const 0)))
+           (then
+            (local.set $action (i32.load (global.get $data-addr)))
+            (if (i32.and (local.get $action) (global.get $alloc-action-flag))
+                (then
+                 (local.set $block (call $alloc
+                                         (global.get $blockset)
+                                         (i32.and (local.get $action)
+                                                  (global.get $alloc-size-mask))))
+
+                 (i32.store (global.get $blocks-top) (local.get $block))
+                 (%global.incr-n i32 $blocks-top 4))
+              (else
+               (local.set $block (i32.load (local.get $action)))
+               (call $dealloc (global.get $blockset) (local.get $block))
+
+               (%global.decr-n i32 $blocks-top 4)
+               (i32.store (local.get $action) (i32.load (global.get $blocks-top)))))
+            (%decr i32 $count)
+            (%global.incr-n i32 $data-addr 4)
+            (br $again))))))
+
+ (%runner-func $test "test" $alloc-block $dealloc-block)
+ (%runner-func $stub-test "stub-test" $stub-alloc-block $stub-dealloc-block))

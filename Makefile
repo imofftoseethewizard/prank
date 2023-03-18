@@ -18,6 +18,7 @@ TOOLS = \
 OBJECTS = \
 	obj/block-mgr.wasm \
 	obj/block-mgr.d.wasm \
+	obj/block-mgr-perf-test.wasm \
 	obj/block-mgr-test-client.wasm \
 	obj/block-mgr-test-client.d.wasm \
 	obj/bytevectors.wasm \
@@ -38,6 +39,9 @@ OBJECTS = \
 	obj/vectors.d.wasm
 
 obj/block-mgr.wat obj/block-mgr.d.wat: src/globals.wam
+
+obj/block-mgr-perf-test.wat: \
+	src/globals.wam
 
 obj/block-mgr-test-client.wat obj/block-mgr-test-client.d.wat: \
 	src/block-mgr-memory-proxies.wam \

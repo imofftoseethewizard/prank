@@ -2,7 +2,7 @@ import random
 import sys
 import time
 
-from block_mgr_util import (blockset_id, validate_blockset, print_blockset,
+from block_mgr_util import (blockset, validate_blockset, print_blockset,
                             print_block_mgr_state, format_addr, count_free_blocks,
                             summarize_free_list)
 
@@ -24,14 +24,13 @@ def stochastic_perf_test(
 
     block_mgr.init_blockset_manager()
 
-    block_mgr_test_client.init(blockset_id)
-    blockset = block_mgr.get_blockset(blockset_id)
+    block_mgr_test_client.init(blockset)
 
     # default 0x1000
-    block_mgr.set_blockset_relocation_size_limit(blockset_id, 0x400)
+    block_mgr.set_blockset_relocation_size_limit(blockset, 0x400)
 
-    b = block_mgr.alloc_block(blockset_id, M)
-    block_mgr.dealloc_block(blockset_id, b)
+    b = block_mgr.alloc_block(blockset, M)
+    block_mgr.dealloc_block(blockset, b)
 
     # This will hold the blocks that have been allocated
     blocks = []
@@ -58,7 +57,7 @@ def stochastic_perf_test(
     alloc_overhead_ns = 0
     for i in range(101000):
         tic = time.perf_counter_ns()
-        block_mgr.alloc_block(blockset_id, 0)
+        block_mgr.alloc_block(blockset, 0)
         toc = time.perf_counter_ns()
         if i > 1000:
             alloc_overhead_ns += toc - tic
@@ -68,7 +67,7 @@ def stochastic_perf_test(
     dealloc_overhead_ns = 0
     for i in range(101000):
         tic = time.perf_counter_ns()
-        block_mgr.dealloc_block(blockset_id, NULL)
+        block_mgr.dealloc_block(blockset, NULL)
         toc = time.perf_counter_ns()
         if i > 1000:
             dealloc_overhead_ns += toc - tic
@@ -120,7 +119,7 @@ def stochastic_perf_test(
             print_blockset(blockset, depth=2)
         try:
             tic = time.perf_counter_ns()
-            b = block_mgr.alloc_block(blockset_id, size)
+            b = block_mgr.alloc_block(blockset, size)
             toc = time.perf_counter_ns()
         except:
             # print(format_addr(block_mgr.p1.value))
@@ -204,7 +203,7 @@ def stochastic_perf_test(
         else:
             # assert block_mgr_test_client.check_fill(b, (b>>4)&0xff)
             tic = time.perf_counter_ns()
-            block_mgr.dealloc_block(blockset_id, b)
+            block_mgr.dealloc_block(blockset, b)
             toc = time.perf_counter_ns()
             nonlocal elapsed_ns, elapsed_dealloc_ns
             elapsed_ns += toc - tic

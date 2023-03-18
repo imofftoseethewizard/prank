@@ -176,9 +176,9 @@
  (start $init-numbers)
  (func $init-numbers (debug (export "init-numbers"))
 
-   (call $init-blockset (global.get $numbers-blockset-id) (global.get $number-block-size))
+   (call $init-blockset (global.get $numbers-blockset) (global.get $number-block-size))
 
-   (call $init-blockset-memory-proxies (global.get $numbers-blockset-id))
+   (call $init-blockset-memory-proxies (global.get $numbers-blockset))
 
    (global.set $x64-free-list (global.get $null))
    (debug
@@ -231,7 +231,7 @@
    (local.set $size (i32.shl (local.get $i64-digits) (i32.const #i64-size-bits)))
 
    (local.set $block (call $alloc-block
-                           (global.get $numbers-blockset-id)
+                           (global.get $numbers-blockset)
                            (local.get $size)))
 
    (local.set $addr (call $get-block-addr (local.get $block)))
@@ -264,7 +264,7 @@
    (local $x64 i32)
 
    (local.set $block (call $alloc-block
-                           (global.get $numbers-blockset-id)
+                           (global.get $numbers-blockset)
                            (global.get $number-block-size)))
 
    (debug
@@ -330,7 +330,7 @@
 
    (if (i32.eq (local.get $type) (global.get $number-type-integer))
        (then
-        (call $dealloc-block (global.get $numbers-blockset-id) (%get-box-value (local.get $x)))
+        (call $dealloc-block (global.get $numbers-blockset) (%get-box-value (local.get $x)))
         (%dealloc-box (local.get $x))
         (return)))
 

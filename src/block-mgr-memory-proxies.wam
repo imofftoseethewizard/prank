@@ -7,7 +7,11 @@
 ;; to compact allocations and shorten the free list.
 
 (func $init-blockset-memory-proxies (export "init-blockset-memory-proxies")
-  (param $blockset-id i32)
+  (param $blockset i32)
+
+  (local $blockset-id i32)
+
+  (local.set $blockset-id (%get-blockset-id (local.get $blockset)))
 
   (table.set $block-mgr-memory-copy (local.get $blockset-id) (ref.func $memory-copy))
   (table.set $block-mgr-memory-grow (local.get $blockset-id) (ref.func $memory-grow))

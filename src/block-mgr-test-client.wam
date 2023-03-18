@@ -12,10 +12,10 @@
  (memory (export "memory") 1)
 
  (func $init (export "init")
-   (param $blockset-id i32)
+   (param $blockset i32)
 
-   (call $init-blockset (local.get $blockset-id) (i32.const 0x100))
-   (call $init-blockset-memory-proxies (local.get $blockset-id)))
+   (call $init-blockset (local.get $blockset) (i32.const 0x100))
+   (call $init-blockset-memory-proxies (local.get $blockset)))
 
  (func $fill (export "fill")
    (param $block i32)

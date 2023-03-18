@@ -109,9 +109,6 @@
 
  (debug (global $debug (export "#debug") (mut i32) (i32.const 0)))
 
- (global $blockset-size      (debug (export "blockset-size"))      i32 (i32.const 0x0040))
- (global $blockset-size-bits (debug (export "blockset-size-bits")) i32 (i32.const 6))
-
  (global $blockset-block-list            (debug (export "blockset-block-list"))            i32 (i32.const 0x00))
  (global $blockset-end-block             (debug (export "blockset-end-block"))             i32 (i32.const 0x04))
  (global $blockset-fragment-count        (debug (export "blockset-fragment-count"))        i32 (i32.const 0x08))
@@ -501,14 +498,14 @@
               ,free-space))
 
  (func $get-blockset-relocation-size-limit (export "get-blockset-relocation-size-limit")
-   (param $blockset-id i32)
+   (param $blockset i32)
    (result i32)
-   (%get-blockset-relocation-size-limit (%get-blockset (local.get $blockset-id))))
+   (%get-blockset-relocation-size-limit (local.get $blockset)))
 
  (func $set-blockset-relocation-size-limit (export "set-blockset-relocation-size-limit")
-   (param $blockset-id i32)
+   (param $blockset i32)
    (param $relocation-size-limit i32)
-   (%set-blockset-relocation-size-limit (%get-blockset (local.get $blockset-id)) (local.get $relocation-size-limit)))
+   (%set-blockset-relocation-size-limit (local.get $blockset) (local.get $relocation-size-limit)))
 
  (debug
   (func $get-blockset (export "get-blockset")
@@ -739,10 +736,10 @@
  ;;
 
  (func $init-blockset (export "init-blockset")
-   (param $blockset-id i32)
+   (param $blockset i32)
    (param $relocation-size-limit i32)
 
-   (local $blockset i32)
+   (local $blockset-id i32)
    (local $fragment-counts-base i32)
    (local $fragment-counts-size i32)
    (local $fragment-counts-top i32)
@@ -750,7 +747,7 @@
    (local $free-lists-size i32)
    (local $free-lists-top i32)
 
-   (local.set $blockset (%get-blockset (local.get $blockset-id)))
+   (local.set $blockset-id (%get-blockset-id (local.get $blockset)))
 
    (%set-blockset-relocation-size-limit (local.get $blockset) (local.get $relocation-size-limit))
 
@@ -915,7 +912,7 @@
  ;; precisely measured.
 
  (func $stub-alloc-block (export "stub-alloc-block")
-   (param $blockset-id i32)
+   (param $blockset i32)
    (param $size i32)
    (result i32)
    (global.get $null))
@@ -939,13 +936,12 @@
     (i32.load (local.get $free-list))))
 
  (func $alloc-block (export "alloc-block")
-   (param $blockset-id i32)
+   (param $blockset i32)
    (param $size i32)
    (result i32)
 
    (local $base-free-list i32)
    (local $block i32)
-   (local $blockset i32)
    (local $free-block-size i32)
    (local $free-list i32)
    (local $new-block i32)
@@ -954,8 +950,6 @@
     (if (i32.eqz (local.get $size))
         (then
          (return (global.get $null)))))
-
-   (local.set $blockset (%get-blockset (local.get $blockset-id)))
 
    ;; $quantize-size is used here to round up the requested size to the next
    ;; larger free list.  This ensures that every block in the selected free list
@@ -978,6 +972,8 @@
 
         (local.set $base-free-list (local.get $free-list))
         (local.set $free-list (%get-blockset-last-free-list (local.get $blockset)))
+        ;; (local.set $free-list (i32.sub (%get-blockset-free-lists-top (local.get $blockset))
+        ;;                                (global.get $value-size)))
 
         (loop $again
           (if (i32.gt_u (local.get $free-list) (local.get $base-free-list))
@@ -1241,7 +1237,7 @@
  ;;
 
  (func $resize-block (export "resize-block")
-   (param $blockset-id i32)
+   (param $blockset i32)
    (param $block i32)
    (param $new-size i32)
    (result i32)
@@ -1250,7 +1246,7 @@
    (local $old-size i32)
    (local $size i32)
 
-   (local.set $new-block (call $alloc-block (local.get $blockset-id) (local.get $new-size)))
+   (local.set $new-block (call $alloc-block (local.get $blockset) (local.get $new-size)))
 
    (local.set $old-size (%get-block-size (local.get $block)))
 
@@ -1263,9 +1259,9 @@
                   (%get-block-addr (local.get $new-block))
                   (%get-block-addr (local.get $block))
                   (local.get $size)
-                  (local.get $blockset-id))
+                  (local.get $blockset))
 
-   (call $dealloc-block (local.get $blockset-id) (local.get $block))
+   (call $dealloc-block (local.get $blockset) (local.get $block))
 
    (local.get $new-block))
 
@@ -1280,14 +1276,13 @@
  ;; more precisely measured.
 
  (func $stub-dealloc-block (export "stub-dealloc-block")
-   (param $blockset-id i32)
+   (param $blockset i32)
    (param $block i32))
 
  (func $dealloc-block (export "dealloc-block")
-   (param $blockset-id i32)
+   (param $blockset i32)
    (param $block i32)
 
-   (local $blockset i32)
    (local $size i32)
 
    (debug
@@ -1295,7 +1290,6 @@
         (then
          (return))))
 
-   (local.set $blockset (%get-blockset (local.get $blockset-id)))
    (local.set $size (%get-block-size (local.get $block)))
 
    (call $add-free-block (local.get $blockset) (local.get $block))

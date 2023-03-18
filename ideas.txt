@@ -311,6 +311,24 @@ tooling improvements
 
       (%block-mgr i32)
 
+    literal macro param type
+      currently:
+       (macro %incr-n
+         (class Int)
+         (label $var)
+         (expr ,n)
+         (local.set $var (Int.add (local.get $var) (Int.const ,n))))
+
+      but expr is too broad here, as it implies, eg, (local.get $foo) is
+      acceptible. rather (lit \name) so
+
+       (macro %incr-n
+         (class Int)
+         (label $var)
+         (lit \n)
+         (local.set $var (Int.add (local.get $var) (Int.const \n))))
+
+
 values release punchlist
   identify required new/updated documentation
     block-mgr
@@ -390,3 +408,25 @@ branch strategy
 
 block-mgr
   release testing
+
+  generate stochastic/perf test data
+    create binary data section with alloc/dealloc info
+      msb = 1 => alloc, low bits are size
+      msb = 0 => dealloc, low bits are index
+    save as file
+
+  perf test runner
+    import memory
+    test arg, length of data, null test
+    reserve area for blocks below data section
+    4 bytes per block, just store its value
+    test loop
+      load action
+      if alloc
+        b = alloc block load next value
+        append b to blocks
+        incr block count
+      else
+        dealloc block (get block at (load next value))
+        move end block to index
+        decr block count

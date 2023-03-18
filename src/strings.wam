@@ -207,10 +207,10 @@
 
  (start $init-strings)
  (func $init-strings (export "init-strings")
-   (call $init-blockset (global.get $strings-blockset-id) (i32.const 0x400))
+   (call $init-blockset (global.get $strings-blockset) (i32.const 0x400))
 
    ;; defined in block-mgr-memory-proxies.wam
-   (call $init-blockset-memory-proxies (global.get $strings-blockset-id)))
+   (call $init-blockset-memory-proxies (global.get $strings-blockset)))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -233,7 +233,7 @@
    (local.set $index-size (%calc-index-size (local.get $type) (local.get $length)))
 
    (local.set $block (call $alloc-block
-                           (global.get $strings-blockset-id)
+                           (global.get $strings-blockset)
                            (i32.add (local.get $header-size)
                                     (i32.add (local.get $size)
                                              (local.get $index-size)))))
@@ -291,7 +291,7 @@
    (param $s i32)
 
    (call $dealloc-block
-         (global.get $strings-blockset-id)
+         (global.get $strings-blockset)
          (%get-box-value (local.get $s)))
 
    (%dealloc-box (local.get $s)))
