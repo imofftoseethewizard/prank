@@ -63,6 +63,24 @@
 (global $vectors-blockset     (export "vectors-blockset")     i32 (i32.const 0x000000c0))
 (global $blockset-count       (export "blockset-count")       i32 (i32.const 4))
 
+(define _null (i32.const 0xffffffff))
+
+(macro %coalesce
+  (label $v)
+  (expr ,e)
+  (if (result i32) (i32.ne (%get $end-match) (%null))
+    (then (%get $end-match))
+    (else ,e)))
+
+(macro %get
+  (label $v)
+  (local.get $v))
+
+(macro %set!
+  (label $v)
+  (expr ,e)
+  (local.set $v ,e))
+
 (macro %incr
   (class Int)
   (label $var)

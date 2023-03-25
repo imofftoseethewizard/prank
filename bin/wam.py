@@ -49,6 +49,28 @@ class MacroArgumentCountMismatchError(WamException):
         path = self.expr[0][5]
         return f'error: argument count mismatch: {self.name} at line {line_no} of {path}:\n{line_text}'
 
+class UnrecognizedToken(WamException):
+    def __init__(self, line, column, src, path):
+        self.line = line
+        self.column = column
+        self.src = src
+        self.path = path
+
+    def __str__(self):
+        lines = self.src.split('\n')[self.line-3:self.line]
+        caret = ' ' * self.column + '^'
+        detail = '\n'.join(lines + [caret])
+        return f'error: unrecognized token: at line {self.line} of {self.path}:\n{detail}'
+
+class DefineDefinitionNameExpected(WamException):
+    def __init__(self, expr):
+        self.expr = expr
+
+    def __str__(self):
+        line_no = self.expr[0][2]
+        line_text = '\n'.join(self.expr[0][4].split('\n')[line_no-1:line_no+2])
+        path = self.expr[0][5]
+        return f'error: name expected in definition at line {line_no} of {path}:\n{line_text}'
 
 lexemes = {
     'open-paren': re.compile(r'\('),
@@ -56,7 +78,7 @@ lexemes = {
     'comment': re.compile(';;[^\n]*'),
     'whitespace': re.compile('[ \t]+'),
     'newline': re.compile('\n'),
-    'label': re.compile(r'[A-Z$%,#][-a-z0-9._/]+'),
+    'label': re.compile(r'[_A-Z$%,#+][-+a-zA-Z0-9._/?!]+'),
     'string': re.compile(r'"([^"\\]|\\.)*"'),
     'token': re.compile(r'[-a-z0-9._]+'),
 }
@@ -79,7 +101,7 @@ def next_token(src, pos):
 def tokens(src, path):
 
     pos = 0
-    indent = 0
+    column = 0
     line = 1
 
     while True:
@@ -88,21 +110,25 @@ def tokens(src, path):
         if name is None:
             break
 
-        yield (name, match, line, indent, src, path)
+        yield (name, match, line, column, src, path)
 
         if name == 'newline':
-            indent = 0
+            column = 0
             line += 1
         else:
-            indent = match.end() - match.start()
+            column += match.end() - match.start()
 
         pos = match.end()
+
+    if pos != len(src):
+        raise UnrecognizedToken(line, column, src, path)
+
 
 def parse(src, path):
 
     exprs = [[]]
 
-    for name, match, line, indent, src, path in tokens(src, path):
+    for name, match, line, column, src, path in tokens(src, path):
 
         if name == 'open-paren':
             new_expr = []
@@ -115,23 +141,29 @@ def parse(src, path):
             exprs.pop()
 
         else:
-            exprs[-1].append((name, match.group(), line, indent, src, path))
+            exprs[-1].append((name, match.group(), line, column, src, path))
 
     if len(exprs) > 1:
-        if line == len(src):
+        print(exprs[-1][:4])
+        if line == len(src.split('\n'))+1:
             raise Exception('unmatched open paren at end of file')
         else:
-            raise Exception(f'tokenization failure at line {line} pos {indent}')
+            raise Exception(f'tokenization failure at line {line} column {column}')
 
     return exprs[0]
 
 def translate(expr, env):
 
     if type(expr) == tuple:
-        if expr[0] == 'label' and expr[1] in env['constants']:
-            return ('label', env['constants'][expr[1]], *expr[2:])
-        else:
-            return expr
+        if expr[0] == 'label':
+
+            if expr[1] in env['constants']:
+                return ('label', env['constants'][expr[1]], *expr[2:])
+
+            if expr[1] in env['defs']:
+                return ('splice', env['defs'][expr[1]], -1)
+
+        return expr
 
     op = None
     rest = expr
@@ -142,6 +174,9 @@ def translate(expr, env):
 
     if op and op.startswith('%'):
         return expand_macro(expr, env)
+
+    if op and op.startswith('+'):
+        return translate_serial(expr, env)
 
     if op == 'debug':
 
@@ -159,6 +194,9 @@ def translate(expr, env):
         else:
             return translate_release(expr[1:], env)
 
+    if op == 'string':
+        return translate_string(expr, env)
+
     if op == 'test':
         return define_test(expr, env)
 
@@ -171,10 +209,119 @@ def translate(expr, env):
     if op == 'const':
         return define_constant(expr, env)
 
+    if op == 'define':
+        return define_definition(expr, env)
+
     return [
         e1
         for e1 in (translate(e0, env) for e0 in rest)
         if e1 is not None
+    ]
+
+def translate_string(expr, env):
+
+    body = []
+    value = None
+    offset = env['data-offset']
+    ctx = expr[0][2:]
+    column = ctx[1]
+
+    for e in expr[1:]:
+
+        if e[0] == 'string':
+
+            assert value is None
+            value = e[1].strip('"')
+
+        else:
+            body.append(e)
+
+    assert value is not None
+
+    length = wat_string_len(value)
+
+    env['data-offset'] = offset + length + 1
+
+    const_expr = [
+        ('token', 'i32.const', *ctx),
+        ('whitespace', ' ', *ctx),
+        ('token', str(offset), *ctx),
+    ]
+
+    data_expr = [
+        ('token', 'data', *ctx),
+        ('whitespace', ' ', *ctx),
+        [
+            ('token', 'offset', *ctx),
+            ('whitespace', ' ', *ctx),
+            const_expr,
+        ],
+        ('string', f'"\\{length:02x}{value}"', *ctx),
+    ]
+
+    line_break = ('whitespace', '\n' + ' ' * (column-1), *ctx,)
+
+    global_expr = [
+        ('token', 'global', *ctx),
+        *body,
+        ('token', 'i32', *ctx),
+        ('whitespace', ' ', *ctx),
+        const_expr,
+    ]
+
+    return ('splice', [data_expr, line_break, global_expr], -1)
+
+def wat_string_len(s):
+
+    if '\\' not in s:
+        return len(s.encode())
+
+    # replace simple backslash escapes with 'a', which has the same length.
+    parts = re.sub(r'''\\([tnr"'\\]|\d\d)''', 'a', s).split('\\')
+    length = len(parts[0].encode())
+
+    for part in parts[1:]:
+        if part[0] == 'u':
+            # part should be of the form 'u{x..x}...' where x is a hex digit
+            hex_digits, rest = '}'.split(part[2:], 1)
+            length += len(chr(int(hex_digits, 16)).encode()) + len(rest.encode())
+
+    return length
+
+def translate_serial(expr, env):
+
+    name = None
+    value = None
+
+    for e in expr:
+
+        if e[0] in ('whitespace', 'comment'):
+            continue
+
+        if name is None:
+
+            assert e[0] == 'label'
+            name = e[1]
+
+        elif value is None:
+
+            assert e[0] == 'token'
+            value = int(e[1])
+
+        else:
+            print(e)
+            assert False
+
+    if value is None:
+        value = env['sequences'].get(name, 0)
+
+    env['sequences'][name] = value + 1
+
+    ctx = expr[0][2:]
+    return [
+        ('token', 'i32.const', *ctx),
+        ('whitespace', ' ', *ctx),
+        ('token', str(value), *ctx),
     ]
 
 def define_test(expr, env):
@@ -239,7 +386,6 @@ def translate_release(expr, env):
             exprs.append(e)
 
     return ('splice', [translate(e, env) for e in exprs], -1)
-
 
 def expand_macro(expr, env):
 
@@ -376,7 +522,7 @@ class_size_bits = {
 
 def include_file(expr, env):
 
-    indent = expr[0][2]
+    column = expr[0][2]
     path = None
 
     for e in expr[1:]:
@@ -390,7 +536,7 @@ def include_file(expr, env):
         else:
             raise IncludeFilePathExpected(expr)
 
-    src = textwrap.indent(textwrap.dedent(open(path).read()), ' ' * indent)
+    src = textwrap.indent(textwrap.dedent(open(path).read()), ' ' * column)
 
     with current_directory(Path(path).parent):
         return ('splice', translate(parse(src, path), env), -1)
@@ -482,6 +628,33 @@ def define_constant(expr, env):
 
     env['constants'][name] = value
 
+def define_definition(expr, env):
+    name = None
+    body = []
+
+    for e in expr[1:]:
+
+        if not body and type(e) == tuple and e[0] in ('comment', 'newline', 'whitespace'):
+            continue
+
+        if name is None:
+            if e[0] != 'label':
+                raise DefineDefinitionNameExpected(expr)
+
+            name = e[1]
+
+        else:
+
+            body.append(e)
+
+    if name is None:
+        raise DefineDefinitionNameMissing(expr)
+
+    if name in env['defs']:
+        raise Redefinition(name, expr)
+
+    env['defs'][name] = translate(body, env)
+
 def emit(expr):
 
     if type(expr) == tuple:
@@ -509,7 +682,10 @@ def process(args):
             env = {
                 'debug': args.debug,
                 'constants': {},
+                'defs': {},
                 'macros': {},
+                'data-offset': 0,
+                'sequences': {},
             }
             emit(translate(expr, env))
 

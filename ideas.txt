@@ -217,6 +217,17 @@ tooling improvements
     error messages
     check syntax of expr vs label in macros
 
+    generate .witf files from a module
+
+      eg in module a
+         (func (export "foo") ...)
+
+      module b could
+         (include "./a.witf")
+
+      and have that include the line
+         (import "a" "foo" ...)
+
     expr comments
 
       (-<token> ) is a comment.
@@ -236,11 +247,6 @@ tooling improvements
           (else
             (call $bar))))
 
-    length-prefixed string literals
-      use single quotes
-      resolves to, eg
-        'abcd' -> "\04abcd"
-
     wam-time eval
       (eval (expr))
         where expr is an s-exp
@@ -256,7 +262,6 @@ tooling improvements
 
       (option (config-expr)
         body)
-
 
   test
     tests for non-debug builds
@@ -320,7 +325,7 @@ tooling improvements
          (local.set $var (Int.add (local.get $var) (Int.const ,n))))
 
       but expr is too broad here, as it implies, eg, (local.get $foo) is
-      acceptible. rather (lit \name) so
+      acceptable. rather (lit \name) so
 
        (macro %incr-n
          (class Int)
@@ -406,5 +411,31 @@ branch strategy
     build branch
       includes make file tools, etc
 
+make
+  dev-setup
+    checks dev prereqs
+    creates venv, setup.rc
+
 block-mgr
   release testing
+  add test data generation to makefile
+  add dir (and .gitignore) for test data
+  add test cases for stochastic data sets
+
+lex/parse
+  translate js lex tests to python
+  remove rule-id param
+  split lex into lex (general routines) and lex-r7rs
+    lex-racket, lex-cl?
+  split lex-match-token into delimited (strings, vertical bar-quoted symbols, comments, parens)
+    and undelimited (everything else)
+  define constants in globals for parse errors
+  define parse state struct
+    error
+    is complete
+    value
+    nesting/stack
+    in vector
+    in bytevector
+
+  parse-r7rs

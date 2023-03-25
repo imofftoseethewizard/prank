@@ -1,0 +1,9 @@
+(module
+
+ (func $repl (export "repl")
+
+   (loop $again
+     (call $print (call $eval (call $read)))
+     (if ?
+         (br $again))))
+ )

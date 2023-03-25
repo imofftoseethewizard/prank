@@ -5,9 +5,19 @@
  (memory (debug (export "memory")) 1)
  (include "./test-include.wam")
 
+ (define _offset (i32.const 4))
+ (global $offset _offset)
+
+ (global $id-foo i32 (+id 5))
+ (global $id-bar i32 (+id))
+ (define _id_quux (+id))
+
+ (string $greeting (debug (export "greeting")) "Hello, World!")
+ (string $answer (debug (export "answer")) "\tForty-two.\n")
+
  (macro $next-foo
    (label $addr)
-   (local.set $addr (i32.add (local.get $addr) (i32.const 4)))
+   (local.set $addr (i32.add (local.get $addr) _offset))
    (expand $get-foo (local.get $addr)))
 
  (test $check-isvalid
@@ -22,6 +32,7 @@
  (func $test
    (param $bar i32)
    (result i32)
+   (i32.eq (local.get $bar) _id_quux)
    (expand $next-foo $bar))
 
   (macro %bisect-left-indirect

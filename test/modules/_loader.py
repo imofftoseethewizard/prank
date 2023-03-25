@@ -6,15 +6,20 @@ engine = engine.Universal(Compiler)
 store = Store()
 
 def module_wasm_path(name, debug=False):
-    if debug:
-        name += '.d'
+    path = Path.home() / 'src' / 'prank' / 'obj'
 
-    return Path.home() / 'src' / 'prank' / 'obj' / f'{name}.wasm'
+    if debug:
+        path /= 'debug'
+
+    return path / f'{name}.wasm'
 
 def module_wat_path(name, debug=False):
+    path = Path.home() / 'src' / 'prank' / 'obj'
+
     if debug:
-        name += '.d'
-    return Path.home() / 'src' / 'prank' / 'obj' / f'{name}.wat'
+        path /= 'debug'
+
+    return path / f'{name}.wat'
 
 def read_wasm_module(name, debug=False):
     return Module(store, module_wasm_path(name, debug=debug).read_bytes())

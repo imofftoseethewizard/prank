@@ -1,0 +1,3080 @@
+(module
+
+ (import "lex" "lexical-rules"  (table $lexical-rules #max-lexical-rules funcref))
+
+ (include "./lex-r7rs-rule-ids.wam")
+
+ (memory (debug (export "memory")) 1)
+
+ ;; <token> -> <identifier> | <boolean> | <number>
+ ;;            | <character> | <string>
+ ;;            | ( | ) | # ( | #u8( | ’ | ` | , | ,@ | .
+
+
+ (func $lex-match-delimited-token (export "lex-match-delimited-token")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-delimited-token
+         _lex-rule-paren-char
+         _lex-rule-string
+         _lex-rule-delimited-token-string
+         _lex-rule-vertical-line-quoted-symbol
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-delimited-token))
+
+ (func $lex-match-paren-char (export "lex-match-paren-char")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-charset
+         _lex-rule-paren-char
+         (global.get $static-string-paren-charset)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-paren-char))
+
+ (string $static-string-paren-charset (export "static-string-paren-charset") "()")
+
+ (func $lex-match-undelimited-token (export "lex-match-undelimited-token")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-undelimited-token
+         _lex-rule-token/group-1
+         _lex-rule-token/group-2
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-undelimited-token))
+
+ (func $lex-match-token/group-1 (export "lex-match-token/group-1")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-token/group-1
+         ;; $lex-rule-number appears before $lex-rule-identifier
+         ;; so that +i, -1, and <infnan> are categorized as numbers
+         ;; in the lexer, rather than needing special handling further
+         ;; downstream in the reader
+         _lex-rule-number
+         _lex-rule-identifier
+         _lex-rule-boolean
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-token/group-1))
+
+ (func $lex-match-token/group-2 (export "lex-match-token/group-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-token/group-2
+         _lex-rule-character
+         _lex-rule-token-char
+         _lex-rule-unquote-splicing
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-token/group-2))
+
+ (func $lex-match-token-char (export "lex-match-token-char")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-charset
+         _lex-rule-token-char
+         (global.get $static-string-token-charset)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-token-char))
+
+ (string $static-string-token-charset (export "static-string-token-charset") "'`,.")
+
+ (func $lex-match-delimited-token-string (export "lex-match-delimited-token-string")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/longest-of-3
+         _lex-rule-delimited-token-string
+         (global.get $static-string-begin-vector)
+         (global.get $static-string-begin-bytevector)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-delimited-token-string))
+
+ (string $static-string-begin-vector (export "static-string-begin-vector")         "#(")
+ (string $static-string-begin-bytevector (export "static-string-begin-bytevector") "#u8(")
+
+ (func $lex-match-unquote-splicing (export "lex-match-unquote-splicing")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string
+         _lex-rule-unquote-splicing
+         (global.get $static-string-unquote-splicing)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-unquote-splicing))
+
+ (string $static-string-unquote-splicing (export "static-string-unquote-splicing") ",@")
+
+ ;; <delimiter>-> <whitespace> | <vertical line>| ( | ) | " | ;
+
+ (func $lex-match-delimiter (export "lex-match-delimiter")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-delimiter
+         _lex-rule-whitespace
+         _lex-rule-vertical-line
+         _lex-rule-delimiter-char
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-delimiter))
+
+ (func $lex-match-delimiter-char (export "lex-match-delimiter-char")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-charset
+         _lex-rule-delimiter-char
+         (global.get $static-string-delimiter-charset)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-delimiter-char))
+
+ (string $static-string-delimiter-charset (export "static-string-delimiter-charset") "|()\22\3b")
+
+ ;; <intraline whitespace> -> <space or tab>
+
+ (func $lex-match-intraline-whitespace (export "lex-match-intraline-whitespace")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-charset
+         _lex-rule-intraline-whitespace
+         (global.get $static-string-intraline-whitespace)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-intraline-whitespace))
+
+ (string $static-string-intraline-whitespace (export "static-string-intraline-whitespace") " \09")
+
+ ;; <whitespace>-> <intraline whitespace> | <line ending>
+
+ (func $lex-match-whitespace (export "lex-match-whitespace")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-whitespace
+         _lex-rule-intraline-whitespace
+         _lex-rule-line-ending
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-whitespace))
+
+ ;; <vertical line> -> |
+
+ (func $lex-match-vertical-line (export "lex-match-vertical-line")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char/ascii
+         _lex-rule-vertical-line
+         (global.get $char-vertical-line)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-vertical-line))
+
+ ;; <line ending> -> <newline> | <return> <newline> | <return>
+
+ (func $lex-match-line-ending (export "lex-match-line-ending")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-line-ending
+         _lex-rule-line-ending-char
+         _lex-rule-dos-line-ending
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-line-ending))
+
+ (func $lex-match-line-ending-char (export "lex-match-line-ending-char")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-charset
+         _lex-rule-line-ending-char
+         (global.get $static-string-line-ending-charset)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-line-ending-char))
+
+ (string $static-string-line-ending-charset (export "static-string-line-ending-charset") "\0d\0a")
+
+ (func $lex-match-dos-line-ending (export "lex-match-dos-line-ending")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string
+         _lex-rule-dos-line-ending
+         (global.get $static-string-dos-line-ending)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-dos-line-ending))
+
+ ;; cr lf -- dos/windows line ending
+ (string $static-string-dos-line-ending (export "static-string-dos-line-ending") "\0d\0a")
+
+ ;; <comment> -> ; <all subsequent characters up to a line ending>
+ ;;                | <nested comment>
+ ;;                | #; <intertoken space> <datum>
+
+ (func $lex-match-comment (export "lex-match-comment")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-comment
+         _lex-rule-simple-comment
+         _lex-rule-nested-comment
+         _lex-rule-datum-comment
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-comment))
+
+ (func $lex-match-simple-comment (export "lex-match-simple-comment")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-simple-comment
+         _lex-rule-semicolon
+         _lex-rule-simple-comment-continuation
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-simple-comment))
+
+ (func $lex-match-semicolon (export "lex-match-semicolon")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char/ascii
+         _lex-rule-semicolon
+         (global.get $char-semicolon)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-semicolon))
+
+ (func $lex-match-simple-comment-continuation (export "lex-match-simple-comment-continuation")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-until-rule
+         _lex-rule-simple-comment-continuation
+         _lex-rule-line-ending
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-simple-comment-continuation))
+
+ (func $lex-match-datum-comment (export "lex-match-datum-comment")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-datum-comment
+         _lex-rule-begin-datum-comment
+         _lex-rule-intertoken-space
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-datum-comment))
+
+ (func $lex-match-begin-datum-comment (export "lex-match-begin-datum-comment")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string
+         _lex-rule-begin-datum-comment
+         (global.get $static-string-begin-datum-comment)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-begin-datum-comment))
+
+ (string $static-string-begin-datum-comment (export "static-string-begin-datum-comment") "#;")
+
+ ;;<nested comment> -> #| <comment text> <comment cont>* |#
+
+ (func $lex-match-nested-comment (export "lex-match-nested-comment")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-4
+         _lex-rule-nested-comment
+         _lex-rule-begin-nested-comment
+         _lex-rule-comment-text
+         _lex-rule-comment-continuations
+         _lex-rule-end-nested-comment
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-nested-comment))
+
+ (func $lex-match-begin-nested-comment (export "lex-match-begin-nested-comment")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string
+         _lex-rule-begin-nested-comment
+         (global.get $static-string-begin-nested-comment)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-begin-nested-comment))
+
+ (string $static-string-begin-nested-comment (export "static-string-begin-nested-comment") "#|")
+
+ (func $lex-match-comment-continuations (export "lex-match-comment-continuations")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/zero-or-more
+         _lex-rule-comment-continuations
+         _lex-rule-comment-continuation
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-comment-continuations))
+
+ (func $lex-match-end-nested-comment (export "lex-match-end-nested-comment")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string
+         _lex-rule-end-nested-comment
+         (global.get $static-string-end-nested-comment)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-end-nested-comment))
+
+ (string $static-string-end-nested-comment (export "static-string-end-nested-comment") "|#")
+
+ ;;<comment text> -> <character sequence not containing #| or |#>
+
+ (func $lex-match-comment-text (export "lex-match-comment-text")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-until-rule
+         _lex-rule-comment-text
+         _lex-rule-nested-comment-delimiters
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-comment-text))
+
+ (func $lex-match-nested-comment-delimiters (export "lex-match-nested-comment-delimiters")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/longest-of-2
+         _lex-rule-nested-comment-delimiters
+         (global.get $static-string-begin-nested-comment)
+         (global.get $static-string-end-nested-comment)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-nested-comment-delimiters))
+
+ ;; <comment cont> -> <nested comment> <comment text>
+
+ (func $lex-match-comment-continuation (export "lex-match-comment-continuation")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-comment-continuation
+         _lex-rule-nested-comment
+         _lex-rule-comment-text
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-comment-continuation))
+
+ ;; <directive> -> #!fold-case | #!no-fold-case
+
+ (func $lex-match-directive (export "lex-match-directive")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/longest-of-2
+         _lex-rule-directive
+         (global.get $static-string-directive-fold-case)
+         (global.get $static-string-directive-no-fold-case)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-directive))
+
+ (string $static-string-directive-fold-case (export "static-string-directive-fold-case")       "#!fold-case")
+ (string $static-string-directive-no-fold-case (export "static-string-directive-no-fold-case") "#!no-fold-case")
+
+ ;; <atmosphere> -> <whitespace> | <comment> | <directive>
+
+ (func $lex-match-atmosphere (export "lex-match-atmosphere")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-atmosphere
+         _lex-rule-whitespace
+         _lex-rule-comment
+         _lex-rule-directive
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-atmosphere))
+
+ ;; <intertoken space> -> <atmosphere>
+
+ (func $lex-match-intertoken-space (export "lex-match-intertoken-space")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/zero-or-more
+         _lex-rule-intertoken-space
+         _lex-rule-atmosphere
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-intertoken-space))
+
+ ;; <identifier> -> <initial> <subsequent>*
+ ;;                    | <vertical line> <symbol element>* <vertical line>
+ ;;                    | <peculiar identifier>
+
+ (func $lex-match-identifier (export "lex-match-identifier")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-identifier
+         _lex-rule-ordinary-identifier
+         _lex-rule-peculiar-identifier
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-identifier))
+
+ (func $lex-match-ordinary-identifier (export "lex-match-ordinary-identifier")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-ordinary-identifier
+         _lex-rule-initial
+         _lex-rule-subsequents
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-ordinary-identifier))
+
+ (func $lex-match-subsequents (export "lex-match-subsequents")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/zero-or-more
+         _lex-rule-subsequents
+         _lex-rule-subsequent
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-subsequents))
+
+ (func $lex-match-vertical-line-quoted-symbol (export "lex-match-vertical-line-quoted-symbol")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-vertical-line-quoted-symbol
+         _lex-rule-vertical-line
+         _lex-rule-symbol-elements
+         _lex-rule-vertical-line
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-vertical-line-quoted-symbol))
+
+ (func $lex-match-symbol-elements (export "lex-match-symbol-elements")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/zero-or-more
+         _lex-rule-symbol-elements
+         _lex-rule-symbol-element
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-symbol-elements))
+
+ ;;<initial> -> <letter> | <special initial>
+
+ (func $lex-match-initial (export "lex-match-initial")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-initial
+         _lex-rule-letter
+         _lex-rule-special-initial
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-initial))
+
+ ;;<letter> -> a | b | c | ... | z | A | B | C | ... | Z
+
+ (func $lex-match-letter (export "lex-match-letter")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-letter
+         _lex-rule-lowercase-letter
+         _lex-rule-uppercase-letter
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-letter))
+
+ (func $lex-match-lowercase-letter (export "lex-match-lowercase-letter")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-range/ascii
+         _lex-rule-lowercase-letter
+         (global.get $char-a)
+         (global.get $char-z)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-lowercase-letter))
+
+ (func $lex-match-uppercase-letter (export "lex-match-uppercase-letter")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-range/ascii
+         _lex-rule-uppercase-letter
+         (global.get $char-A)
+         (global.get $char-Z)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-uppercase-letter))
+
+
+ ;; <special initial> -> ! | $ | % | & | * | / | : | < | = | > | ? | ^ | _ | ~
+
+ (func $lex-match-special-initial (export "lex-match-special-initial")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-charset
+         _lex-rule-special-initial
+         (global.get $static-string-special-initials)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-special-initial))
+
+ (string $static-string-special-initials (export "static-string-special-initials") "!$%&*/:<=>?^_~")
+
+ ;;<subsequent> -> <initial> | <digit> | <special subsequent>
+
+ (func $lex-match-subsequent (export "lex-match-subsequent")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-subsequent
+         _lex-rule-initial
+         _lex-rule-digit
+         _lex-rule-special-subsequent
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-subsequent))
+
+ ;; <digit> -> 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+ (func $lex-match-digit (export "lex-match-digit")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-range/ascii
+         _lex-rule-digit
+         (global.get $char-0)
+         (global.get $char-9)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-digit))
+
+ ;; <hex digit> -> <digit> | a | b | c | d | e | f
+
+ (func $lex-match-hex-digit (export "lex-match-hex-digit")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-hex-digit
+         _lex-rule-digit
+         _lex-rule-hex-digit/alphabetic
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-hex-digit))
+
+ (func $lex-match-hex-digit/alphabetic (export "lex-match-hex-digit/alphabetic")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-range/ascii
+         _lex-rule-hex-digit/alphabetic
+         (global.get $char-a)
+         (global.get $char-f)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-hex-digit/alphabetic))
+
+ ;; <explicit sign> -> + | -
+
+ (func $lex-match-explicit-sign (export "lex-match-explicit-sign")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-charset
+         _lex-rule-explicit-sign
+         (global.get $static-string-explicit-sign-charset)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-explicit-sign))
+
+ (string $static-string-explicit-sign-charset (export "static-string-explicit-sign-charset") "+-")
+
+ ;; <special subsequent> -> <explicit sign> | . | @
+
+ (func $lex-match-special-subsequent (export "lex-match-special-subsequent")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-special-subsequent
+         _lex-rule-explicit-sign
+         _lex-rule-special-subsequent/dot-or-at
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-special-subsequent))
+
+ (func $lex-match-special-subsequent/dot-or-at (export "lex-match-special-subsequent/dot-or-at")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-charset
+         _lex-rule-special-subsequent/dot-or-at
+         (global.get $static-string-dot-and-at)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-special-subsequent/dot-or-at))
+
+ (string $static-string-dot-and-at (export "static-string-dot-and-at") ".@")
+
+ ;; <inline hex escape> -> \x<hex scalar value>;
+
+ (func $lex-match-inline-hex-escape (export "lex-match-inline-hex-escape")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-inline-hex-escape
+         _lex-rule-inline-hex-escape-prefix
+         _lex-rule-hex-scalar-value
+         _lex-rule-semicolon
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-inline-hex-escape))
+
+ (func $lex-match-inline-hex-escape-prefix (export "lex-match-inline-hex-escape-prefix")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string
+         _lex-rule-inline-hex-escape-prefix
+         (global.get $static-string-inline-escape-prefix)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-inline-hex-escape-prefix))
+
+ (string $static-string-inline-escape-prefix (export "static-string-inline-escape-prefix") "\\x")
+
+ ;; <hex scalar value> -> <hex digit>+
+
+ (func $lex-match-hex-scalar-value (export "lex-match-hex-scalar-value")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/one-or-more
+         _lex-rule-hex-scalar-value
+         _lex-rule-hex-digit
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-hex-scalar-value))
+
+ ;;<mnemonic escape> -> \a | \b | \t | \n | \r
+
+ (func $lex-match-mnemonic-escape (export "lex-match-mnemonic-escape")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-mnemonic-escape
+         _lex-rule-backslash
+         _lex-rule-mnemonic-escape-character
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-mnemonic-escape))
+
+ (func $lex-match-backslash (export "lex-match-backslash")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char/ascii
+         _lex-rule-backslash
+         (global.get $char-backslash)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-backslash))
+
+ (func $lex-match-mnemonic-escape-character (export "lex-match-mnemonic-escape-character")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-charset
+         _lex-rule-mnemonic-escape-character
+         (global.get $static-string-mnemonic-escapes)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-mnemonic-escape-character))
+
+ (string $static-string-mnemonic-escapes (export "static-string-mnemonic-escapes") "abnrt")
+
+ ;; <peculiar identifier> -> <explicit sign>
+ ;;                             | <explicit sign> <sign subsequent> <subsequent>*
+ ;;                             | <explicit sign> . <dot subsequent> <subsequent>*
+ ;;                             | . <dot subsequent> <subsequent>*
+
+ (func $lex-match-peculiar-identifier (export "lex-match-peculiar-identifier")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-4
+         _lex-rule-peculiar-identifier
+         _lex-rule-explicit-sign
+         _lex-rule-peculiar-identifier/form-1
+         _lex-rule-peculiar-identifier/form-2
+         _lex-rule-peculiar-identifier/form-3
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-peculiar-identifier))
+
+ (func $lex-match-peculiar-identifier/form-1 (export "lex-match-peculiar-identifier/form-1")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-peculiar-identifier/form-1
+         _lex-rule-explicit-sign
+         _lex-rule-sign-subsequent
+         _lex-rule-subsequents
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-peculiar-identifier/form-1))
+
+ (func $lex-match-peculiar-identifier/form-2 (export "lex-match-peculiar-identifier/form-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-4
+         _lex-rule-peculiar-identifier/form-2
+         _lex-rule-explicit-sign
+         _lex-rule-dot
+         _lex-rule-dot-subsequent
+         _lex-rule-subsequents
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-peculiar-identifier/form-2))
+
+ (func $lex-match-dot (export "lex-match-dot")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char/ascii
+         _lex-rule-dot
+         (global.get $char-dot)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-dot))
+
+ (func $lex-match-peculiar-identifier/form-3 (export "lex-match-peculiar-identifier/form-3")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-peculiar-identifier/form-3
+         _lex-rule-dot
+         _lex-rule-dot-subsequent
+         _lex-rule-subsequents
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-peculiar-identifier/form-3))
+
+ ;; <dot subsequent> -> <sign subsequent> | .
+
+ (func $lex-match-dot-subsequent (export "lex-match-dot-subsequent")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-dot-subsequent
+         _lex-rule-sign-subsequent
+         _lex-rule-dot
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-dot-subsequent))
+
+ ;; <sign subsequent> -> <initial> | <explicit sign> | @
+
+ (func $lex-match-sign-subsequent (export "lex-match-sign-subsequent")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-sign-subsequent
+         _lex-rule-initial
+         _lex-rule-explicit-sign
+         _lex-rule-at-sign
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-sign-subsequent))
+
+ (func $lex-match-at-sign (export "lex-match-at-sign")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char/ascii
+         _lex-rule-at-sign
+         (global.get $char-at-sign)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-at-sign))
+
+ ;; <symbol element> -> <any character other than <vertical line> or \>
+ ;;                        | <inline hex escape>
+ ;;                        | <mnemonic escape>
+ ;;                        | \|
+
+ (func $lex-match-symbol-element (export "lex-match-symbol-element")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-4
+         _lex-rule-symbol-element
+         _lex-rule-symbol-element/character
+         _lex-rule-inline-hex-escape
+         _lex-rule-mnemonic-escape
+         _lex-rule-escaped-vertical-line
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-symbol-element))
+
+ (func $lex-match-symbol-element/character (export "lex-match-symbol-element/character")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-complement/ascii/set-of-2
+         _lex-rule-symbol-element/character
+         (global.get $char-vertical-line)
+         (global.get $char-backslash)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-symbol-element/character))
+
+ (func $lex-match-escaped-vertical-line (export "lex-match-escaped-vertical-line")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-escaped-vertical-line
+         _lex-rule-backslash
+         _lex-rule-vertical-line
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-escaped-vertical-line))
+
+ ;; <boolean> -> #t | #f | #true | #false
+
+ (func $lex-match-boolean (export "lex-match-boolean")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/longest-of-4
+         _lex-rule-boolean
+         (global.get $static-string-boolean-t)
+         (global.get $static-string-boolean-f)
+         (global.get $static-string-boolean-true)
+         (global.get $static-string-boolean-false)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-boolean))
+
+ (string $static-string-boolean-t     (export "static-string-boolean-t")     "#t")
+ (string $static-string-boolean-f     (export "static-string-boolean-f")     "#f")
+ (string $static-string-boolean-true  (export "static-string-boolean-true")  "#true")
+ (string $static-string-boolean-false (export "static-string-boolean-false") "#false")
+
+
+ ;; <character> -> #\ <any character>
+ ;;                  | #\ <character name>
+ ;;                  | #\x<hex scalar value>
+
+ (func $lex-match-character (export "lex-match-character")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-character
+         _lex-rule-escaped-character
+         _lex-rule-named-character
+         _lex-rule-escaped-character-hex
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-character))
+
+ (func $lex-match-escaped-character (export "lex-match-escaped-character")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-escaped-character
+         _lex-rule-character-prefix
+         _lex-rule-any-char
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-escaped-character))
+
+ (elem funcref (ref.func $lex-match-any-char))
+
+ (func $lex-match-character-prefix (export "lex-match-character-prefix")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string
+         _lex-rule-character-prefix
+         (global.get $static-string-character-prefix)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-character-prefix))
+
+ (string $static-string-character-prefix (export "static-string-character-prefix") "#\\")
+
+ (func $lex-match-named-character (export "lex-match-named-character")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-named-character
+         _lex-rule-character-prefix
+         _lex-rule-character-name
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-named-character))
+
+ (func $lex-match-escaped-character-hex (export "lex-match-escaped-character-hex")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-escaped-character-hex
+         _lex-rule-character-hex-prefix
+         _lex-rule-hex-scalar-value
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-escaped-character-hex))
+
+ (func $lex-match-character-hex-prefix (export "lex-match-character-hex-prefix")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string
+         _lex-rule-character-hex-prefix
+         (global.get $static-string-character-hex-prefix)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-character-hex-prefix))
+
+ (string $static-string-character-hex-prefix (export "static-string-character-hex-prefix") "#\\x")
+
+ ;; <character name> -> alarm | backspace | delete | escape
+ ;;                       | newline | null | return | space | tab
+
+ (func $lex-match-character-name (export "lex-match-character-name")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (local $match-end i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-character-name
+         _lex-rule-character-name/group-1
+         _lex-rule-character-name/group-2
+         _lex-rule-character-name/group-3
+         (%get $text)
+         (%get $end))
+
+   ;; the "longest-of" rule combiners will return the sub rule id, but
+   ;; here that isn't useful, so discard it and replace with the combined rule.
+
+   (%set! $match-end)
+   (drop) ;; rule-id
+
+   _lex-rule-character-name
+   (%get $match-end))
+
+ (elem funcref (ref.func $lex-match-character-name))
+
+ (func $lex-match-character-name/group-1 (export "lex-match-character-name/group-1")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/longest-of-3
+         _lex-rule-character-name/group-1
+         (global.get $static-string-alarm)
+         (global.get $static-string-backspace)
+         (global.get $static-string-delete)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-character-name/group-1))
+
+ (func $lex-match-character-name/group-2 (export "lex-match-character-name/group-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/longest-of-3
+         _lex-rule-character-name/group-2
+         (global.get $static-string-escape)
+         (global.get $static-string-newline)
+         (global.get $static-string-null)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-character-name/group-2))
+
+ (func $lex-match-character-name/group-3 (export "lex-match-character-name/group-3")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/longest-of-3
+         _lex-rule-character-name/group-3
+         (global.get $static-string-return)
+         (global.get $static-string-space)
+         (global.get $static-string-tab)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-character-name/group-3))
+
+ (string $static-string-alarm     (export "static-string-alarm")     "alarm")
+ (string $static-string-backspace (export "static-string-backspace") "backspace")
+ (string $static-string-delete    (export "static-string-delete")    "delete")
+ (string $static-string-escape    (export "static-string-escape")    "escape")
+ (string $static-string-newline   (export "static-string-newline")   "newline")
+ (string $static-string-null      (export "static-string-null")      "null")
+ (string $static-string-return    (export "static-string-return")    "return")
+ (string $static-string-space     (export "static-string-space")     "space")
+ (string $static-string-tab       (export "static-string-tab")       "tab")
+
+ ;; <string> -> " <string element>* "
+
+ (func $lex-match-string (export "lex-match-string")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-string
+         _lex-rule-double-quote
+         _lex-rule-string-elements
+         _lex-rule-double-quote
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-string))
+
+ (func $lex-match-double-quote (export "lex-match-double-quote")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char/ascii
+         _lex-rule-double-quote
+         (global.get $char-double-quote)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-double-quote))
+
+ (func $lex-match-string-elements (export "lex-match-string-elements")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/zero-or-more
+         _lex-rule-string-elements
+         _lex-rule-string-element
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-string-elements))
+
+ ;; <string element> -> <any character other than " or \>
+ ;;                        | <mnemonic escape> | \ " | \\
+ ;;                        | \<intraline whitespace>*<line ending><intraline whitespace>*
+ ;;                        | <inline hex escape>
+
+ (func $lex-match-string-element (export "lex-match-string-element")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-4
+         _lex-rule-string-element
+         _lex-rule-string-element/character
+         _lex-rule-string-element/character-escape
+         _lex-rule-escaped-line-ending
+         _lex-rule-inline-hex-escape
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-string-element))
+
+ (func $lex-match-string-element/character (export "lex-match-string-element/character")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-complement/ascii/set-of-2
+         _lex-rule-string-element/character
+         (global.get $char-double-quote)
+         (global.get $char-backslash)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-string-element/character))
+
+ (func $lex-match-string-element/character-escape (export "lex-match-string-element/character-escape")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-string-element/character-escape
+         _lex-rule-mnemonic-escape
+         _lex-rule-escaped-double-quote
+         _lex-rule-escaped-backslash
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-string-element/character-escape))
+
+ (func $lex-match-escaped-double-quote (export "lex-match-escaped-double-quote")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-escaped-double-quote
+         _lex-rule-backslash
+         _lex-rule-double-quote
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-escaped-double-quote))
+
+ (func $lex-match-escaped-backslash (export "lex-match-escaped-backslash")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-escaped-backslash
+         _lex-rule-backslash
+         _lex-rule-backslash
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-escaped-backslash))
+
+ (func $lex-match-escaped-line-ending (export "lex-match-escaped-line-ending")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-4
+         _lex-rule-escaped-line-ending
+         _lex-rule-backslash
+         _lex-rule-some-intraline-whitespace
+         _lex-rule-line-ending
+         _lex-rule-some-intraline-whitespace
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-escaped-line-ending))
+
+ (func $lex-match-some-intraline-whitespace (export "lex-match-some-intraline-whitespace")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/zero-or-more
+         _lex-rule-some-intraline-whitespace
+         _lex-rule-intraline-whitespace
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-some-intraline-whitespace))
+
+ ;;<number> -> <num 2> | <num 8> | <num 10> | <num 16>
+
+ (func $lex-match-number (export "lex-match-number")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-4
+         _lex-rule-number
+         _lex-rule-num-2
+         _lex-rule-num-8
+         _lex-rule-num-10
+         _lex-rule-num-16
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-number))
+
+ ;; <num 2> -> <prefix 2> <complex 2>
+
+ (func $lex-match-num-2 (export "lex-match-num-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-num-2
+         _lex-rule-prefix-2
+         _lex-rule-complex-2
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-num-2))
+
+ ;; <num 8> -> <prefix 8> <complex 8>
+
+ (func $lex-match-num-8 (export "lex-match-num-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-num-8
+         _lex-rule-prefix-8
+         _lex-rule-complex-8
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-num-8))
+
+ ;; <num 10> -> <prefix 10> <complex 10>
+
+ (func $lex-match-num-10 (export "lex-match-num-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-num-10
+         _lex-rule-prefix-10
+         _lex-rule-complex-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-num-10))
+
+ ;; <num 16> -> <prefix 16> <complex 16>
+
+ (func $lex-match-num-16 (export "lex-match-num-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-num-16
+         _lex-rule-prefix-16
+         _lex-rule-complex-16
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-num-16))
+
+ ;; <complex R> -> <real R> | <real R> @ <real R>
+ ;;                   | <real R> + <ureal R> i | <real R> - <ureal R> i
+ ;;                   | <real R> + i | <real R> - i | <real R> <infnan> i
+ ;;                   | + <ureal R> i | - <ureal R> i
+ ;;                   | <infnan> i | + i | - i
+
+ (func $lex-match-complex-16 (export "lex-match-complex-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-16
+         _lex-rule-complex-16/group-1
+         _lex-rule-complex-16/group-2
+         _lex-rule-simple-im
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-16))
+
+ (func $lex-match-complex-10 (export "lex-match-complex-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-10
+         _lex-rule-complex-10/group-1
+         _lex-rule-complex-10/group-2
+         _lex-rule-simple-im
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-10))
+
+ (func $lex-match-complex-8 (export "lex-match-complex-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-8
+         _lex-rule-complex-8/group-1
+         _lex-rule-complex-8/group-2
+         _lex-rule-simple-im
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-8))
+
+ (func $lex-match-complex-2 (export "lex-match-complex-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-2
+         _lex-rule-complex-2/group-1
+         _lex-rule-complex-2/group-2
+         _lex-rule-simple-im
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-2))
+
+ (func $lex-match-simple-im (export "lex-match-simple-im")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-simple-im
+         _lex-rule-unit-im
+         _lex-rule-infnan-im
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-simple-im))
+
+ (func $lex-match-unit-im (export "lex-match-unit-im")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-unit-im
+         _lex-rule-explicit-sign
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-unit-im))
+
+ (func $lex-match-complex-i (export "lex-match-complex-i")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char/ascii-ci
+         _lex-rule-complex-i
+         (global.get $char-i)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-i))
+
+ (func $lex-match-infnan-im (export "lex-match-infnan-im")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-infnan-im
+         _lex-rule-infnan
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-infnan-im))
+
+ (func $lex-match-complex-16/group-1 (export "lex-match-complex-16/group-1")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-16/group-1
+         _lex-rule-real-16
+         _lex-rule-complex-polar-16
+         _lex-rule-complex-infnan-im-16
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-16/group-1))
+
+ (func $lex-match-complex-10/group-1 (export "lex-match-complex-10/group-1")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-10/group-1
+         _lex-rule-real-10
+         _lex-rule-complex-polar-10
+         _lex-rule-complex-infnan-im-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-10/group-1))
+
+ (func $lex-match-complex-8/group-1 (export "lex-match-complex-8/group-1")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-8/group-1
+         _lex-rule-real-8
+         _lex-rule-complex-polar-8
+         _lex-rule-complex-infnan-im-8
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-8/group-1))
+
+ (func $lex-match-complex-2/group-1 (export "lex-match-complex-2/group-1")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-2/group-1
+         _lex-rule-real-2
+         _lex-rule-complex-polar-2
+         _lex-rule-complex-infnan-im-2
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-2/group-1))
+
+ (func $lex-match-complex-polar-16 (export "lex-match-complex-polar-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-polar-16
+         _lex-rule-real-16
+         _lex-rule-at-sign
+         _lex-rule-real-16
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-polar-16))
+
+ (func $lex-match-complex-polar-10 (export "lex-match-complex-polar-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-polar-10
+         _lex-rule-real-10
+         _lex-rule-at-sign
+         _lex-rule-real-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-polar-10))
+
+ (func $lex-match-complex-polar-8 (export "lex-match-complex-polar-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-polar-8
+         _lex-rule-real-8
+         _lex-rule-at-sign
+         _lex-rule-real-8
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-polar-8))
+
+ (func $lex-match-complex-polar-2 (export "lex-match-complex-polar-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-polar-2
+         _lex-rule-real-2
+         _lex-rule-at-sign
+         _lex-rule-real-2
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-polar-2))
+
+ (func $lex-match-complex-infnan-im-16 (export "lex-match-complex-infnan-im-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-infnan-im-16
+         _lex-rule-real-16
+         _lex-rule-infnan
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-infnan-im-16))
+
+ (func $lex-match-complex-infnan-im-10 (export "lex-match-complex-infnan-im-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-infnan-im-10
+         _lex-rule-real-10
+         _lex-rule-infnan
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-infnan-im-10))
+
+ (func $lex-match-complex-infnan-im-8 (export "lex-match-complex-infnan-im-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-infnan-im-8
+         _lex-rule-real-8
+         _lex-rule-infnan
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-infnan-im-8))
+
+ (func $lex-match-complex-infnan-im-2 (export "lex-match-complex-infnan-im-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-infnan-im-2
+         _lex-rule-real-2
+         _lex-rule-infnan
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-infnan-im-2))
+
+ (func $lex-match-complex-16/group-2 (export "lex-match-complex-16/group-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-16/group-2
+         _lex-rule-full-complex-16
+         _lex-rule-complex-unit-im-16
+         _lex-rule-complex-im-only-16
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-16/group-2))
+
+ (func $lex-match-complex-10/group-2 (export "lex-match-complex-10/group-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-10/group-2
+         _lex-rule-full-complex-10
+         _lex-rule-complex-unit-im-10
+         _lex-rule-complex-im-only-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-10/group-2))
+
+ (func $lex-match-complex-8/group-2 (export "lex-match-complex-8/group-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-8/group-2
+         _lex-rule-full-complex-8
+         _lex-rule-complex-unit-im-8
+         _lex-rule-complex-im-only-8
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-8/group-2))
+
+ (func $lex-match-complex-2/group-2 (export "lex-match-complex-2/group-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-complex-2/group-2
+         _lex-rule-full-complex-2
+         _lex-rule-complex-unit-im-2
+         _lex-rule-complex-im-only-2
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-2/group-2))
+
+ (func $lex-match-full-complex-16 (export "lex-match-full-complex-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-4
+         _lex-rule-full-complex-16
+         _lex-rule-real-16
+         _lex-rule-explicit-sign
+         _lex-rule-ureal-16
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-full-complex-16))
+
+ (func $lex-match-full-complex-10 (export "lex-match-full-complex-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-4
+         _lex-rule-full-complex-10
+         _lex-rule-real-10
+         _lex-rule-explicit-sign
+         _lex-rule-ureal-10
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-full-complex-10))
+
+ (func $lex-match-full-complex-8 (export "lex-match-full-complex-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-4
+         _lex-rule-full-complex-8
+         _lex-rule-real-8
+         _lex-rule-explicit-sign
+         _lex-rule-ureal-8
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-full-complex-8))
+
+ (func $lex-match-full-complex-2 (export "lex-match-full-complex-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-4
+         _lex-rule-full-complex-2
+         _lex-rule-real-2
+         _lex-rule-explicit-sign
+         _lex-rule-ureal-2
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-full-complex-2))
+
+ (func $lex-match-complex-unit-im-16 (export "lex-match-complex-unit-im-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-unit-im-16
+         _lex-rule-real-16
+         _lex-rule-explicit-sign
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-unit-im-16))
+
+ (func $lex-match-complex-unit-im-10 (export "lex-match-complex-unit-im-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-unit-im-10
+         _lex-rule-real-10
+         _lex-rule-explicit-sign
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-unit-im-10))
+
+ (func $lex-match-complex-unit-im-8 (export "lex-match-complex-unit-im-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-unit-im-8
+         _lex-rule-real-8
+         _lex-rule-explicit-sign
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-unit-im-8))
+
+ (func $lex-match-complex-unit-im-2 (export "lex-match-complex-unit-im-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-unit-im-2
+         _lex-rule-real-2
+         _lex-rule-explicit-sign
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-unit-im-2))
+
+ (func $lex-match-complex-im-only-16 (export "lex-match-complex-im-only-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-im-only-16
+         _lex-rule-explicit-sign
+         _lex-rule-ureal-16
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-im-only-16))
+
+ (func $lex-match-complex-im-only-10 (export "lex-match-complex-im-only-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-im-only-10
+         _lex-rule-explicit-sign
+         _lex-rule-ureal-10
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-im-only-10))
+
+ (func $lex-match-complex-im-only-8 (export "lex-match-complex-im-only-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-im-only-8
+         _lex-rule-explicit-sign
+         _lex-rule-ureal-8
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-im-only-8))
+
+ (func $lex-match-complex-im-only-2 (export "lex-match-complex-im-only-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-complex-im-only-2
+         _lex-rule-explicit-sign
+         _lex-rule-ureal-2
+         _lex-rule-complex-i
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-complex-im-only-2))
+
+ ;;<real R> -> <sign> <ureal R> | <infnan>
+
+ (func $lex-match-real-16 (export "lex-match-real-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-real-16
+         _lex-rule-signed-real-16
+         _lex-rule-infnan
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-real-16))
+
+ (func $lex-match-real-10 (export "lex-match-real-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-real-10
+         _lex-rule-signed-real-10
+         _lex-rule-infnan
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-real-10))
+
+ (func $lex-match-real-8 (export "lex-match-real-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-real-8
+         _lex-rule-signed-real-8
+         _lex-rule-infnan
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-real-8))
+
+ (func $lex-match-real-2 (export "lex-match-real-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-real-2
+         _lex-rule-signed-real-2
+         _lex-rule-infnan
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-real-2))
+
+ (func $lex-match-signed-real-16 (export "lex-match-signed-real-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-signed-real-16
+         _lex-rule-sign
+         _lex-rule-ureal-16
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-signed-real-16))
+
+ (func $lex-match-signed-real-10 (export "lex-match-signed-real-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-signed-real-10
+         _lex-rule-sign
+         _lex-rule-ureal-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-signed-real-10))
+
+ (func $lex-match-signed-real-8 (export "lex-match-signed-real-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-signed-real-8
+         _lex-rule-sign
+         _lex-rule-ureal-8
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-signed-real-8))
+
+ (func $lex-match-signed-real-2 (export "lex-match-signed-real-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-signed-real-2
+         _lex-rule-sign
+         _lex-rule-ureal-2
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-signed-real-2))
+
+
+ ;; <ureal R> -> <uinteger R> | <uinteger R> / <uinteger R> | <decimal R>
+ ;;  Note: the decimal term is only present for R = 10
+
+ (func $lex-match-ureal-16 (export "lex-match-ureal-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-ureal-16
+         _lex-rule-uinteger-16
+         _lex-rule-urational-16
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-ureal-16))
+
+ (func $lex-match-ureal-10 (export "lex-match-ureal-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-ureal-10
+         _lex-rule-uinteger-10
+         _lex-rule-urational-10
+         _lex-rule-decimal-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-ureal-10))
+
+ (func $lex-match-ureal-8 (export "lex-match-ureal-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-ureal-8
+         _lex-rule-uinteger-8
+         _lex-rule-urational-8
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-ureal-8))
+
+ (func $lex-match-ureal-2 (export "lex-match-ureal-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-2
+         _lex-rule-ureal-2
+         _lex-rule-uinteger-2
+         _lex-rule-urational-2
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-ureal-2))
+
+ (func $lex-match-urational-16 (export "lex-match-urational-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-urational-16
+         _lex-rule-uinteger-16
+         _lex-rule-slash
+         _lex-rule-uinteger-16
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-urational-16))
+
+ (func $lex-match-urational-10 (export "lex-match-urational-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-urational-10
+         _lex-rule-uinteger-10
+         _lex-rule-slash
+         _lex-rule-uinteger-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-urational-10))
+
+ (func $lex-match-urational-8 (export "lex-match-urational-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-urational-8
+         _lex-rule-uinteger-8
+         _lex-rule-slash
+         _lex-rule-uinteger-8
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-urational-8))
+
+ (func $lex-match-urational-2 (export "lex-match-urational-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-urational-2
+         _lex-rule-uinteger-2
+         _lex-rule-slash
+         _lex-rule-uinteger-2
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-urational-2))
+
+ (func $lex-match-slash (export "lex-match-slash")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char/ascii
+         _lex-rule-slash
+         (global.get $char-slash)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-slash))
+
+ ;; <decimal 10> -> <uinteger 10> <suffix>
+ ;;                    | . <digit 10>+ <suffix>
+ ;;                    | <digit 10>+ . <digit 10>* <suffix>
+
+ (func $lex-match-decimal-10 (export "lex-match-decimal-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-decimal-10
+         _lex-rule-decimal-10-forms
+         _lex-rule-suffix
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-decimal-10))
+
+ (func $lex-match-decimal-10-forms (export "lex-match-decimal-10-forms")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-decimal-10-forms
+         _lex-rule-uinteger-10
+         _lex-rule-dot-digits-10
+         _lex-rule-digits-dot-digits-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-decimal-10-forms))
+
+ (func $lex-match-dot-digits-10 (export "lex-match-dot-digits-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-dot-digits-10
+         _lex-rule-dot
+         _lex-rule-digits-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-dot-digits-10))
+
+ (func $lex-match-digits-10 (export "lex-match-digits-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/one-or-more
+         _lex-rule-digits-10
+         _lex-rule-digit-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-digits-10))
+
+ (func $lex-match-digits-dot-digits-10 (export "lex-match-digits-dot-digits-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-digits-dot-digits-10
+         _lex-rule-digits-10
+         _lex-rule-dot
+         _lex-rule-digits-10?
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-digits-dot-digits-10))
+
+ (func $lex-match-digits-10? (export "lex-match-digits-10?")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/zero-or-more
+         _lex-rule-digits-10?
+         _lex-rule-digit-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-digits-10?))
+
+ ;; <uinteger R> -> <digit R>
+
+ (func $lex-match-uinteger-16 (export "lex-match-uinteger-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/one-or-more
+         _lex-rule-uinteger-16
+         _lex-rule-digit-16
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-uinteger-16))
+
+ (func $lex-match-uinteger-10 (export "lex-match-uinteger-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/one-or-more
+         _lex-rule-uinteger-10
+         _lex-rule-digit-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-uinteger-10))
+
+ (func $lex-match-uinteger-8 (export "lex-match-uinteger-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/one-or-more
+         _lex-rule-uinteger-8
+         _lex-rule-digit-8
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-uinteger-8))
+
+ (func $lex-match-uinteger-2 (export "lex-match-uinteger-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule/one-or-more
+         _lex-rule-uinteger-2
+         _lex-rule-digit-2
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-uinteger-2))
+
+ ;; <prefix R> -> <radix R> <exactness> | <exactness> <radix R>
+
+ (func $lex-match-prefix-16 (export "lex-match-prefix-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-unordered-sequence-of-2
+         _lex-rule-prefix-16
+         _lex-rule-radix-16
+         _lex-rule-exactness
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-prefix-16))
+
+ (func $lex-match-prefix-10 (export "lex-match-prefix-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-unordered-sequence-of-2
+         _lex-rule-prefix-10
+         _lex-rule-radix-10
+         _lex-rule-exactness
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-prefix-10))
+
+ (func $lex-match-prefix-8 (export "lex-match-prefix-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-unordered-sequence-of-2
+         _lex-rule-prefix-8
+         _lex-rule-radix-8
+         _lex-rule-exactness
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-prefix-8))
+
+ (func $lex-match-prefix-2 (export "lex-match-prefix-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-unordered-sequence-of-2
+         _lex-rule-prefix-2
+         _lex-rule-radix-2
+         _lex-rule-exactness
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-prefix-2))
+
+ ;; <infnan> -> +inf.0 | -inf.0 | +nan.0 | -nan.0
+
+ (func $lex-match-infnan (export "lex-match-infnan")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-2
+         _lex-rule-infnan
+         _lex-rule-explicit-sign
+         _lex-rule-inf-or-nan
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-infnan))
+
+ (func $lex-match-inf-or-nan (export "lex-match-inf-or-nan")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/ascii-ci/longest-of-2
+         _lex-rule-inf-or-nan
+         (global.get $static-string-inf)
+         (global.get $static-string-nan)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-inf-or-nan))
+
+ (string $static-string-inf (export "static-string-inf") "inf.0")
+ (string $static-string-nan (export "static-string-nan") "nan.0")
+
+ ;; <suffix> -> <empty> | <exponent marker> <sign> <digit 10>+
+
+ (func $lex-match-suffix (export "lex-match-suffix")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule?
+         _lex-rule-suffix
+         _lex-rule-suffix-sequence
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-suffix))
+
+ (func $lex-match-suffix-sequence (export "lex-match-suffix-sequence")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/sequence-of-3
+         _lex-rule-suffix-sequence
+         _lex-rule-exponent-marker
+         _lex-rule-sign
+         _lex-rule-digits-10
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-suffix-sequence))
+
+ ;; <exponent marker> -> e
+
+ (func $lex-match-exponent-marker (export "lex-match-exponent-marker")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char/ascii-ci
+         _lex-rule-exponent-marker
+         (global.get $char-e)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-exponent-marker))
+
+ ;;<sign> -> <empty> | + | -
+
+ (func $lex-match-sign (export "lex-match-sign")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rule?
+         _lex-rule-sign
+         _lex-rule-explicit-sign
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-sign))
+
+ ;; <exactness> -> <empty> | #i | #e
+
+ (func $lex-match-exactness (export "lex-match-exactness")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/ascii-ci/longest-of-3
+         _lex-rule-exactness
+         (global.get $static-string-empty)
+         (global.get $static-string-exact-prefix)
+         (global.get $static-string-inexact-prefix)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-exactness))
+
+ (string $static-string-empty          (export "static-string-empty")          "")
+ (string $static-string-exact-prefix   (export "static-string-exact-prefix")   "#e")
+ (string $static-string-inexact-prefix (export "static-string-inexact-prefix") "#i")
+
+ ;; <radix 2> -> #b
+
+ (func $lex-match-radix-2 (export "lex-match-radix-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string/ascii-ci
+         _lex-rule-radix-2
+         (global.get $static-string-radix-2)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-radix-2))
+
+ (string $static-string-radix-2 (export "static-string-radix-2") "#b")
+
+ ;; <radix 8> -> #o
+
+ (func $lex-match-radix-8 (export "lex-match-radix-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string/ascii-ci
+         _lex-rule-radix-8
+         (global.get $static-string-radix-8)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-radix-8))
+
+ (string $static-string-radix-8 (export "static-string-radix-8") "#o")
+
+ ;;<radix 10> -> <empty> | #d
+
+ (func $lex-match-radix-10 (export "lex-match-radix-10")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-strings/ascii-ci/longest-of-2
+         _lex-rule-radix-10
+         (global.get $static-string-empty)
+         (global.get $static-string-radix-10)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-radix-10))
+
+ (string $static-string-radix-10 (export "static-string-radix-10") "#d")
+
+ ;; <radix 16> -> #x
+
+ (func $lex-match-radix-16 (export "lex-match-radix-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-static-string/ascii-ci
+         _lex-rule-radix-16
+         (global.get $static-string-radix-16)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-radix-16))
+
+ (string $static-string-radix-16 (export "static-string-radix-16") "#x")
+
+ ;; <digit 2> -> 0 | 1
+
+ (func $lex-match-digit-2 (export "lex-match-digit-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-range/ascii
+         _lex-rule-digit-2
+         (global.get $char-0)
+         (global.get $char-1)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-digit-2))
+
+ ;; <digit 8> -> 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+ (func $lex-match-digit-8 (export "lex-match-digit-8")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-range/ascii
+         _lex-rule-digit-8
+         (global.get $char-0)
+         (global.get $char-7)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-digit-8))
+
+ ;; <digit 10> -> <digit>
+
+ (elem funcref (ref.func $lex-match-digit))
+
+ ;; <digit 16> -> <digit 10> | a | b | c | d | e | f
+
+ (func $lex-match-digit-16 (export "lex-match-digit-16")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-rules/longest-of-3
+         _lex-rule-digit-16
+         _lex-rule-digit-10
+         _lex-rule-digit-16/A-F
+         _lex-rule-digit-16/a-f
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-digit-16))
+
+ (func $lex-match-digit-16/A-F (export "lex-match-digit-16/A-F")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-range/ascii
+         _lex-rule-digit-16/A-F
+         (global.get $char-A)
+         (global.get $char-F)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-digit-16/A-F))
+
+ (func $lex-match-digit-16/a-f (export "lex-match-digit-16/a-f")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (call $lex-match-char-range/ascii
+         _lex-rule-digit-16/a-f
+         (global.get $char-a)
+         (global.get $char-f)
+         (%get $text)
+         (%get $end)))
+
+ (elem funcref (ref.func $lex-match-digit-16/a-f))
+
+ (start $init)
+ (func $init
+   (table.set $lexical-rules _lex-rule-token                           (ref.func $lex-match-token))
+   (table.set $lexical-rules _lex-rule-token/group-1                   (ref.func $lex-match-token/group-1))
+   (table.set $lexical-rules _lex-rule-token/group-2                   (ref.func $lex-match-token/group-2))
+   (table.set $lexical-rules _lex-rule-token-char                      (ref.func $lex-match-token-char))
+   (table.set $lexical-rules _lex-rule-token-string                    (ref.func $lex-match-token-string))
+   (table.set $lexical-rules _lex-rule-delimiter                       (ref.func $lex-match-delimiter))
+   (table.set $lexical-rules _lex-rule-delimiter-char                  (ref.func $lex-match-delimiter-char))
+   (table.set $lexical-rules _lex-rule-intraline-whitespace            (ref.func $lex-match-intraline-whitespace))
+   (table.set $lexical-rules _lex-rule-whitespace                      (ref.func $lex-match-whitespace))
+   (table.set $lexical-rules _lex-rule-vertical-line                   (ref.func $lex-match-vertical-line))
+   (table.set $lexical-rules _lex-rule-line-ending                     (ref.func $lex-match-line-ending))
+   (table.set $lexical-rules _lex-rule-line-ending-char                (ref.func $lex-match-line-ending-char))
+   (table.set $lexical-rules _lex-rule-dos-line-ending                 (ref.func $lex-match-dos-line-ending))
+   (table.set $lexical-rules _lex-rule-comment                         (ref.func $lex-match-comment))
+   (table.set $lexical-rules _lex-rule-simple-comment                  (ref.func $lex-match-simple-comment))
+   (table.set $lexical-rules _lex-rule-semicolon                       (ref.func $lex-match-semicolon))
+   (table.set $lexical-rules _lex-rule-simple-comment-continuation     (ref.func $lex-match-simple-comment-continuation))
+   (table.set $lexical-rules _lex-rule-datum-comment                   (ref.func $lex-match-datum-comment))
+   (table.set $lexical-rules _lex-rule-begin-datum-comment             (ref.func $lex-match-begin-datum-comment))
+   (table.set $lexical-rules _lex-rule-nested-comment                  (ref.func $lex-match-nested-comment))
+   (table.set $lexical-rules _lex-rule-begin-nested-comment            (ref.func $lex-match-begin-nested-comment))
+   (table.set $lexical-rules _lex-rule-comment-continuations           (ref.func $lex-match-comment-continuations))
+   (table.set $lexical-rules _lex-rule-end-nested-comment              (ref.func $lex-match-end-nested-comment))
+   (table.set $lexical-rules _lex-rule-comment-text                    (ref.func $lex-match-comment-text))
+   (table.set $lexical-rules _lex-rule-nested-comment-delimiters       (ref.func $lex-match-nested-comment-delimiters))
+   (table.set $lexical-rules _lex-rule-comment-continuation            (ref.func $lex-match-comment-continuation))
+   (table.set $lexical-rules _lex-rule-directive                       (ref.func $lex-match-directive))
+   (table.set $lexical-rules _lex-rule-atmosphere                      (ref.func $lex-match-atmosphere))
+   (table.set $lexical-rules _lex-rule-intertoken-space                (ref.func $lex-match-intertoken-space))
+   (table.set $lexical-rules _lex-rule-identifier                      (ref.func $lex-match-identifier))
+   (table.set $lexical-rules _lex-rule-ordinary-identifier             (ref.func $lex-match-ordinary-identifier))
+   (table.set $lexical-rules _lex-rule-subsequents                     (ref.func $lex-match-subsequents))
+   (table.set $lexical-rules _lex-rule-vertical-line-quoted-symbol     (ref.func $lex-match-vertical-line-quoted-symbol))
+   (table.set $lexical-rules _lex-rule-symbol-elements                 (ref.func $lex-match-symbol-elements))
+   (table.set $lexical-rules _lex-rule-initial                         (ref.func $lex-match-initial))
+   (table.set $lexical-rules _lex-rule-letter                          (ref.func $lex-match-letter))
+   (table.set $lexical-rules _lex-rule-lowercase-letter                (ref.func $lex-match-lowercase-letter))
+   (table.set $lexical-rules _lex-rule-uppercase-letter                (ref.func $lex-match-uppercase-letter))
+   (table.set $lexical-rules _lex-rule-special-initial                 (ref.func $lex-match-special-initial))
+   (table.set $lexical-rules _lex-rule-subsequent                      (ref.func $lex-match-subsequent))
+   (table.set $lexical-rules _lex-rule-digit                           (ref.func $lex-match-digit))
+   (table.set $lexical-rules _lex-rule-hex-digit                       (ref.func $lex-match-hex-digit))
+   (table.set $lexical-rules _lex-rule-hex-digit/alphabetic            (ref.func $lex-match-hex-digit/alphabetic))
+   (table.set $lexical-rules _lex-rule-explicit-sign                   (ref.func $lex-match-explicit-sign))
+   (table.set $lexical-rules _lex-rule-special-subsequent              (ref.func $lex-match-special-subsequent))
+   (table.set $lexical-rules _lex-rule-special-subsequent/dot-or-at    (ref.func $lex-match-special-subsequent/dot-or-at))
+   (table.set $lexical-rules _lex-rule-inline-hex-escape               (ref.func $lex-match-inline-hex-escape))
+   (table.set $lexical-rules _lex-rule-inline-hex-escape-prefix        (ref.func $lex-match-inline-hex-escape-prefix))
+   (table.set $lexical-rules _lex-rule-hex-scalar-value                (ref.func $lex-match-hex-scalar-value))
+   (table.set $lexical-rules _lex-rule-mnemonic-escape                 (ref.func $lex-match-mnemonic-escape))
+   (table.set $lexical-rules _lex-rule-backslash                       (ref.func $lex-match-backslash))
+   (table.set $lexical-rules _lex-rule-mnemonic-escape-character       (ref.func $lex-match-mnemonic-escape-character))
+   (table.set $lexical-rules _lex-rule-peculiar-identifier             (ref.func $lex-match-peculiar-identifier))
+   (table.set $lexical-rules _lex-rule-peculiar-identifier/form-1      (ref.func $lex-match-peculiar-identifier/form-1))
+   (table.set $lexical-rules _lex-rule-peculiar-identifier/form-2      (ref.func $lex-match-peculiar-identifier/form-2))
+   (table.set $lexical-rules _lex-rule-dot                             (ref.func $lex-match-dot))
+   (table.set $lexical-rules _lex-rule-peculiar-identifier/form-3      (ref.func $lex-match-peculiar-identifier/form-3))
+   (table.set $lexical-rules _lex-rule-dot-subsequent                  (ref.func $lex-match-dot-subsequent))
+   (table.set $lexical-rules _lex-rule-sign-subsequent                 (ref.func $lex-match-sign-subsequent))
+   (table.set $lexical-rules _lex-rule-at-sign                         (ref.func $lex-match-at-sign))
+   (table.set $lexical-rules _lex-rule-symbol-element                  (ref.func $lex-match-symbol-element))
+   (table.set $lexical-rules _lex-rule-symbol-element/character        (ref.func $lex-match-symbol-element/character))
+   (table.set $lexical-rules _lex-rule-escaped-vertical-line           (ref.func $lex-match-escaped-vertical-line))
+   (table.set $lexical-rules _lex-rule-boolean                         (ref.func $lex-match-boolean))
+   (table.set $lexical-rules _lex-rule-character                       (ref.func $lex-match-character))
+   (table.set $lexical-rules _lex-rule-escaped-character               (ref.func $lex-match-escaped-character))
+   (table.set $lexical-rules _lex-rule-any-char                        (ref.func $lex-match-any-char))
+   (table.set $lexical-rules _lex-rule-character-prefix                (ref.func $lex-match-character-prefix))
+   (table.set $lexical-rules _lex-rule-named-character                 (ref.func $lex-match-named-character))
+   (table.set $lexical-rules _lex-rule-escaped-character-hex           (ref.func $lex-match-escaped-character-hex))
+   (table.set $lexical-rules _lex-rule-character-hex-prefix            (ref.func $lex-match-character-hex-prefix))
+   (table.set $lexical-rules _lex-rule-character-name                  (ref.func $lex-match-character-name))
+   (table.set $lexical-rules _lex-rule-character-name/group-1          (ref.func $lex-match-character-name/group-1))
+   (table.set $lexical-rules _lex-rule-character-name/group-2          (ref.func $lex-match-character-name/group-2))
+   (table.set $lexical-rules _lex-rule-character-name/group-3          (ref.func $lex-match-character-name/group-3))
+   (table.set $lexical-rules _lex-rule-string                          (ref.func $lex-match-string))
+   (table.set $lexical-rules _lex-rule-double-quote                    (ref.func $lex-match-double-quote))
+   (table.set $lexical-rules _lex-rule-string-elements                 (ref.func $lex-match-string-elements))
+   (table.set $lexical-rules _lex-rule-string-element                  (ref.func $lex-match-string-element))
+   (table.set $lexical-rules _lex-rule-string-element/character        (ref.func $lex-match-string-element/character))
+   (table.set $lexical-rules _lex-rule-string-element/character-escape (ref.func $lex-match-string-element/character-escape))
+   (table.set $lexical-rules _lex-rule-escaped-double-quote            (ref.func $lex-match-escaped-double-quote))
+   (table.set $lexical-rules _lex-rule-escaped-backslash               (ref.func $lex-match-escaped-backslash))
+   (table.set $lexical-rules _lex-rule-escaped-line-ending             (ref.func $lex-match-escaped-line-ending))
+   (table.set $lexical-rules _lex-rule-some-intraline-whitespace       (ref.func $lex-match-some-intraline-whitespace))
+   (table.set $lexical-rules _lex-rule-number                          (ref.func $lex-match-number))
+   (table.set $lexical-rules _lex-rule-num-2                           (ref.func $lex-match-num-2))
+   (table.set $lexical-rules _lex-rule-num-8                           (ref.func $lex-match-num-8))
+   (table.set $lexical-rules _lex-rule-num-10                          (ref.func $lex-match-num-10))
+   (table.set $lexical-rules _lex-rule-num-16                          (ref.func $lex-match-num-16))
+   (table.set $lexical-rules _lex-rule-complex-16                      (ref.func $lex-match-complex-16))
+   (table.set $lexical-rules _lex-rule-complex-10                      (ref.func $lex-match-complex-10))
+   (table.set $lexical-rules _lex-rule-complex-8                       (ref.func $lex-match-complex-8))
+   (table.set $lexical-rules _lex-rule-complex-2                       (ref.func $lex-match-complex-2))
+   (table.set $lexical-rules _lex-rule-simple-im                       (ref.func $lex-match-simple-im))
+   (table.set $lexical-rules _lex-rule-unit-im                         (ref.func $lex-match-unit-im))
+   (table.set $lexical-rules _lex-rule-complex-i                       (ref.func $lex-match-complex-i))
+   (table.set $lexical-rules _lex-rule-infnan-im                       (ref.func $lex-match-infnan-im))
+   (table.set $lexical-rules _lex-rule-complex-16/group-1              (ref.func $lex-match-complex-16/group-1))
+   (table.set $lexical-rules _lex-rule-complex-10/group-1              (ref.func $lex-match-complex-10/group-1))
+   (table.set $lexical-rules _lex-rule-complex-8/group-1               (ref.func $lex-match-complex-8/group-1))
+   (table.set $lexical-rules _lex-rule-complex-2/group-1               (ref.func $lex-match-complex-2/group-1))
+   (table.set $lexical-rules _lex-rule-complex-polar-16                (ref.func $lex-match-complex-polar-16))
+   (table.set $lexical-rules _lex-rule-complex-polar-10                (ref.func $lex-match-complex-polar-10))
+   (table.set $lexical-rules _lex-rule-complex-polar-8                 (ref.func $lex-match-complex-polar-8))
+   (table.set $lexical-rules _lex-rule-complex-polar-2                 (ref.func $lex-match-complex-polar-2))
+   (table.set $lexical-rules _lex-rule-complex-infnan-im-16            (ref.func $lex-match-complex-infnan-im-16))
+   (table.set $lexical-rules _lex-rule-complex-infnan-im-10            (ref.func $lex-match-complex-infnan-im-10))
+   (table.set $lexical-rules _lex-rule-complex-infnan-im-8             (ref.func $lex-match-complex-infnan-im-8))
+   (table.set $lexical-rules _lex-rule-complex-infnan-im-2             (ref.func $lex-match-complex-infnan-im-2))
+   (table.set $lexical-rules _lex-rule-complex-16/group-2              (ref.func $lex-match-complex-16/group-2))
+   (table.set $lexical-rules _lex-rule-complex-10/group-2              (ref.func $lex-match-complex-10/group-2))
+   (table.set $lexical-rules _lex-rule-complex-8/group-2               (ref.func $lex-match-complex-8/group-2))
+   (table.set $lexical-rules _lex-rule-complex-2/group-2               (ref.func $lex-match-complex-2/group-2))
+   (table.set $lexical-rules _lex-rule-full-complex-16                 (ref.func $lex-match-full-complex-16))
+   (table.set $lexical-rules _lex-rule-full-complex-10                 (ref.func $lex-match-full-complex-10))
+   (table.set $lexical-rules _lex-rule-full-complex-8                  (ref.func $lex-match-full-complex-8))
+   (table.set $lexical-rules _lex-rule-full-complex-2                  (ref.func $lex-match-full-complex-2))
+   (table.set $lexical-rules _lex-rule-complex-unit-im-16              (ref.func $lex-match-complex-unit-im-16))
+   (table.set $lexical-rules _lex-rule-complex-unit-im-10              (ref.func $lex-match-complex-unit-im-10))
+   (table.set $lexical-rules _lex-rule-complex-unit-im-8               (ref.func $lex-match-complex-unit-im-8))
+   (table.set $lexical-rules _lex-rule-complex-unit-im-2               (ref.func $lex-match-complex-unit-im-2))
+   (table.set $lexical-rules _lex-rule-complex-im-only-16              (ref.func $lex-match-complex-im-only-16))
+   (table.set $lexical-rules _lex-rule-complex-im-only-10              (ref.func $lex-match-complex-im-only-10))
+   (table.set $lexical-rules _lex-rule-complex-im-only-8               (ref.func $lex-match-complex-im-only-8))
+   (table.set $lexical-rules _lex-rule-complex-im-only-2               (ref.func $lex-match-complex-im-only-2))
+   (table.set $lexical-rules _lex-rule-real-16                         (ref.func $lex-match-real-16))
+   (table.set $lexical-rules _lex-rule-real-10                         (ref.func $lex-match-real-10))
+   (table.set $lexical-rules _lex-rule-real-8                          (ref.func $lex-match-real-8))
+   (table.set $lexical-rules _lex-rule-real-2                          (ref.func $lex-match-real-2))
+   (table.set $lexical-rules _lex-rule-signed-real-16                  (ref.func $lex-match-signed-real-16))
+   (table.set $lexical-rules _lex-rule-signed-real-10                  (ref.func $lex-match-signed-real-10))
+   (table.set $lexical-rules _lex-rule-signed-real-8                   (ref.func $lex-match-signed-real-8))
+   (table.set $lexical-rules _lex-rule-signed-real-2                   (ref.func $lex-match-signed-real-2))
+   (table.set $lexical-rules _lex-rule-ureal-16                        (ref.func $lex-match-ureal-16))
+   (table.set $lexical-rules _lex-rule-ureal-10                        (ref.func $lex-match-ureal-10))
+   (table.set $lexical-rules _lex-rule-ureal-8                         (ref.func $lex-match-ureal-8))
+   (table.set $lexical-rules _lex-rule-ureal-2                         (ref.func $lex-match-ureal-2))
+   (table.set $lexical-rules _lex-rule-urational-16                    (ref.func $lex-match-urational-16))
+   (table.set $lexical-rules _lex-rule-urational-10                    (ref.func $lex-match-urational-10))
+   (table.set $lexical-rules _lex-rule-urational-8                     (ref.func $lex-match-urational-8))
+   (table.set $lexical-rules _lex-rule-urational-2                     (ref.func $lex-match-urational-2))
+   (table.set $lexical-rules _lex-rule-slash                           (ref.func $lex-match-slash))
+   (table.set $lexical-rules _lex-rule-decimal-10                      (ref.func $lex-match-decimal-10))
+   (table.set $lexical-rules _lex-rule-decimal-10-forms                (ref.func $lex-match-decimal-10-forms))
+   (table.set $lexical-rules _lex-rule-dot-digits-10                   (ref.func $lex-match-dot-digits-10))
+   (table.set $lexical-rules _lex-rule-digits-10                       (ref.func $lex-match-digits-10))
+   (table.set $lexical-rules _lex-rule-digits-dot-digits-10            (ref.func $lex-match-digits-dot-digits-10))
+   (table.set $lexical-rules _lex-rule-digits-10?                      (ref.func $lex-match-digits-10?))
+   (table.set $lexical-rules _lex-rule-uinteger-16                     (ref.func $lex-match-uinteger-16))
+   (table.set $lexical-rules _lex-rule-uinteger-10                     (ref.func $lex-match-uinteger-10))
+   (table.set $lexical-rules _lex-rule-uinteger-8                      (ref.func $lex-match-uinteger-8))
+   (table.set $lexical-rules _lex-rule-uinteger-2                      (ref.func $lex-match-uinteger-2))
+   (table.set $lexical-rules _lex-rule-prefix-16                       (ref.func $lex-match-prefix-16))
+   (table.set $lexical-rules _lex-rule-prefix-10                       (ref.func $lex-match-prefix-10))
+   (table.set $lexical-rules _lex-rule-prefix-8                        (ref.func $lex-match-prefix-8))
+   (table.set $lexical-rules _lex-rule-prefix-2                        (ref.func $lex-match-prefix-2))
+   (table.set $lexical-rules _lex-rule-infnan                          (ref.func $lex-match-infnan))
+   (table.set $lexical-rules _lex-rule-inf-or-nan                      (ref.func $lex-match-inf-or-nan))
+   (table.set $lexical-rules _lex-rule-suffix                          (ref.func $lex-match-suffix))
+   (table.set $lexical-rules _lex-rule-suffix-sequence                 (ref.func $lex-match-suffix-sequence))
+   (table.set $lexical-rules _lex-rule-exponent-marker                 (ref.func $lex-match-exponent-marker))
+   (table.set $lexical-rules _lex-rule-sign                            (ref.func $lex-match-sign))
+   (table.set $lexical-rules _lex-rule-exactness                       (ref.func $lex-match-exactness))
+   (table.set $lexical-rules _lex-rule-radix-2                         (ref.func $lex-match-radix-2))
+   (table.set $lexical-rules _lex-rule-radix-8                         (ref.func $lex-match-radix-8))
+   (table.set $lexical-rules _lex-rule-radix-10                        (ref.func $lex-match-radix-10))
+   (table.set $lexical-rules _lex-rule-radix-16                        (ref.func $lex-match-radix-16))
+   (table.set $lexical-rules _lex-rule-digit-2                         (ref.func $lex-match-digit-2))
+   (table.set $lexical-rules _lex-rule-digit-8                         (ref.func $lex-match-digit-8))
+   (table.set $lexical-rules _lex-rule-digit-10                        (ref.func $lex-match-digit))
+   (table.set $lexical-rules _lex-rule-digit-16                        (ref.func $lex-match-digit-16))
+   (table.set $lexical-rules _lex-rule-digit-16/A-F                    (ref.func $lex-match-digit-16/A-F))
+   (table.set $lexical-rules _lex-rule-digit-16/a-f                    (ref.func $lex-match-digit-16/a-f))))

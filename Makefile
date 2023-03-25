@@ -1,98 +1,109 @@
-obj/%.d.wasm: obj/%.d.wat
-	${WAT2WASM} obj/$*.d.wat -o $@ --debug-names
+.DEFAULT_GOAL := all
 
-obj/%.d.wat: src/%.wam
+obj/debug/%.wasm: obj/debug/src/%.wat
+	${WAT2WASM} obj/debug/src/$*.wat -o $@ --debug-names
+
+obj/debug/src/%.wat: src/%.wam
 	${WAM} --debug src/$*.wam >$@
 
-obj/%.wasm: obj/%.wat
-	${WAT2WASM} obj/$*.wat -o $@
+obj/%.wasm: obj/src/%.wat
+	${WAT2WASM} obj/src/$*.wat -o $@
 
-obj/%.wat: src/%.wam
+obj/src/%.wat: src/%.wam
 	${WAM} src/$*.wam >$@
 
 TOOLS = \
 	Makefile \
-	wam.py \
+	bin/wam.py \
 	test/test_*.py
 
 OBJECTS = \
-	obj/block-mgr.wasm \
-	obj/block-mgr.d.wasm \
+	obj/debug/block-mgr-test-client.wasm \
+	obj/debug/block-mgr.wasm \
+	obj/debug/bytevectors.wasm \
+	obj/debug/chars.wasm \
+	obj/debug/lex.wasm \
+	obj/debug/lists.wasm \
+	obj/debug/numbers.wasm \
+	obj/debug/pairs.wasm \
+	obj/debug/strings.wasm \
+	obj/debug/symbols.wasm \
+	obj/debug/vectors.wasm \
 	obj/block-mgr-perf-test.wasm \
 	obj/block-mgr-test-client.wasm \
-	obj/block-mgr-test-client.d.wasm \
+	obj/block-mgr.wasm \
 	obj/bytevectors.wasm \
-	obj/bytevectors.d.wasm \
 	obj/chars.wasm \
-	obj/chars.d.wasm \
+	obj/lex.wasm \
 	obj/lists.wasm \
-	obj/lists.d.wasm \
 	obj/numbers.wasm \
-	obj/numbers.d.wasm \
 	obj/pairs.wasm \
-	obj/pairs.d.wasm \
 	obj/strings.wasm \
-	obj/strings.d.wasm \
 	obj/symbols.wasm \
-	obj/symbols.d.wasm \
-	obj/vectors.wasm \
-	obj/vectors.d.wasm
+	obj/vectors.wasm
 
-obj/block-mgr.wat obj/block-mgr.d.wat: src/globals.wam
+obj/src/block-mgr.wat obj/debug/src/block-mgr.wat: src/globals.wam
 
-obj/block-mgr-perf-test.wat: \
+obj/src/block-mgr-perf-test.wat: \
 	src/globals.wam
 
-obj/block-mgr-test-client.wat obj/block-mgr-test-client.d.wat: \
-	src/block-mgr-memory-proxies.wam \
-	src/block-mgr-memory-proxy-imports.wam \
-	src/globals.wam
-
-obj/boxes.wat obj/boxes.d.wat: globals.wam
-
-obj/bytevectors.wat obj/bytevectors.d.wat: \
-	src/block-mgr-memory-proxies.wam \
-	src/block-mgr-memory-proxy-imports.wam \
-	src/boxes.wam \
-	src/globals.wam \
-	src/values.wam
-
-obj/chars.wat obj/chars.d.wat: src/globals.wam src/values.wam
-
-obj/lists.wat obj/lists.d.wat: src/globals.wam
-
-obj/numbers.wat obj/numbers.d.wat: \
-	src/block-mgr-memory-proxies.wam \
-	src/block-mgr-memory-proxy-imports.wam \
-	src/boxes.wam \
-	src/globals.wam \
-	src/values.wam
-
-obj/pairs.wat obj/pairs.d.wat: src/globals.wam src/gc-client.wam
-
-obj/strings.wat obj/strings.d.wat: \
-	src/block-mgr-memory-proxies.wam \
-	src/block-mgr-memory-proxy-imports.wam \
-	src/boxes.wam \
-	src/globals.wam \
-	src/values.wam
-
-obj/symbols.wat obj/symbols.d.wat: \
-	src/block-mgr-memory-proxies.wam \
-	src/block-mgr-memory-proxy-imports.wam \
-	src/boxes.wam \
-	src/globals.wam \
-	src/values.wam
-
-obj/vectors.wat obj/vectors.d.wat: \
+obj/src/block-mgr-test-client.wat obj/debug/src/block-mgr-test-client.wat: \
 	src/block-mgr-memory-proxies.wam \
 	src/block-mgr-memory-proxy-imports.wam \
 	src/globals.wam
 
-all: test
+obj/src/boxes.wat obj/debug/src/boxes.wat: globals.wam
+
+obj/src/bytevectors.wat obj/debug/src/bytevectors.wat: \
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/boxes.wam \
+	src/globals.wam \
+	src/values.wam
+
+obj/src/chars.wat obj/debug/src/chars.wat: src/globals.wam src/values.wam
+
+obj/src/lex.wat obj/debug/src/lex.wat: src/ascii.wam
+
+obj/src/lists.wat obj/debug/src/lists.wat: src/globals.wam
+
+obj/src/numbers.wat obj/debug/src/numbers.wat: \
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/boxes.wam \
+	src/globals.wam \
+	src/values.wam
+
+obj/src/pairs.wat obj/debug/src/pairs.wat: src/globals.wam src/gc-client.wam
+
+obj/src/strings.wat obj/debug/src/strings.wat: \
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/boxes.wam \
+	src/globals.wam \
+	src/values.wam
+
+obj/src/symbols.wat obj/debug/src/symbols.wat: \
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/boxes.wam \
+	src/globals.wam \
+	src/values.wam
+
+obj/src/vectors.wat obj/debug/src/vectors.wat: \
+	src/block-mgr-memory-proxies.wam \
+	src/block-mgr-memory-proxy-imports.wam \
+	src/globals.wam
+
+dirs:
+	mkdir -p obj/debug/src
+	mkdir -p obj/src
+	mkdir -p log
+
+all: dirs test
 
 clean:
-	rm -f obj/*
+	rm -rf obj/*
 
 wasm: ${OBJECTS}
 
