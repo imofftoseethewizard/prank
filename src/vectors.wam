@@ -23,26 +23,24 @@
 
  (start $init-vectors)
  (func $init-vectors (export "init-vectors")
-   (call $init-blockset
-         (global.get $vectors-blockset)
-         (i32.const 0x800)   ;; relocate blocks in groups of up to 2KB
-         (i32.const 0x4000)) ;; relocate single blocks of up to 16KB
+   ($init-blockset _vectors-blockset
+                   (i32.const 0x800)   ;; relocate blocks in groups of up to 2KB
+                   (i32.const 0x4000)) ;; relocate single blocks of up to 16KB
 
    ;; defined in block-mgr-memory-proxies.wam
-   (call $init-blockset-memory-proxies (global.get $vectors-blockset)))
+   ($init-blockset-memory-proxies _vectors-blockset))
 
  (macro %calc-vector-size
    (expr ,length)
-   (i32.add (i32.shl ,length (global.get $value-size-bits))
-            (global.get $value-size)))
+   (i32.add (i32.shl ,length _value-size-bits) _value-size))
 
  (macro %get-vector-block-addr
    (expr ,v)
-   (call $get-block-addr (%get-box-value ,v)))
+   ($get-block-addr (%get-box-value ,v)))
 
  (macro %get-vector-addr
    (expr ,v)
-   (i32.add (%get-vector-block-addr ,v) (global.get $value-size)))
+   (i32.add (%get-vector-block-addr ,v) _value-size))
 
  (macro %get-vector-length
    (expr ,v)
@@ -52,8 +50,7 @@
    (expr ,v)
    (expr ,idx)
    (i32.add (%get-vector-block-addr ,v)
-                      (i32.shl (i32.add ,idx (i32.const 1))
-                               (global.get $value-size-bits))))
+            (i32.shl (i32.add ,idx (i32.const 1)) _value-size-bits)))
 
  (macro %get-vector-element
    (expr ,v)
@@ -66,45 +63,40 @@
 
    (local $block i32)
 
-   (local.set $block (call $alloc-block
-                           (global.get $vectors-blockset)
-                           (%calc-vector-size (local.get $length))))
+   (set! $block ($alloc-block _vectors-blockset (%calc-vector-size $length)))
 
-   (i32.store (call $get-block-addr (local.get $block)) (local.get $length))
+   (i32.store ($get-block-addr $block) $length)
 
-   (%make-box (global.get $type-vector) (local.get $block)))
+   (%make-box _type-vector $block))
 
  (func $dealloc-vector (export "dealloc-vector")
    (param $v i32)
 
-   (call $dealloc-block
-         (global.get $vectors-blockset)
-         (%get-box-value (local.get $v)))
+   ($dealloc-block _vectors-blockset (%get-box-value $v))
 
-   (%dealloc-box (local.get $v)))
+   (%dealloc-box $v))
 
  (func $get-vector-addr (export "get-vector-addr")
    (param $v i32)
    (result i32)
-   (%get-vector-addr (local.get $v)))
+   (%get-vector-addr $v))
 
  (func $get-vector-length (export "get-vector-length")
    (param $v i32)
    (result i32)
-   (%get-vector-length (local.get $v)))
+   (%get-vector-length $v))
 
  (func $get-vector-element (export "get-vector-element")
    (param $v i32)
    (param $idx i32)
    (result i32)
-   (%get-vector-element (local.get $v) (local.get $idx)))
+   (%get-vector-element $v $idx))
 
  (func $set-vector-element (export "set-vector-element")
    (param $v i32)
    (param $idx i32)
    (param $x i32)
-   (i32.store (%get-vector-element-addr (local.get $v) (local.get $idx))
-              (local.get $x)))
+   (i32.store (%get-vector-element-addr $v $idx) $x))
 
  ;; end of module
  )

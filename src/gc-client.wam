@@ -19,8 +19,8 @@
   (call_indirect $gc-interface
                  (type $gc-add-ref-sig)
                  (global.get $gc-add-ref)
-                 (local.get $pair)
-                 (local.get $value)))
+                 $pair
+                 $value))
 
 (type $gc-release-sig (func (param i32 i32)))
 
@@ -31,8 +31,8 @@
   (call_indirect $gc-interface
                  (type $gc-release-sig)
                  (global.get $gc-release)
-                 (local.get $pair)
-                 (local.get $value)))
+                 $pair
+                 $value))
 
  ;; Explicit versus Procedural Memory Management
  ;;

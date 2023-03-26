@@ -48,16 +48,21 @@
 ;;
 ;; Singletons are one of the following: #true, #false, #null, #eof-object
 
-(global $value-tag-mask  (export "tag-mask")  i32 (i32.const 0x00000007))
-(global $value-data-mask (export "data-mask") i32 (i32.const 0xfffffff8))
+
+(define _value-tag-mask  (i32.const 0x00000007))
+(define _value-data-mask (i32.const 0xfffffff8))
+
+(debug
+ (global $value-tag-mask  (export "tag-mask")  i32 _value-tag-mask)
+ (global $value-data-mask (export "data-mask") i32 _value-data-mask))
 
 (macro %get-value-data
   (expr ,value)
-  (i32.and ,value (global.get $value-data-mask)))
+  (i32.and ,value _value-data-mask))
 
 (macro %get-value-tag
   (expr ,value)
-  (i32.and ,value (global.get $value-tag-mask)))
+  (i32.and ,value _value-tag-mask))
 
 (macro %set-value-data
   (expr ,value)
@@ -76,4 +81,4 @@
 
 (macro %is-pair-value
   (expr ,value)
-  (i32.eq (expand %get-value-tag ,value) (global.get $tag-pair)))
+  (i32.eq (expand %get-value-tag ,value) _tag-pair))

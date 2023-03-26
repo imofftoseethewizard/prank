@@ -30,6 +30,20 @@
  (global $pairs-top      (debug (export "pairs-top"))      (mut i32) (i32.const 0))
  (global $pair-free-list (debug (export "pair-free-list")) (mut i32) (i32.const #null))
 
+ (macro %get-pairs-top
+   (global.get $pairs-top))
+
+ (macro %set-pairs-top
+   (expr ,v)
+   (global.set $pairs-top ,v))
+
+ (macro %get-pair-free-list
+   (global.get $pair-free-list))
+
+ (macro %set-pair-free-list
+   (expr ,v)
+   (global.set $pair-free-list ,v))
+
  ;; $pair-count is used in tests to ensure that there are no memory leaks in
  ;; uses of make-pair and dealloc-pair.
  (debug
@@ -38,7 +52,7 @@
  ;; initialize 8 KB of pairs at a time. A higher number here increases run time variance
  ;; in order to gain some CPU efficiency.
 
- (global $provision-free-list-count (export "provision-free-list-count") i32 (i32.const 1024))
+ (define _provision-free-list-count (i32.const 1024))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -48,10 +62,10 @@
  (start $init-pairs)
  (func $init-pairs (debug (export "init-pairs"))
 
-   (global.set $pairs-top (i32.const 0))
-   (global.set $pair-free-list (global.get $null))
+   (%set-pairs-top (i32.const 0))
+   (%set-pair-free-list _null)
    (debug
-      (global.set $pair-count (i32.const 0))))
+    (global.set $pair-count (i32.const 0))))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -64,7 +78,7 @@
 
  (macro %get-pair-cdr
    (expr ,pair)
-   (i32.load (i32.add ,pair (global.get $value-size))))
+   (i32.load (i32.add ,pair _value-size)))
 
  (macro %set-pair-car
    (expr ,pair)
@@ -74,156 +88,147 @@
  (macro %set-pair-cdr
    (expr ,pair)
    (expr ,value)
-   (i32.store (i32.add ,pair (global.get $value-size))
-              ,value))
+   (i32.store (i32.add ,pair _value-size) ,value))
 
  (func $get-pair-car (export "get-pair-car")
    (param $pair i32)
    (result i32)
-   (%get-pair-car (local.get $pair)))
+   (%get-pair-car $pair))
 
  (func $get-pair-cdr (export "get-pair-cdr")
    (param $pair i32)
    (result i32)
-   (%get-pair-cdr (local.get $pair)))
+   (%get-pair-cdr $pair))
 
  (func $get-pair-caar (export "get-pair-caar")
    (param $pair i32)
    (result i32)
-   (%get-pair-car (%get-pair-car (local.get $pair))))
+   (%get-pair-car (%get-pair-car $pair)))
 
  (func $get-pair-cadr (export "get-pair-cadr")
    (param $pair i32)
    (result i32)
-   (%get-pair-cdr (%get-pair-car (local.get $pair))))
+   (%get-pair-cdr (%get-pair-car $pair)))
 
  (func $get-pair-cdar (export "get-pair-cdar")
    (param $pair i32)
    (result i32)
-   (%get-pair-car (%get-pair-cdr (local.get $pair))))
+   (%get-pair-car (%get-pair-cdr $pair)))
 
  (func $get-pair-cddr (export "get-pair-cddr")
    (param $pair i32)
    (result i32)
-   (%get-pair-cdr (%get-pair-cdr (local.get $pair))))
+   (%get-pair-cdr (%get-pair-cdr $pair)))
 
  (func $get-pair-caaar (export "get-pair-caaar")
    (param $pair i32)
    (result i32)
-   (%get-pair-car (%get-pair-car (%get-pair-car (local.get $pair)))))
+   (%get-pair-car (%get-pair-car (%get-pair-car $pair))))
 
  (func $get-pair-caadr (export "get-pair-caadr")
    (param $pair i32)
    (result i32)
-   (%get-pair-cdr (%get-pair-car (%get-pair-car (local.get $pair)))))
+   (%get-pair-cdr (%get-pair-car (%get-pair-car $pair))))
 
  (func $get-pair-cadar (export "get-pair-cadar")
    (param $pair i32)
    (result i32)
-   (%get-pair-car (%get-pair-cdr (%get-pair-car (local.get $pair)))))
+   (%get-pair-car (%get-pair-cdr (%get-pair-car $pair))))
 
  (func $get-pair-caddr (export "get-pair-caddr")
    (param $pair i32)
    (result i32)
-   (%get-pair-cdr (%get-pair-cdr (%get-pair-car (local.get $pair)))))
+   (%get-pair-cdr (%get-pair-cdr (%get-pair-car $pair))))
 
  (func $get-pair-cdaar (export "get-pair-cdaar")
    (param $pair i32)
    (result i32)
-   (%get-pair-car (%get-pair-car (%get-pair-cdr (local.get $pair)))))
+   (%get-pair-car (%get-pair-car (%get-pair-cdr $pair))))
 
  (func $get-pair-cdadr (export "get-pair-cdadr")
    (param $pair i32)
    (result i32)
-   (%get-pair-cdr (%get-pair-car (%get-pair-cdr (local.get $pair)))))
+   (%get-pair-cdr (%get-pair-car (%get-pair-cdr $pair))))
 
  (func $get-pair-cddar (export "get-pair-cddar")
    (param $pair i32)
    (result i32)
-   (%get-pair-car (%get-pair-cdr (%get-pair-cdr (local.get $pair)))))
+   (%get-pair-car (%get-pair-cdr (%get-pair-cdr $pair))))
 
  (func $get-pair-cdddr (export "get-pair-cdddr")
    (param $pair i32)
    (result i32)
-   (%get-pair-cdr (%get-pair-cdr (%get-pair-cdr (local.get $pair)))))
+   (%get-pair-cdr (%get-pair-cdr (%get-pair-cdr $pair))))
 
  (func $set-pair-car (export "set-pair-car")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-car (local.get $pair) (local.get $value)))
+   (%set-pair-car $pair $value))
 
  (func $set-pair-cdr (export "set-pair-cdr")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-cdr (local.get $pair) (local.get $value)))
+   (%set-pair-cdr $pair $value))
 
  (func $set-pair-caar (export "set-pair-caar")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-car (%get-pair-car (local.get $pair)) (local.get $value)))
+   (%set-pair-car (%get-pair-car $pair) $value))
 
  (func $set-pair-cadr (export "set-pair-cadr")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-cdr (%get-pair-car (local.get $pair)) (local.get $value)))
+   (%set-pair-cdr (%get-pair-car $pair) $value))
 
  (func $set-pair-cdar (export "set-pair-cdar")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-car (%get-pair-cdr (local.get $pair)) (local.get $value)))
+   (%set-pair-car (%get-pair-cdr $pair) $value))
 
  (func $set-pair-cddr (export "set-pair-cddr")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-cdr (%get-pair-cdr (local.get $pair)) (local.get $value)))
+   (%set-pair-cdr (%get-pair-cdr $pair) $value))
 
  (func $set-pair-caaar (export "set-pair-caaar")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-car (%get-pair-car (%get-pair-car (local.get $pair)))
-                  (local.get $value)))
+   (%set-pair-car (%get-pair-car (%get-pair-car $pair)) $value))
 
  (func $set-pair-caadr (export "set-pair-caadr")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-cdr (%get-pair-car (%get-pair-car (local.get $pair)))
-                  (local.get $value)))
+   (%set-pair-cdr (%get-pair-car (%get-pair-car $pair)) $value))
 
  (func $set-pair-cadar (export "set-pair-cadar")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-car (%get-pair-cdr (%get-pair-car (local.get $pair)))
-                  (local.get $value)))
+   (%set-pair-car (%get-pair-cdr (%get-pair-car $pair)) $value))
 
  (func $set-pair-caddr (export "set-pair-caddr")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-cdr (%get-pair-cdr (%get-pair-car (local.get $pair)))
-                  (local.get $value)))
+   (%set-pair-cdr (%get-pair-cdr (%get-pair-car $pair)) $value))
 
  (func $set-pair-cdaar (export "set-pair-cdaar")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-car (%get-pair-car (%get-pair-cdr (local.get $pair)))
-                  (local.get $value)))
+   (%set-pair-car (%get-pair-car (%get-pair-cdr $pair)) $value))
 
  (func $set-pair-cdadr (export "set-pair-cdadr")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-cdr (%get-pair-car (%get-pair-cdr (local.get $pair)))
-                  (local.get $value)))
+   (%set-pair-cdr (%get-pair-car (%get-pair-cdr $pair)) $value))
 
  (func $set-pair-cddar (export "set-pair-cddar")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-car (%get-pair-cdr (%get-pair-cdr (local.get $pair)))
-                  (local.get $value)))
+   (%set-pair-car (%get-pair-cdr (%get-pair-cdr $pair)) $value))
 
  (func $set-pair-cdddr (export "set-pair-cdddr")
    (param $pair i32)
    (param $value i32)
-   (%set-pair-cdr (%get-pair-cdr (%get-pair-cdr (local.get $pair)))
-                  (local.get $value)))
+   (%set-pair-cdr (%get-pair-cdr (%get-pair-cdr $pair)) $value))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -243,24 +248,24 @@
 
    ;; Ensure that the free list is not empty.
 
-   (if (i32.eq (global.get $pair-free-list) (global.get $null))
+   (if (i32.eq (%get-pair-free-list) _null)
        (then
-        (call $provision-free-list (global.get $provision-free-list-count))))
+        ($provision-free-list _provision-free-list-count)))
 
    (debug
     (%global.incr i32 $pair-count))
 
    ;; Pop the first pair from the free list.
 
-   (local.set $pair-addr (global.get $pair-free-list))
-   (global.set $pair-free-list (i32.load (global.get $pair-free-list)))
+   (set! $pair-addr (%get-pair-free-list))
+   (%set-pair-free-list (i32.load (%get-pair-free-list)))
 
    ;; Initialize
 
-   (%set-pair-car (local.get $pair-addr) (local.get $car))
-   (%set-pair-cdr (local.get $pair-addr) (local.get $cdr))
+   (%set-pair-car $pair-addr $car)
+   (%set-pair-cdr $pair-addr $cdr)
 
-   (local.get $pair-addr))
+   $pair-addr)
 
  (func $provision-free-list (debug (export "provision-free-list"))
 
@@ -273,24 +278,19 @@
    (local $new-top i32)
    (local $pages-required i32)
 
-   (local.set $new-top (i32.add (global.get $pairs-top)
-                                (i32.shl (local.get $count)
-                                         (global.get $pair-size-bits))))
+   (set! $new-top (i32.add (%get-pairs-top) (i32.shl $count _pair-size-bits)))
 
-   (local.set $bytes-required (i32.sub (local.get $new-top)
-                                       (i32.shl (memory.size)
-                                                (global.get $page-size-bits))))
+   (set! $bytes-required (i32.sub $new-top (i32.shl (memory.size) _page-size-bits)))
 
-   (if (i32.gt_s (local.get $bytes-required) (i32.const 0))
+   (if (i32.gt_s $bytes-required (i32.const 0))
        (then
-        (local.set $pages-required (i32.add (i32.shr_u (i32.sub (local.get $bytes-required)
-                                                                (i32.const 1))
-                                                       (global.get $page-size-bits))
-                                            (i32.const 1)))
+        (set! $pages-required (i32.add (i32.shr_u (i32.sub $bytes-required (i32.const 1))
+                                                  _page-size-bits)
+                                       (i32.const 1)))
 
-        (drop (memory.grow (local.get $pages-required)))))
+        (drop (memory.grow $pages-required))))
 
-   (call $fill-pair-free-list (local.get $count)))
+   ($fill-pair-free-list $count))
 
  (func $fill-pair-free-list (debug (export "fill-pair-free-list"))
    (param $count i32)
@@ -299,26 +299,24 @@
    (local $pair i32)
    (local $top i32)
 
-   (local.set $pair (global.get $pairs-top))
+   (set! $pair (%get-pairs-top))
 
-   (local.set $top (i32.add (i32.shl (local.get $count)
-                                     (global.get $pair-size-bits))
-                            (global.get $pairs-top)))
+   (set! $top (i32.add (i32.shl $count _pair-size-bits) (%get-pairs-top)))
 
    (loop $again
-     (local.set $next-pair (i32.add (local.get $pair) (global.get $pair-size)))
-     (if (i32.lt_u (local.get $next-pair) (local.get $top))
+     (set! $next-pair (i32.add $pair _pair-size))
+     (if (i32.lt_u $next-pair $top)
          (then
-          (%set-pair-car (local.get $pair) (local.get $next-pair))
+          (%set-pair-car $pair $next-pair)
           (debug
-           (%set-pair-cdr (local.get $pair) (i32.const 0xdeadce11)))
-          (local.set $pair (local.get $next-pair))
+           (%set-pair-cdr $pair (i32.const 0xdeadce11)))
+          (set! $pair $next-pair)
           (br $again))
        (else
-        (i32.store (local.get $pair) (global.get $pair-free-list)))))
+        (i32.store $pair (%get-pair-free-list)))))
 
-   (global.set $pair-free-list (global.get $pairs-top))
-   (global.set $pairs-top (local.get $top)))
+   (%set-pair-free-list (%get-pairs-top))
+   (%set-pairs-top $top))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -328,13 +326,13 @@
  (func $dealloc-pair (export "dealloc-pair")
    (param $pair i32)
 
-   (%set-pair-car (local.get $pair) (global.get $pair-free-list))
+   (%set-pair-car $pair (%get-pair-free-list))
 
    (debug
-    (%set-pair-cdr (local.get $pair) (i32.const 0xdeadce11))
+    (%set-pair-cdr $pair (i32.const 0xdeadce11))
     (%global.decr i32 $pair-count))
 
-   (global.set $pair-free-list (local.get $pair)))
+   (%set-pair-free-list $pair))
 
  ;; end of module
  )

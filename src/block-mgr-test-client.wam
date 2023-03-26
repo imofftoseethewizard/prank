@@ -14,16 +14,16 @@
  (func $init (export "init")
    (param $blockset i32)
 
-   (call $init-blockset (local.get $blockset) (i32.const 0x100))
-   (call $init-blockset-memory-proxies (local.get $blockset)))
+   ($init-blockset $blockset (i32.const 0x100))
+   ($init-blockset-memory-proxies $blockset))
 
  (func $fill (export "fill")
    (param $block i32)
    (param $value i32)
 
-   (memory.fill (call $get-block-addr (local.get $block))
-                (local.get $value)
-                (call $get-block-size (local.get $block))))
+   (memory.fill ($get-block-addr $block)
+                $value
+                ($get-block-size $block)))
 
  (func $check-fill (export "check-fill")
    (param $block i32)
@@ -33,21 +33,20 @@
    (local $addr i32)
    (local $end i32)
 
-   (local.set $addr (call $get-block-addr (local.get $block)))
-   (local.set $end (i32.add (local.get $addr)
-                            (call $get-block-size (local.get $block))))
+   (set! $addr ($get-block-addr $block))
+   (set! $end (i32.add $addr ($get-block-size $block)))
 
-   (local.set $value (i32.and (local.get $value) (i32.const 0xff)))
+   (set! $value (i32.and $value (i32.const 0xff)))
 
    (loop $again
-     (if (i32.lt_u (local.get $addr) (local.get $end))
+     (if (i32.lt_u $addr $end)
          (then
-          (if (i32.eq (i32.load8_u (local.get $addr)) (local.get $value))
+          (if (i32.eq (i32.load8_u $addr) $value)
               (then
-               (local.set $addr (i32.add (local.get $addr) (i32.const 1)))
+               (set! $addr (i32.add $addr (i32.const 1)))
                (br $again))))))
 
-   (i32.eq (local.get $addr) (local.get $end)))
+   (i32.eq $addr $end))
 
  ;; end of module
  )

@@ -1,7 +1,7 @@
 (module
 
- ;; todo: write get-string-addr-char (incl reserving 16B at end of block)
- (import "strings" "get-string-addr-char" (func $get-string-addr-char (param i32) (result i32)))
+ ;; todo: write get-string-char (incl reserving 16B at end of block)
+ (import "strings" "get-string-char" (func $get-string-char (param i32) (result i32)))
 
  (include "./ascii.wam")
  (include "./globals.wam")
@@ -9,9 +9,9 @@
  (type $lexical-rule-func (func (param i32 i32) (result i32 i32)))
  (table $lexical-rules 200 funcref) ;; todo export
 
- (macro %load-char
+ (macro %get-char
    (expr ,addr)
-   (call $get-string-addr-char ,addr))
+   ($get-string-char ,addr))
 
  (func $ascii-lower (export "ascii-lower")
    (param $x i32)
@@ -19,13 +19,12 @@
    (result i32)
 
    (if (result i32)
-       (i32.and
-        (i32.ge_u (%get $x) (global.get $char-A))
-        (i32.le_u (%get $x) (global.get $char-Z)))
+       (i32.and (i32.ge_u $x _char-A)
+                (i32.le_u $x _char-Z))
      (then
-      (i32.add (%get $x) (i32.const 0x20)))
+      (i32.add $x (i32.const 0x20)))
      (else
-      (%get $x))))
+      $x)))
 
  (func $char-eq/ascii-ci (export "char-eq/ascii-ci")
    (param $x i32)
@@ -33,9 +32,8 @@
 
    (result i32)
 
-   (i32.or
-    (i32.eq (%get $x) (%get $y))
-    (i32.eq (call $ascii-lower (%get $x) (call $ascii-lower (%get $y))))))
+   (i32.or (i32.eq $x $y)
+           (i32.eq ($ascii-lower $x ($ascii-lower $y)))))
 
  (func $lex-match-empty (export "lex-match-empty")
    (param $rule-id i32)
@@ -44,8 +42,8 @@
 
    (result i32 i32)
 
-   (%get $rule-id)
-   (%get $text))
+   $rule-id
+   $text)
 
  (func $lex-match-any-char (export "lex-match-any-char")
    (param $rule-id i32)
@@ -54,13 +52,12 @@
 
    (result i32 i32)
 
-   (%get $rule-id)
-   (if (result i32)
-       (i32.eq (%get $text) (%get $end))
+   $rule-id
+   (if (result i32) (i32.eq $text $end)
      (then
-      (%null))
+      _null)
      (else
-      (i32.add (i32.const 1) (%get $text))))) ;; todo unicode
+      (i32.add (i32.const 1) $text)))) ;; todo unicode
 
  (func $lex-match-char/ascii (export "lex-match-char/ascii")
    (param $rule-id i32)
@@ -72,20 +69,20 @@
 
    (local $c i32)
 
-   (if (i32.eq (%get $text) (%get $end))
+   (if (i32.eq $text $end)
        (then
-        (%get $rule-id)
-        (return (%null))))
+        $rule-id
+        (return _null)))
 
-   (%set! $c (%get-char (%get $text)))
+   (set! $c (%get-char $text))
 
-   (if (result i32 i32) (i32.eq (%get $char) (%get $c))
+   (if (result i32 i32) (i32.eq $char $c)
      (then
-      (%get $rule-id)
-      (i32.add (i32.const 1) (%get $text))) ;; todo unicode
+      $rule-id
+      (i32.add (i32.const 1) $text)) ;; todo unicode
      (else
-      (%get $rule-id)
-      (%null))))
+      $rule-id
+      _null)))
 
  (func $lex-match-char/ascii-ci (export "lex-match-char/ascii-ci")
    (param $rule-id i32)
@@ -97,20 +94,20 @@
 
    (local $c i32)
 
-   (if (i32.eq (%get $text) (%get $end))
+   (if (i32.eq $text $end)
        (then
-        (%get $rule-id)
-        (return (%null))))
+        $rule-id
+        (return _null)))
 
-   (%set! $c (%get-char (%get $text)))
+   (set! $c (%get-char $text))
 
-   (if (result i32 i32) (call $char-eq/ascii-ci (%get $char) (%get $c))
+   (if (result i32 i32) ($char-eq/ascii-ci $char $c)
      (then
-      (%get $rule-id)
-      (i32.add (i32.const 1) (%get $text))) ;; todo unicode
+      $rule-id
+      (i32.add (i32.const 1) $text)) ;; todo unicode
      (else
-      (%get $rule-id)
-      (%null))))
+      $rule-id
+      _null)))
 
  (func $lex-match-char-complement/ascii/set-of-2 (export "lex-match-char-complement/ascii/set-of-2")
    (param $rule-id i32)
@@ -123,22 +120,21 @@
 
    (local $c i32)
 
-   (if (i32.eq (%get $text) (%get $end))
+   (if (i32.eq $text $end)
        (then
-        (%get $rule-id)
-        (return (%null))))
+        $rule-id
+        (return _null)))
 
-   (%set! $c (%get-char (%get $text)))
+   (set! $c (%get-char $text))
 
    (if (result i32 i32)
-       (i32.and (i32.ne (%get $first-char) (%get $c))
-                (i32.ne (%get $second-char) (%get $c)))
+       (i32.and (i32.ne $first-char $c) (i32.ne $second-char $c))
      (then
-      (%get $rule-id)
-      (i32.add (i32.const 1) (%get $text))) ;; todo unicode
+      $rule-id
+      (i32.add (i32.const 1) $text)) ;; todo unicode
      (else
-      (%get $rule-id)
-      (%null))))
+      $rule-id
+      _null)))
 
  (func $lex-match-char-range/ascii (export "lex-match-char-range/ascii")
    (param $rule-id i32)
@@ -151,25 +147,24 @@
 
    (local $c i32)
 
-   (if (i32.eq (%get $text) (%get $end))
+   (if (i32.eq $text $end)
        (then
-        (%get $rule-id)
-        (return (%null))))
+        $rule-id
+        (return _null)))
 
-   (%set! $c (%get-char (%get $text)))
+   (set! $c (%get-char $text))
 
    (if (result i32 i32)
-       (i32.and
-        (i32.ge_u (%get $c) (%get $min-char))
-        (i32.le_u (%get $c) (%get $max-char)))
+       (i32.and (i32.ge_u $c $min-char) (i32.le_u $c $max-char))
      (then
-      (%get $rule-id)
-      (i32.add (i32.const 1) (%get $text))) ;; todo unicode
+      $rule-id
+      (i32.add (i32.const 1) $text)) ;; todo unicode
      (else
-      (%get $rule-id)
-      (%null))))
+      $rule-id
+      _null)))
 
  (func $match-charset (export "match-charset")
+   ;; todo move to strings
    (param $str i32)
    (param $length i32)
    (param $text i32)
@@ -181,27 +176,27 @@
    (local $s i32)
    (local $s-end i32)
 
-   (if (i32.eq (%get $text) (%get $end))
+   (if (i32.eq $text $end)
        (then
-        (return (%null))))
+        (return _null)))
 
-   (%set! $c (%get-char (%get $text)))
+   (set! $c (%get-char $text))
 
-   (%set! $s (%get $str))
-   (%set! $s-end (i32.add (%get $s) (%get $length)))
+   (set! $s $str)
+   (set! $s-end (i32.add $s $length))
 
    (loop $again
-     (if (i32.lt_u (%get $s) (%get $s-end))
+     (if (i32.lt_u $s $s-end)
          (then
-          (if (i32.eq (%get $c) (%get-char (%get $s)))
+          (if (i32.eq $c (%get-char $s))
               (then
-               (i32.add (i32.const 1) (%get $text)) ;; todo unicode
+               (i32.add (i32.const 1) $text) ;; todo unicode
                (return))
             (else
-             (%set! $s (i32.add (%get $s) (i32.const 1)))
+             (set! $s (i32.add $s (i32.const 1)))
              (br $again))))))
 
-   (%null))
+   _null)
 
  (func $lex-match-charset (export "lex-match-charset")
    (param $rule-id i32)
@@ -211,14 +206,11 @@
 
    (result i32 i32)
 
-   (%get $rule-id)
-   (call $match-charset
-         (i32.add (i32.const 1) (%get $str))
-         (%get-char (%get $str))
-         (%get $text)
-         (%get $end)))
+   $rule-id
+   ($match-charset (i32.add (i32.const 1) $str) (%get-char $str) $text $end))
 
  (func $match-static-string (export "match-static-string")
+   ;; todo move to strings
    (param $str i32)
    (param $length i32)
    (param $text i32)
@@ -230,30 +222,30 @@
    (local $s-end i32)
    (local $t i32)
 
-   (if (i32.gt_u (%get $length) (i32.sub (%get $end) (%get $text)))
+   (if (i32.gt_u $length (i32.sub $end $text))
        (then
-        (return (%null))))
+        (return _null)))
 
-   (%set! $s (%get $str))
-   (%set! $s-end (i32.add (%get $s) (%get $length)))
+   (set! $s $str)
+   (set! $s-end (i32.add $s $length))
 
-   (%set! $t (%get $text))
+   (set! $t $text)
 
    (loop $again
 
-     (if (i32.lt_u (%get $s) (%get $s-end))
+     (if (i32.lt_u $s $s-end)
          (then
           (if (i32.eq
-               (%get-char (%get $s))
-               (%get-char (%get $t)))
+               (%get-char $s)
+               (%get-char $t))
               (then
-               (%set! $s (i32.add (%get $s) (i32.const 1)))
-               (%set! $t (i32.add (%get $t) (i32.const 1)))
+               (set! $s (i32.add $s (i32.const 1)))
+               (set! $t (i32.add $t (i32.const 1)))
                (br $again))
             (else
-             (%set! $t (%null)))))))
+             (set! $t _null))))))
 
-   (%get $t))
+   $t)
 
  (func $lex-match-static-string (export "lex-match-static-string")
    (param $rule-id i32)
@@ -263,14 +255,11 @@
 
    (result i32 i32)
 
-   (%get $rule-id)
-   (call $match-static-string
-         (i32.add (i32.const 1) (%get $str))
-         (%get-char (%get $str))
-         (%get $text)
-         (%get $end)))
+   $rule-id
+   ($match-static-string (i32.add (i32.const 1) $str) (%get-char $str) $text $end))
 
  (func $match-static-string/ascii-ci (export "match-static-string/ascii-ci")
+   ;; todo move to strings
    (param $str i32)
    (param $length i32)
    (param $text i32)
@@ -282,30 +271,28 @@
    (local $s-end i32)
    (local $t i32)
 
-   (if (i32.gt_u (%get $length) (i32.sub (%get $end) (%get $text)))
+   (if (i32.gt_u $length (i32.sub $end $text))
        (then
-        (return (%null))))
+        (return _null)))
 
-   (%set! $s (%get $str))
-   (%set! $s-end (i32.add (%get $s) (%get $length)))
+   (set! $s $str)
+   (set! $s-end (i32.add $s $length))
 
-   (%set! $t (%get $text))
+   (set! $t $text)
 
    (loop $again
 
-     (if (i32.lt_u (%get $s) (%get $s-end))
+     (if (i32.lt_u $s $s-end)
          (then
-          (if (call $char-eq/ascii-ci
-                    (%get-char (%get $s))
-                    (%get-char (%get $t)))
+          (if ($char-eq/ascii-ci (%get-char $s) (%get-char $t))
               (then
-               (%set! $s (i32.add (%get $s) (i32.const 1)))
-               (%set! $t (i32.add (%get $t) (i32.const 1)))
+               (set! $s (i32.add $s (i32.const 1)))
+               (set! $t (i32.add $t (i32.const 1)))
                (br $again))
             (else
-             (%set! $t (%null)))))))
+             (set! $t _null))))))
 
-   (%get $t))
+   $t)
 
  (func $lex-match-static-string/ascii-ci (export "lex-match-static-string/ascii-ci")
    (param $rule-id i32)
@@ -315,12 +302,8 @@
 
    (result i32 i32)
 
-   (%get $rule-id)
-   (call $match-static-string/ascii-ci
-         (i32.add (i32.const 1) (%get $str))
-         (%get-char (%get $str))
-         (%get $text)
-         (%get $end)))
+   $rule-id
+   ($match-static-string/ascii-ci (i32.add (i32.const 1) $str) (%get-char $str) $text $end))
 
  (func $lex-match-static-strings/longest-of-2 (export "lex-match-static-strings/longest-of-2")
    (param $rule-id i32)
@@ -334,32 +317,30 @@
    (local $end-match i32)
    (local $max-end i32)
 
-   (%set! $max-end (i32.const -1))
+   (set! $max-end (i32.const -1))
 
-   (%set! $end-match
-          (call $match-static-string
-                (i32.add (i32.const 1) (%get $first-str))
-                (%get-char (%get $first-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string (i32.add (i32.const 1) $first-str)
+                               (%get-char $first-str)
+                               $text
+                               $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%set! $end-match
-          (call $match-static-string
-                (i32.add (i32.const 1) (%get $second-str))
-                (%get-char (%get $second-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string (i32.add (i32.const 1) $second-str)
+                               (%get-char $second-str)
+                               $text
+                               $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%get $rule-id)
-   (%get $max-end))
+   $rule-id
+   $max-end)
 
  (func $lex-match-static-strings/ascii-ci/longest-of-2 (export "lex-match-static-strings/ascii-ci/longest-of-2")
    (param $rule-id i32)
@@ -373,32 +354,30 @@
    (local $end-match i32)
    (local $max-end i32)
 
-   (%set! $max-end (i32.const -1))
+   (set! $max-end (i32.const -1))
 
-   (%set! $end-match
-          (call $match-static-string/ascii-ci
-                (i32.add (i32.const 1) (%get $first-str))
-                (%get-char (%get $first-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string/ascii-ci (i32.add (i32.const 1) $first-str)
+                                        (%get-char $first-str)
+                                        $text
+                                        $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%set! $end-match
-          (call $match-static-string/ascii-ci
-                (i32.add (i32.const 1) (%get $second-str))
-                (%get-char (%get $second-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string/ascii-ci (i32.add (i32.const 1) $second-str)
+                                        (%get-char $second-str)
+                                        $text
+                                        $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%get $rule-id)
-   (%get $max-end))
+   $rule-id
+   $max-end)
 
  (func $lex-match-static-strings/longest-of-3 (export "lex-match-static-strings/longest-of-3")
    (param $rule-id i32)
@@ -413,43 +392,40 @@
    (local $end-match i32)
    (local $max-end i32)
 
-   (%set! $max-end (i32.const -1))
+   (set! $max-end (i32.const -1))
 
-   (%set! $end-match
-          (call $match-static-string
-                (i32.add (i32.const 1) (%get $first-str))
-                (%get-char (%get $first-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string (i32.add (i32.const 1) $first-str)
+                               (%get-char $first-str)
+                               $text
+                               $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%set! $end-match
-          (call $match-static-string
-                (i32.add (i32.const 1) (%get $second-str))
-                (%get-char (%get $second-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string (i32.add (i32.const 1) $second-str)
+                               (%get-char $second-str)
+                               $text
+                               $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%set! $end-match
-          (call $match-static-string
-                (i32.add (i32.const 1) (%get $third-str))
-                (%get-char (%get $third-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string (i32.add (i32.const 1) $third-str)
+                               (%get-char $third-str)
+                               $text
+                               $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%get $rule-id)
-   (%get $max-end))
+   $rule-id
+   $max-end)
 
  (func $lex-match-static-strings/ascii-ci/longest-of-3 (export "lex-match-static-strings/ascii-ci/longest-of-3")
    (param $rule-id i32)
@@ -464,43 +440,40 @@
    (local $end-match i32)
    (local $max-end i32)
 
-   (%set! $max-end (i32.const -1))
+   (set! $max-end (i32.const -1))
 
-   (%set! $end-match
-          (call $match-static-string/ascii-ci
-                (i32.add (i32.const 1) (%get $first-str))
-                (%get-char (%get $first-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string/ascii-ci (i32.add (i32.const 1) $first-str)
+                                        (%get-char $first-str)
+                                        $text
+                                        $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%set! $end-match
-          (call $match-static-string/ascii-ci
-                (i32.add (i32.const 1) (%get $second-str))
-                (%get-char (%get $second-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string/ascii-ci (i32.add (i32.const 1) $second-str)
+                                        (%get-char $second-str)
+                                        $text
+                                        $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%set! $end-match
-          (call $match-static-string/ascii-ci
-                (i32.add (i32.const 1) (%get $third-str))
-                (%get-char (%get $third-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string/ascii-ci (i32.add (i32.const 1) $third-str)
+                                        (%get-char $third-str)
+                                        $text
+                                        $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%get $rule-id)
-   (%get $max-end))
+   $rule-id
+   $max-end)
 
  (func $lex-match-static-strings/longest-of-4 (export "lex-match-static-strings/longest-of-4")
    (param $rule-id i32)
@@ -516,54 +489,50 @@
    (local $end-match i32)
    (local $max-end i32)
 
-   (%set! $max-end (i32.const -1))
+   (set! $max-end (i32.const -1))
 
-   (%set! $end-match
-          (call $match-static-string
-                (i32.add (i32.const 1) (%get $first-str))
-                (%get-char (%get $first-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string (i32.add (i32.const 1) $first-str)
+                               (%get-char $first-str)
+                               $text
+                               $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%set! $end-match
-          (call $match-static-string
-                (i32.add (i32.const 1) (%get $second-str))
-                (%get-char (%get $second-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string (i32.add (i32.const 1) $second-str)
+                               (%get-char $second-str)
+                               $text
+                               $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%set! $end-match
-          (call $match-static-string
-                (i32.add (i32.const 1) (%get $third-str))
-                (%get-char (%get $third-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string (i32.add (i32.const 1) $third-str)
+                               (%get-char $third-str)
+                               $text
+                               $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%set! $end-match
-          (call $match-static-string
-                (i32.add (i32.const 1) (%get $fourth-str))
-                (%get-char (%get $fourth-str))
-                (%get $text)
-                (%get $end)))
+   (set! $end-match
+         ($match-static-string (i32.add (i32.const 1) $fourth-str)
+                               (%get-char $fourth-str)
+                               $text
+                               $end))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%get $rule-id)
-   (%get $max-end))
+   $rule-id
+   $max-end)
 
  (func $lex-match-rule? (export "lex-match-rule?")
    (param $rule-id i32)
@@ -576,17 +545,15 @@
    (local $end-match i32)
 
    (drop  ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $text) (%get $end)
-                          (%get $target-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func) $text $end $target-rule-id)))
 
-   (%get $rule-id)
-   (if (result i32) (i32.eq (%get $end-match) (%null))
+   $rule-id
+   (if (result i32) (i32.eq $end-match _null)
      (then
-      (%get $text))
+      $text)
      (else
-      (%get $end-match))))
+      $end-match)))
 
  (func $lex-match-rule/zero-or-more (export "lex-match-rule/zero-or-more")
    (param $rule-id i32)
@@ -599,23 +566,23 @@
    (local $end-match i32)
    (local $next-end i32)
 
-   (%set! $end-match (%get $text))
+   (set! $end-match $text)
 
    (loop $again
 
      (drop  ;; matching rule id
-      (%set! $next-end
-             (call_indirect $lexical-rules (type $lexical-rule-func)
-                            (%get $end-match) (%get $end)
-                            (%get $target-rule-id))))
+      (set! $next-end
+            (call_indirect $lexical-rules (type $lexical-rule-func)
+                           $end-match $end
+                           $target-rule-id)))
 
-     (if (i32.gt_s (%get $next-end) (%null))
+     (if (i32.gt_s $next-end _null)
          (then
-          (%set! $end-match (%get $next-end))
+          (set! $end-match $next-end)
           (br $again))))
 
-   (%get $rule-id)
-   (%get $end-match))
+   $rule-id
+   $end-match)
 
  (func $lex-match-rule/one-or-more (export "lex-match-rule/one-or-more")
    (param $rule-id i32)
@@ -629,32 +596,32 @@
    (local $next-end i32)
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $text) (%get $end)
-                          (%get $target-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func)
+                         $text $end
+                         $target-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
    (loop $again
 
      (drop ;; matching rule id
-      (%set! $next-end
-             (call_indirect $lexical-rules (type $lexical-rule-func)
-                            (%get $end-match) (%get $end)
-                            (%get $target-rule-id))))
+      (set! $next-end
+            (call_indirect $lexical-rules (type $lexical-rule-func)
+                           $end-match $end
+                           $target-rule-id)))
 
-     (if (i32.ne (%get $next-end) (%null))
+     (if (i32.ne $next-end _null)
          (then
-          (%set! $end-match (%get $next-end))
+          (set! $end-match $next-end)
           (br $again))))
 
-   (%get $rule-id)
-   (%get $end-match))
+   $rule-id
+   $end-match)
 
  (func $lex-match-rules/sequence (export "lex-match-rules/sequence")
    (param $rule-id i32)
@@ -668,8 +635,8 @@
    (local $current-rule-id i32)
    (local $end-match i32)
 
-   (%set! $current-rule-id (%get $first-rule-id))
-   (%set! $end-match (%get $text))
+   (set! $current-rule-id $first-rule-id)
+   (set! $end-match $text)
 
    (loop $again
 
@@ -677,20 +644,20 @@
 
 
      (drop ;; matching rule id
-      (%set! $end-match
-             (call_indirect $lexical-rules (type $lexical-rule-func)
-                            (%get $end-match) (%get $end)
-                            (%get $current-rule-id))))
+      (set! $end-match
+            (call_indirect $lexical-rules (type $lexical-rule-func)
+                           $end-match $end
+                           $current-rule-id)))
 
      (if (i32.and
-          (i32.gt_s (%get $end-match) (%null))
-          (i32.lt_u (%get $current-rule-id) (%get $last-rule-id)))
+          (i32.gt_s $end-match _null)
+          (i32.lt_u $current-rule-id $last-rule-id))
          (then
-          (%set! $current-rule-id (i32.add (i32.const 1) (%get $current-rule-id)))
+          (set! $current-rule-id (i32.add (i32.const 1) $current-rule-id))
           (br $again))))
 
-   (%get $rule-id)
-   (%get $end-match))
+   $rule-id
+   $end-match)
 
  (func $lex-match-rules/sequence-of-2 (export "lex-match-rules/sequence-of-2")
    (param $rule-id i32)
@@ -704,31 +671,29 @@
    (local $end-match i32)
 
    (drop  ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $text) (%get $end)
-                          (%get $first-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func) $text $end $first-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
    (drop  ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $end-match) (%get $end)
-                          (%get $second-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func)
+                         $end-match $end
+                         $second-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
-   (%get $rule-id)
-   (%get $end-match))
+   $rule-id
+   $end-match)
 
  (func $lex-match-rules/sequence-of-3 (export "lex-match-rules/sequence-of-3")
    (param $rule-id i32)
@@ -743,43 +708,43 @@
    (local $end-match i32)
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $text) (%get $end)
-                          (%get $first-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func)
+                         $text $end
+                         $first-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $end-match) (%get $end)
-                          (%get $second-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func)
+                         $end-match $end
+                         $second-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $end-match) (%get $end)
-                          (%get $third-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func)
+                         $end-match $end
+                         $third-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
-   (%get $rule-id)
-   (%get $end-match))
+   $rule-id
+   $end-match)
 
  (func $lex-match-rules/sequence-of-4 (export "lex-match-rules/sequence-of-4")
    (param $rule-id i32)
@@ -795,55 +760,55 @@
    (local $end-match i32)
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $text) (%get $end)
-                          (%get $first-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func)
+                         $text $end
+                         $first-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $end-match) (%get $end)
-                          (%get $second-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func)
+                         $end-match $end
+                         $second-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $end-match) (%get $end)
-                          (%get $third-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func)
+                         $end-match $end
+                         $third-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $end-match) (%get $end)
-                          (%get $fourth-rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func)
+                         $end-match $end
+                         $fourth-rule-id)))
 
-   (if (i32.eq (%get $end-match) (%null))
+   (if (i32.eq $end-match _null)
        (then
-        (%get $rule-id)
-        (%null)
+        $rule-id
+        _null
         (return)))
 
-   (%get $rule-id)
-   (%get $end-match))
+   $rule-id
+   $end-match)
 
  (func $lex-match-rules/longest (export "lex-match-rules/longest")
    (param $rule-id i32)
@@ -861,30 +826,30 @@
    (local $longest-matching-rule-id i32)
    (local $max-end i32)
 
-   (%set! $current-rule-id (%get $first-rule-id))
-   (%set! $matching-rule-id (%get $rule-id))
-   (%set! $end-match (%null))
+   (set! $current-rule-id $first-rule-id)
+   (set! $matching-rule-id $rule-id)
+   (set! $end-match _null)
 
    (loop $again
 
-     (%set! $matching-rule-id
-            (%set! $end-match
-                   (call_indirect $lexical-rules (type $lexical-rule-func)
-                                  (%get $text) (%get $end)
-                                  (%get $current-rule-id))))
+     (set! $matching-rule-id
+           (set! $end-match
+                 (call_indirect $lexical-rules (type $lexical-rule-func)
+                                $text $end
+                                $current-rule-id)))
 
-     (if (i32.gt_s (%get $end-match) (%get $max-end))
+     (if (i32.gt_s $end-match $max-end)
          (then
-          (%set! $longest-matching-rule-id (%get $matching-rule-id))
-          (%set! $max-end (%get $end-match))))
+          (set! $longest-matching-rule-id $matching-rule-id)
+          (set! $max-end $end-match)))
 
-     (if (i32.lt_u (%get $current-rule-id) (%get $last-rule-id))
+     (if (i32.lt_u $current-rule-id $last-rule-id)
          (then
-          (%set! $current-rule-id (i32.add (i32.const 1) (%get $current-rule-id)))
+          (set! $current-rule-id (i32.add (i32.const 1) $current-rule-id))
           (br $again))))
 
-   (%get $longest-matching-rule-id)
-   (%get $max-end))
+   $longest-matching-rule-id
+   $max-end)
 
  (func $lex-match-rules/longest-of-2 (export "lex-match-rules/longest-of-2")
    (param $rule-id i32)
@@ -901,36 +866,36 @@
    (local $longest-matching-rule-id i32)
    (local $max-end i32)
 
-   (%set! $matching-rule-id (%get $rule-id))
-   (%set! $end-match (%null))
+   (set! $matching-rule-id $rule-id)
+   (set! $end-match _null)
 
-   (%set! $longest-matching-rule-id (%get $rule-id))
-   (%set! $max-end (i32.const -1))
+   (set! $longest-matching-rule-id $rule-id)
+   (set! $max-end (i32.const -1))
 
-   (%set! $matching-rule-id
-          (%set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                (%get $text) (%get $end)
-                                (%get $first-rule-id))))
+   (set! $matching-rule-id
+         (set! $end-match
+               (call_indirect $lexical-rules (type $lexical-rule-func)
+                              $text $end
+                              $first-rule-id)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $longest-matching-rule-id (%get $matching-rule-id))
-        (%set! $max-end (%get $end-match))))
+        (set! $longest-matching-rule-id $matching-rule-id)
+        (set! $max-end $end-match)))
 
-   (%set! $matching-rule-id
-          (%set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                (%get $text) (%get $end)
-                                (%get $second-rule-id))))
+   (set! $matching-rule-id
+         (set! $end-match
+               (call_indirect $lexical-rules (type $lexical-rule-func)
+                              $text $end
+                              $second-rule-id)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $longest-matching-rule-id (%get $matching-rule-id))
-        (%set! $max-end (%get $end-match))))
+        (set! $longest-matching-rule-id $matching-rule-id)
+        (set! $max-end $end-match)))
 
-   (%get $longest-matching-rule-id)
-   (%get $max-end))
+   $longest-matching-rule-id
+   $max-end)
 
  (func $lex-match-rules/longest-of-3 (export "lex-match-rules/longest-of-3")
    (param $rule-id i32)
@@ -948,47 +913,47 @@
    (local $longest-matching-rule-id i32)
    (local $max-end i32)
 
-   (%set! $matching-rule-id (%get $rule-id))
-   (%set! $end-match (%null))
+   (set! $matching-rule-id $rule-id)
+   (set! $end-match _null)
 
-   (%set! $longest-matching-rule-id (%get $rule-id))
-   (%set! $max-end (i32.const -1))
+   (set! $longest-matching-rule-id $rule-id)
+   (set! $max-end (i32.const -1))
 
-   (%set! $matching-rule-id
-          (%set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                (%get $text) (%get $end)
-                                (%get $first-rule-id))))
+   (set! $matching-rule-id
+         (set! $end-match
+               (call_indirect $lexical-rules (type $lexical-rule-func)
+                              $text $end
+                              $first-rule-id)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $longest-matching-rule-id (%get $matching-rule-id))
-        (%set! $max-end (%get $end-match))))
+        (set! $longest-matching-rule-id $matching-rule-id)
+        (set! $max-end $end-match)))
 
-   (%set! $matching-rule-id
-          (%set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                (%get $text) (%get $end)
-                                (%get $second-rule-id))))
+   (set! $matching-rule-id
+         (set! $end-match
+               (call_indirect $lexical-rules (type $lexical-rule-func)
+                              $text $end
+                              $second-rule-id)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $longest-matching-rule-id (%get $matching-rule-id))
-        (%set! $max-end (%get $end-match))))
+        (set! $longest-matching-rule-id $matching-rule-id)
+        (set! $max-end $end-match)))
 
-   (%set! $matching-rule-id
-          (%set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                (%get $text) (%get $end)
-                                (%get $third-rule-id))))
+   (set! $matching-rule-id
+         (set! $end-match
+               (call_indirect $lexical-rules (type $lexical-rule-func)
+                              $text $end
+                              $third-rule-id)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $longest-matching-rule-id (%get $matching-rule-id))
-        (%set! $max-end (%get $end-match))))
+        (set! $longest-matching-rule-id $matching-rule-id)
+        (set! $max-end $end-match)))
 
-   (%get $longest-matching-rule-id)
-   (%get $max-end))
+   $longest-matching-rule-id
+   $max-end)
 
  (func $lex-match-rules/longest-of-4 (export "lex-match-rules/longest-of-4")
    (param $rule-id i32)
@@ -1007,58 +972,58 @@
    (local $longest-matching-rule-id i32)
    (local $max-end i32)
 
-   (%set! $matching-rule-id (%get $rule-id))
-   (%set! $end-match (%null))
+   (set! $matching-rule-id $rule-id)
+   (set! $end-match _null)
 
-   (%set! $longest-matching-rule-id (%get $rule-id))
-   (%set! $max-end (i32.const -1))
+   (set! $longest-matching-rule-id $rule-id)
+   (set! $max-end (i32.const -1))
 
-   (%set! $matching-rule-id
-          (%set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                (%get $text) (%get $end)
-                                (%get $first-rule-id))))
+   (set! $matching-rule-id
+         (set! $end-match
+               (call_indirect $lexical-rules (type $lexical-rule-func)
+                              $text $end
+                              $first-rule-id)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $longest-matching-rule-id (%get $matching-rule-id))
-        (%set! $max-end (%get $end-match))))
+        (set! $longest-matching-rule-id $matching-rule-id)
+        (set! $max-end $end-match)))
 
-   (%set! $matching-rule-id
-          (%set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                (%get $text) (%get $end)
-                                (%get $second-rule-id))))
+   (set! $matching-rule-id
+         (set! $end-match
+               (call_indirect $lexical-rules (type $lexical-rule-func)
+                              $text $end
+                              $second-rule-id)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $longest-matching-rule-id (%get $matching-rule-id))
-        (%set! $max-end (%get $end-match))))
+        (set! $longest-matching-rule-id $matching-rule-id)
+        (set! $max-end $end-match)))
 
-   (%set! $matching-rule-id
-          (%set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                (%get $text) (%get $end)
-                                (%get $third-rule-id))))
+   (set! $matching-rule-id
+         (set! $end-match
+               (call_indirect $lexical-rules (type $lexical-rule-func)
+                              $text $end
+                              $third-rule-id)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $longest-matching-rule-id (%get $matching-rule-id))
-        (%set! $max-end (%get $end-match))))
+        (set! $longest-matching-rule-id $matching-rule-id)
+        (set! $max-end $end-match)))
 
-   (%set! $matching-rule-id
-          (%set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                (%get $text) (%get $end)
-                                (%get $fourth-rule-id))))
+   (set! $matching-rule-id
+         (set! $end-match
+               (call_indirect $lexical-rules (type $lexical-rule-func)
+                              $text $end
+                              $fourth-rule-id)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $longest-matching-rule-id (%get $matching-rule-id))
-        (%set! $max-end (%get $end-match))))
+        (set! $longest-matching-rule-id $matching-rule-id)
+        (set! $max-end $end-match)))
 
-   (%get $longest-matching-rule-id)
-   (%get $max-end))
+   $longest-matching-rule-id
+   $max-end)
 
  (func $lex-match-rules/longest-unordered-sequence-of-2 (export "lex-match-rules/longest-unordered-sequence-of-2")
    (param $rule-id i32)
@@ -1072,36 +1037,34 @@
    (local $end-match i32)
    (local $max-end i32)
 
-   (%set! $max-end (i32.const -1))
+   (set! $max-end (i32.const -1))
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call $lex-match-rules/sequence-of-2
-                 (%get $rule-id)
-                 (%get $first-rule-id)
-                 (%get $second-rule-id)
-                 (%get $text)
-                 (%get $end))))
+    (set! $end-match
+          ($lex-match-rules/sequence-of-2 $rule-id
+                                          $first-rule-id
+                                          $second-rule-id
+                                          $text
+                                          $end)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call $lex-match-rules/sequence-of-2
-                 (%get $rule-id)
-                 (%get $second-rule-id)
-                 (%get $first-rule-id)
-                 (%get $text)
-                 (%get $end))))
+    (set! $end-match
+          ($lex-match-rules/sequence-of-2 $rule-id
+                                          $second-rule-id
+                                          $first-rule-id
+                                          $text
+                                          $end)))
 
-   (if (i32.gt_s (%get $end-match) (%get $max-end))
+   (if (i32.gt_s $end-match $max-end)
        (then
-        (%set! $max-end (%get $end-match))))
+        (set! $max-end $end-match)))
 
-   (%get $rule-id)
-   (%get $max-end))
+   $rule-id
+   $max-end)
 
  (func $lex-match-until-rule (export "lex-match-until-rule")
    (param $rule-id i32)
@@ -1114,24 +1077,22 @@
    (local $end-match i32)
 
    (local $current i32)
-   (%set! $current (%get $text))
+   (set! $current $text)
 
    (loop $again
      (drop ;; matching rule id
-      (%set! $end-match
-             (call_indirect $lexical-rules (type $lexical-rule-func)
-                            (%get $current) (%get $end)
-                            (%get $end-rule-id))))
+      (set! $end-match
+            (call_indirect $lexical-rules (type $lexical-rule-func)
+                           $current $end
+                           $end-rule-id)))
 
-     (if (i32.and
-          (i32.lt_u (%get $current) (%get $end))
-          (i32.eq (%null) (%get $end-match)))
+     (if (i32.and (i32.lt_u $current $end) (i32.eq _null $end-match))
          (then
-          (%set! $current (i32.add (i32.const 1) (%get $current)))
+          (set! $current (i32.add (i32.const 1) $current))
           (br $again))))
 
-   (%get $rule-id)
-   (%get $current))
+   $rule-id
+   $current)
 
  (func $lex-token-relabel (export "lex-token-relabel")
    (param $new-rule-id i32)
@@ -1144,10 +1105,8 @@
    (local $end-match i32)
 
    (drop ;; matching rule id
-    (%set! $end-match
-           (call_indirect $lexical-rules (type $lexical-rule-func)
-                          (%get $text) (%get $end)
-                          (%get $rule-id))))
+    (set! $end-match
+          (call_indirect $lexical-rules (type $lexical-rule-func) $text $end $rule-id)))
 
-   (%get $new-rule-id)
-   (%get $end-match)))
+   $new-rule-id
+   $end-match))

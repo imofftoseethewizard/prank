@@ -75,51 +75,70 @@
  ;; offset values, and records index entries every 64th character.
  ;;
 
- (global $string-type-length-field-offset-mask       (debug (export "string-type-length-field-offset-mask")       i32 (i32.const 0x00000700)))
- (global $string-type-data-offset-mask               (debug (export "string-type-data-offset-mask")               i32 (i32.const 0x0000f000)))
- (global $string-type-index-shift-mask               (debug (export "string-type-index-shift-mask")               i32 (i32.const 0x003f0000)))
+ (define _string-type-length-field-offset-mask       (i32.const 0x00000700))
+ (define _string-type-data-offset-mask               (i32.const 0x0000f000))
+ (define _string-type-index-shift-mask               (i32.const 0x003f0000))
 
- (global $string-type-length-field-offset-shift-bits (debug (export "string-type-length-field-offset-shift-bits") i32 (i32.const 8)))
- (global $string-type-data-offset-shift-bits         (debug (export "string-type-data-offset-shift-bits")         i32 (i32.const 12)))
- (global $string-type-idx-mask-shift-bits            (debug (export "string-type-idx-mask-shift-bits")            i32 (i32.const 5)))
- (global $string-type-index-shift-shift-bits         (debug (export "string-type-index-shift-shift-bits")         i32 (i32.const 16)))
+ (define _string-type-length-field-offset-shift-bits (i32.const 8))
+ (define _string-type-data-offset-shift-bits         (i32.const 12))
+ (define _string-type-idx-mask-shift-bits            (i32.const 5))
+ (define _string-type-index-shift-shift-bits         (i32.const 16))
 
- (global $string-type-simple (debug (export "type-string-simple")) i32 (i32.const 0x00201102))
- (global $string-type-small  (debug (export "type-string-small"))  i32 (i32.const 0x00042102))
- (global $string-type-medium (debug (export "type-string-medium")) i32 (i32.const 0x00054202))
- (global $string-type-large  (debug (export "type-string-large"))  i32 (i32.const 0x00068402))
- (global $string-type-mask   (debug (export "type-string-mask"))   i32 (i32.const 0x003ff7ff))
+ (define _string-type-simple                         (i32.const 0x00201102))
+ (define _string-type-small                          (i32.const 0x00042102))
+ (define _string-type-medium                         (i32.const 0x00054202))
+ (define _string-type-large                          (i32.const 0x00068402))
+ (define _string-type-mask                           (i32.const 0x003ff7ff))
 
  ;; These constants are used in hash-string to mix up the bits of the string.  See the
  ;; comment at the start of the function for an explanation.
- (global $string-hash-shift-bits  (debug (export "string-hash-shift-bits")  i32 (i32.const 5)))
- (global $string-hash-coefficient (debug (export "string-hash-coefficient") i32 (i32.const 3486784401))) ;; 3^20,
- (global $string-hash-constant    (debug (export "string-hash-constant")    i32 (i32.const 1518500249))) ;; floor(2^30 * sqrt(2))
+ (define _string-hash-shift-bits                     (i32.const 5))
+ (define _string-hash-coefficient                    (i32.const 3486784401)) ;; 3^20,
+ (define _string-hash-constant                       (i32.const 1518500249)) ;; floor(2^30 * sqrt(2))
+
+ (debug
+  (global $string-type-length-field-offset-mask       (export "string-type-length-field-offset-mask")       i32 _string-type-length-field-offset-mask)
+  (global $string-type-data-offset-mask               (export "string-type-data-offset-mask")               i32 _string-type-data-offset-mask)
+  (global $string-type-index-shift-mask               (export "string-type-index-shift-mask")               i32 _string-type-index-shift-mask)
+
+  (global $string-type-length-field-offset-shift-bits (export "string-type-length-field-offset-shift-bits") i32 _string-type-length-field-offset-shift-bits)
+  (global $string-type-data-offset-shift-bits         (export "string-type-data-offset-shift-bits")         i32 _string-type-data-offset-shift-bits)
+  (global $string-type-idx-mask-shift-bits            (export "string-type-idx-mask-shift-bits")            i32 _string-type-idx-mask-shift-bits)
+  (global $string-type-index-shift-shift-bits         (export "string-type-index-shift-shift-bits")         i32 _string-type-index-shift-shift-bits)
+
+  (global $string-type-simple                         (export "type-string-simple")                         i32 _string-type-simple)
+  (global $string-type-small                          (export "type-string-small")                          i32 _string-type-small)
+  (global $string-type-medium                         (export "type-string-medium")                         i32 _string-type-medium)
+  (global $string-type-large                          (export "type-string-large")                          i32 _string-type-large)
+  (global $string-type-mask                           (export "type-string-mask")                           i32 _string-type-mask)
+
+  (global $string-hash-shift-bits                     (export "string-hash-shift-bits")                     i32 _string-hash-shift-bits)
+  (global $string-hash-coefficient                    (export "string-hash-coefficient")                    i32 _string-hash-coefficient)
+  (global $string-hash-constant                       (export "string-hash-constant")                       i32 _string-hash-constant))
 
  (macro %calc-idx-mask
    (expr ,type)
    (i32.wrap_i64
     (i64.sub (i64.shl (i64.const 1)
                       (i64.extend_i32_u
-                       (i32.shr_u (i32.and ,type
-                                           (global.get $string-type-length-field-offset-mask))
-                                  (global.get $string-type-idx-mask-shift-bits))))
+                       (i32.shr_u (i32.and ,type _string-type-length-field-offset-mask)
+                                  _string-type-idx-mask-shift-bits)))
              (i64.const 1))))
 
  (macro %calc-length-field-offset
    (expr ,type)
-   (i32.shr_u (i32.and ,type (global.get $string-type-length-field-offset-mask))
-              (global.get $string-type-length-field-offset-shift-bits)))
+   (i32.shr_u (i32.and ,type _string-type-length-field-offset-mask)
+              _string-type-length-field-offset-shift-bits))
 
  (macro %calc-data-offset
    (expr ,type)
-   (i32.shr_u (i32.and ,type (global.get $string-type-data-offset-mask))
-              (global.get $string-type-data-offset-shift-bits)))
+   (i32.shr_u (i32.and ,type _string-type-data-offset-mask)
+              _string-type-data-offset-shift-bits))
 
  (macro %calc-index-size-shift-bits
    (expr ,type)
-   (i32.shr_u (i32.and ,type (global.get $string-type-index-shift-mask))
-              (global.get $string-type-index-shift-shift-bits)))
+   (i32.shr_u (i32.and ,type _string-type-index-shift-mask)
+              _string-type-index-shift-shift-bits))
 
  (macro %calc-index-size
    (expr ,type)
@@ -130,75 +149,75 @@
   (func $calc-idx-mask (export "calc-idx-mask")
     (param $type i32)
     (result i32)
-    (%calc-idx-mask (%get $type)))
+    (%calc-idx-mask $type))
 
   (func $calc-length-field-offset (export "calc-length-field-offset")
     (param $type i32)
     (result i32)
-    (%calc-length-field-offset (%get $type)))
+    (%calc-length-field-offset $type))
 
   (func $calc-data-offset (export "calc-data-offset")
     (param $type i32)
     (result i32)
-    (%calc-data-offset (%get $type)))
+    (%calc-data-offset $type))
 
   (func $calc-index-size-shift-bits (export "calc-index-size-shift-bits")
     (param $type i32)
     (result i32)
-    (%calc-index-size-shift-bits (%get $type)))
+    (%calc-index-size-shift-bits $type))
 
   (func $calc-index-size (export "calc-index-size")
     (param $type i32)
     (param $length i32)
     (result i32)
-    (%calc-index-size (%get $type) (%get $length))))
+    (%calc-index-size $type $length)))
 
  (macro %get-string-type
    (expr ,s)
-   (i32.and (%get-box-type ,s) (global.get $string-type-mask)))
+   (i32.and (%get-box-type ,s) _string-type-mask))
 
  (macro %get-string-block-addr
    (expr ,s)
-   (call $get-block-addr (%get-box-value ,s)))
+   ($get-block-addr (%get-box-value ,s)))
 
  (macro %get-string-length
    (label $type)
    (label $addr)
 
-   (if (result i32) (i32.eq (%get $type) (global.get $string-type-simple))
+   (if (result i32) (i32.eq $type _string-type-simple)
      (then
-      (i32.load8_u (%get $addr)))
+      (i32.load8_u $addr))
      (else
-      (if (result i32) (i32.eq (%get $type) (global.get $string-type-small))
+      (if (result i32) (i32.eq $type _string-type-small)
         (then
          ;; skip over the byte for size
-         (i32.load8_u (i32.add (%get $addr) (i32.const 1))))
+         (i32.load8_u (i32.add $addr (i32.const 1))))
         (else
-         (if (result i32) (i32.eq (%get $type) (global.get $string-type-medium))
+         (if (result i32) (i32.eq $type _string-type-medium)
            (then
             ;; skip over the 2 bytes for size
-            (i32.load16_u (i32.add (%get $addr) (i32.const 2))))
+            (i32.load16_u (i32.add $addr (i32.const 2))))
            (else
             ;; skip over the 4 bytes for size
-            (i32.load (i32.add (%get $addr) (i32.const 4))))))))))
+            (i32.load (i32.add $addr (i32.const 4))))))))))
 
  (macro %get-string-size
    (label $type)
    (label $addr)
 
-   (if (result i32) (i32.eq (%get $type) (global.get $string-type-simple))
+   (if (result i32) (i32.eq $type _string-type-simple)
      (then
-      (i32.load8_u (%get $addr)))
+      (i32.load8_u $addr))
      (else
-      (if (result i32) (i32.eq (%get $type) (global.get $string-type-small))
+      (if (result i32) (i32.eq $type _string-type-small)
         (then
-         (i32.load8_u (%get $addr)))
+         (i32.load8_u $addr))
         (else
-         (if (result i32) (i32.eq (%get $type) (global.get $string-type-medium))
+         (if (result i32) (i32.eq $type _string-type-medium)
            (then
-            (i32.load16_u (%get $addr)))
+            (i32.load16_u $addr))
            (else
-            (i32.load (%get $addr)))))))))
+            (i32.load $addr))))))))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -207,10 +226,10 @@
 
  (start $init-strings)
  (func $init-strings (export "init-strings")
-   (call $init-blockset (global.get $strings-blockset) (i32.const 0x400))
+   ($init-blockset _strings-blockset (i32.const 0x400))
 
    ;; defined in block-mgr-memory-proxies.wam
-   (call $init-blockset-memory-proxies (global.get $strings-blockset)))
+   ($init-blockset-memory-proxies _strings-blockset))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -228,59 +247,57 @@
    (local $index-size i32)
    (local $type i32)
 
-   (%set! $type (call $make-string-type (%get $length) (%get $size)))
-   (%set! $header-size (%calc-data-offset (%get $type)))
-   (%set! $index-size (%calc-index-size (%get $type) (%get $length)))
+   (set! $type ($make-string-type $length $size))
+   (set! $header-size (%calc-data-offset $type))
+   (set! $index-size (%calc-index-size $type $length))
 
-   (%set! $block (call $alloc-block
-                           (global.get $strings-blockset)
-                           (i32.add (%get $header-size)
-                                    (i32.add (%get $size)
-                                             (%get $index-size)))))
+   (set! $block ($alloc-block
+                      _strings-blockset
+                      (i32.add $header-size (i32.add $size $index-size))))
 
-   (%set! $addr (call $get-block-addr (%get $block)))
+   (set! $addr ($get-block-addr $block))
 
-   (if (i32.eq (%get $type) (global.get $string-type-simple))
+   (if (i32.eq $type _string-type-simple)
        (then
-        (i32.store8 (%get $addr) (%get $length)))
+        (i32.store8 $addr $length))
 
      (else
-      (if (i32.eq (%get $type) (global.get $string-type-small))
+      (if (i32.eq $type _string-type-small)
           (then
-           (i32.store8 (%get $addr) (%get $size))
-           (i32.store8 (i32.add (%get $addr) (i32.const 1)) (%get $length)))
+           (i32.store8 $addr $size)
+           (i32.store8 (i32.add $addr (i32.const 1)) $length))
 
         (else
-         (if (i32.eq (%get $type) (global.get $string-type-medium))
+         (if (i32.eq $type _string-type-medium)
              (then
-              (i32.store16 (%get $addr) (%get $size))
-              (i32.store16 (i32.add (%get $addr) (i32.const 2)) (%get $length)))
+              (i32.store16 $addr $size)
+              (i32.store16 (i32.add $addr (i32.const 2)) $length))
 
            (else ;; $string-type-large
-            (i32.store (%get $addr) (%get $size))
-            (i32.store (i32.add (%get $addr) (i32.const 4)) (%get $length))))))))
+            (i32.store $addr $size)
+            (i32.store (i32.add $addr (i32.const 4)) $length)))))))
 
-   (%make-box (%get $type) (%get $block)))
+   (%make-box $type $block))
 
  (func $make-string-type (debug (export "make-string-type"))
    (param $length i32)
    (param $size i32)
    (result i32)
 
-   (if (result i32) (i32.and (i32.lt_u (%get $size) (i32.const 0x100))
-                             (i32.eq (%get $size) (%get $length)))
+   (if (result i32) (i32.and (i32.lt_u $size (i32.const 0x100))
+                             (i32.eq $size $length))
      (then
-      (global.get $string-type-simple))
+      _string-type-simple)
      (else
-      (if (result i32) (i32.lt_u (%get $size) (i32.const 0x100))
+      (if (result i32) (i32.lt_u $size (i32.const 0x100))
         (then
-         (global.get $string-type-small))
+         _string-type-small)
         (else
-         (if (result i32) (i32.lt_u (%get $size) (i32.const 0x10000))
+         (if (result i32) (i32.lt_u $size (i32.const 0x10000))
            (then
-            (global.get $string-type-medium))
+            _string-type-medium)
            (else
-            (global.get $string-type-large))))))))
+            _string-type-large)))))))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -290,21 +307,18 @@
  (func $dealloc-string (export "dealloc-string")
    (param $s i32)
 
-   (call $dealloc-block
-         (global.get $strings-blockset)
-         (%get-box-value (%get $s)))
+   ($dealloc-block _strings-blockset (%get-box-value $s))
 
-   (%dealloc-box (%get $s)))
+   (%dealloc-box $s))
 
  (func $get-string-addr (export "get-string-addr")
    (param $s i32)
    (result i32)
 
    (local $type i32)
-   (%set! $type (%get-string-type (%get $s)))
+   (set! $type (%get-string-type $s))
 
-   (i32.add (%get-string-block-addr (%get $s))
-            (%calc-data-offset (%get $type))))
+   (i32.add (%get-string-block-addr $s) (%calc-data-offset $type)))
 
  (func $get-string-index-addr
    (param $s i32)
@@ -314,12 +328,10 @@
    (local $length i32)
    (local $type i32)
 
-   (%set! $type (%get-string-type (%get $s)))
-   (%set! $addr (%get-string-block-addr (%get $s)))
+   (set! $type (%get-string-type $s))
+   (set! $addr (%get-string-block-addr $s))
 
-   (i32.add (%get $addr)
-            (i32.add (%calc-data-offset (%get $type))
-                     (%get-string-size $type $addr))))
+   (i32.add $addr (i32.add (%calc-data-offset $type) (%get-string-size $type $addr))))
 
  (func $get-string-length (export "get-string-length")
    (param $s i32)
@@ -328,8 +340,8 @@
    (local $addr i32)
    (local $type i32)
 
-   (%set! $type (%get-string-type (%get $s)))
-   (%set! $addr (%get-string-block-addr (%get $s)))
+   (set! $type (%get-string-type $s))
+   (set! $addr (%get-string-block-addr $s))
 
    (%get-string-length $type $addr))
 
@@ -340,8 +352,8 @@
    (local $addr i32)
    (local $type i32)
 
-   (%set! $type (%get-string-type (%get $s)))
-   (%set! $addr (%get-string-block-addr (%get $s)))
+   (set! $type (%get-string-type $s))
+   (set! $addr (%get-string-block-addr $s))
 
    (%get-string-size $type $addr))
 
@@ -355,15 +367,15 @@
 
    (local $string-type i32)
 
-   (if (i32.eq (%get $string-type) (global.get $string-type-small))
+   (if (i32.eq $string-type _string-type-small)
        (then
-        (call $build-small-string-index (%get $s)))
+        ($build-small-string-index $s))
      (else
-      (if (i32.eq (%get $string-type) (global.get $string-type-medium))
+      (if (i32.eq $string-type _string-type-medium)
           (then
-           (call $build-medium-string-index (%get $s)))
+           ($build-medium-string-index $s))
         (else
-         (call $build-large-string-index (%get $s)))))))
+         ($build-large-string-index $s))))))
 
  (func $build-small-string-index (export "build-small-string-index")
    (param $s i32)
@@ -374,24 +386,23 @@
    (local $idx-addr i32)
    (local $length i32)
 
-   (%set! $addr (call $get-string-addr (%get $s)))
-   (%set! $char-addr (%get $addr))
-   (%set! $idx-addr (call $get-string-index-addr (%get $s)))
+   (set! $addr ($get-string-addr $s))
+   (set! $char-addr $addr)
+   (set! $idx-addr ($get-string-index-addr $s))
 
-   (%set! $count (i32.const 0))
-   (%set! $length (call $get-string-length (%get $s)))
+   (set! $count (i32.const 0))
+   (set! $length ($get-string-length $s))
 
    (loop $again
-     (if (i32.lt_u (%get $count) (%get $length))
+     (if (i32.lt_u $count $length)
          (then
-          (%set! $char-addr (call $get-next-char-addr (%get $char-addr)))
+          (set! $char-addr ($get-next-char-addr $char-addr))
           (%incr i32 $count)
 
           ;; count % 16 == 0
-          (if (i32.eqz (i32.and (%get $count) (i32.const 0xf)))
+          (if (i32.eqz (i32.and $count (i32.const 0xf)))
               (then
-               (i32.store8 (%get $idx-addr)
-                           (i32.sub (%get $char-addr) (%get $addr)))
+               (i32.store8 $idx-addr (i32.sub $char-addr $addr))
                (%incr i32 $idx-addr)))
           (br $again)))))
 
@@ -404,24 +415,23 @@
    (local $idx-addr i32)
    (local $length i32)
 
-   (%set! $addr (call $get-string-addr (%get $s)))
-   (%set! $char-addr (%get $addr))
-   (%set! $idx-addr (call $get-string-index-addr (%get $s)))
+   (set! $addr ($get-string-addr $s))
+   (set! $char-addr $addr)
+   (set! $idx-addr ($get-string-index-addr $s))
 
-   (%set! $count (i32.const 0))
-   (%set! $length (call $get-string-length (%get $s)))
+   (set! $count (i32.const 0))
+   (set! $length ($get-string-length $s))
 
    (loop $again
-     (if (i32.lt_u (%get $count) (%get $length))
+     (if (i32.lt_u $count $length)
          (then
-          (%set! $char-addr (call $get-next-char-addr (%get $char-addr)))
+          (set! $char-addr ($get-next-char-addr $char-addr))
           (%incr i32 $count)
 
           ;; count % 32 == 0
-          (if (i32.eqz (i32.and (%get $count) (i32.const 0x1f)))
+          (if (i32.eqz (i32.and $count (i32.const 0x1f)))
               (then
-               (i32.store16 (%get $idx-addr)
-                            (i32.sub (%get $char-addr) (%get $addr)))
+               (i32.store16 $idx-addr (i32.sub $char-addr $addr))
                (%incr-n i32 $idx-addr 2)))
           (br $again)))))
 
@@ -434,24 +444,23 @@
    (local $idx-addr i32)
    (local $length i32)
 
-   (%set! $addr (call $get-string-addr (%get $s)))
-   (%set! $char-addr (%get $addr))
-   (%set! $idx-addr (call $get-string-index-addr (%get $s)))
+   (set! $addr ($get-string-addr $s))
+   (set! $char-addr $addr)
+   (set! $idx-addr ($get-string-index-addr $s))
 
-   (%set! $count (i32.const 0))
-   (%set! $length (call $get-string-length (%get $s)))
+   (set! $count (i32.const 0))
+   (set! $length ($get-string-length $s))
 
    (loop $again
-     (if (i32.lt_u (%get $count) (%get $length))
+     (if (i32.lt_u $count $length)
          (then
-          (%set! $char-addr (call $get-next-char-addr (%get $char-addr)))
+          (set! $char-addr ($get-next-char-addr $char-addr))
           (%incr i32 $count)
 
           ;; count % 64 == 0
-          (if (i32.eqz (i32.and (%get $count) (i32.const 0x3f)))
+          (if (i32.eqz (i32.and $count (i32.const 0x3f)))
               (then
-               (i32.store (%get $idx-addr)
-                          (i32.sub (%get $char-addr) (%get $addr)))
+               (i32.store $idx-addr (i32.sub $char-addr $addr))
                (%incr-n i32 $idx-addr 4)))
           (br $again)))))
 
@@ -466,55 +475,71 @@
 
    (local $encoded-length i32)
 
-   (%set! $encoded-length (call $calc-encoded-length (i32.load8_u (%get $addr))))
+   (set! $encoded-length ($calc-encoded-length (i32.load8_u $addr)))
 
-   (if (i32.eq (%get $encoded-length) (i32.const -1))
+   (if (i32.eq $encoded-length (i32.const -1))
        (then
         (unreachable)))
 
-   (i32.add (%get $addr) (%get $encoded-length)))
+   (i32.add $addr $encoded-length))
 
  (func $set-string-bytes (debug (export "set-string-bytes"))
    (param $addr i32)
    (param $data i32)
    (param $length i32)
 
-   (if (i32.eq (%get $length) (i32.const 1))
+   (if (i32.eq $length (i32.const 1))
        (then
-        (i32.store8 (%get $addr) (%get $data)))
+        (i32.store8 $addr $data))
      (else
-      (if (i32.eq (%get $length) (i32.const 2))
+      (if (i32.eq $length (i32.const 2))
           (then
-           (i32.store16 (%get $addr) (%get $data)))
+           (i32.store16 $addr $data))
         (else
-         (if (i32.eq (%get $length) (i32.const 3))
+         (if (i32.eq $length (i32.const 3))
              (then
-              (i32.store16 (%get $addr) (%get $data))
-              (i32.store8 (i32.add (%get $addr) (i32.const 2))
-                          (i32.shr_u (%get $data)
-                                     (i32.const 16))))
+              (i32.store16 $addr $data)
+              (i32.store8 (i32.add $addr (i32.const 2))
+                          (i32.shr_u $data (i32.const 16))))
            (else
-            (i32.store (%get $addr) (%get $data)))))))))
+            (i32.store $addr $data))))))))
 
  (func $get-string-bytes (debug (export "get-string-bytes"))
    (param $addr i32)
    (param $length i32)
    (result i32)
 
-   (if (result i32) (i32.eq (%get $length) (i32.const 1))
+   (if (result i32) (i32.eq $length (i32.const 1))
      (then
-      (i32.load8_u (%get $addr)))
+      (i32.load8_u $addr))
      (else
-      (if (result i32) (i32.eq (%get $length) (i32.const 2))
+      (if (result i32) (i32.eq $length (i32.const 2))
         (then
-         (i32.load16_u (%get $addr)))
+         (i32.load16_u $addr))
         (else
-         (if (result i32) (i32.eq (%get $length) (i32.const 3))
+         (if (result i32) (i32.eq $length (i32.const 3))
            (then
-            (i32.and (i32.load (%get $addr))
-                     (i32.const 0xffffff)))
+            (i32.and (i32.load $addr) (i32.const 0xffffff)))
            (else
-            (i32.load (%get $addr)))))))))
+            (i32.load $addr))))))))
+
+ (func $get-string-char (export "get-string-char")
+   (param $addr i32)
+   (result i32)
+
+   (local $length i32)
+   (local $mask i32)
+   (local $x i32)
+
+   (set! $x (i32.load $x))
+   (set! $length ($calc-encoded-length $x))
+   (set! $mask (i32.sub (i32.shl (i32.const 1)
+                                 (i32.shl $length (i32.const 3)))
+                        (i32.const 1)))
+
+   (if (result i32) $mask
+     (then (i32.and $x $mask))
+     (else $x)))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -548,39 +573,36 @@
    (local $count i32)
    (local $hash i32)
 
-   (%set! $addr (call $get-string-addr (%get $s)))
-   (%set! $count (call $get-string-size (%get $s)))
-   (%set! $hash (i32.const 0))
+   (set! $addr ($get-string-addr $s))
+   (set! $count ($get-string-size $s))
+   (set! $hash (i32.const 0))
 
    (macro %update-hash
      (label $hash)
      (expr ,value)
 
-     (%set! $hash (i32.xor (i32.rotl (%get $hash)
-                                         (global.get $string-hash-shift-bits))
-                               ,value)))
+     (set! $hash (i32.xor (i32.rotl $hash _string-hash-shift-bits)
+                          ,value)))
 
    (loop $again
-     (if (i32.ge_u (%get $count) (i32.const 4))
+     (if (i32.ge_u $count (i32.const 4))
          (then
-          (%update-hash $hash (i32.load (%get $addr)))
+          (%update-hash $hash (i32.load $addr))
           (%decr-n i32 $count 4)
           (%incr-n i32 $addr 4)
           (br $again))))
 
-   (if (i32.ge_u (%get $count) (i32.const 2))
+   (if (i32.ge_u $count (i32.const 2))
        (then
-        (%update-hash $hash (i32.load16_u (%get $addr)))
+        (%update-hash $hash (i32.load16_u $addr))
         (%decr-n i32 $count 2)
         (%incr-n i32 $addr 2)))
 
-   (if (%get $count)
+   (if $count
        (then
-        (%update-hash $hash (i32.load8_u (%get $addr)))))
+        (%update-hash $hash (i32.load8_u $addr))))
 
-   (i32.mul (i32.add (%get $hash)
-                     (global.get $string-hash-constant))
-            (global.get $string-hash-coefficient)))
+   (i32.mul (i32.add $hash _string-hash-constant) _string-hash-coefficient))
 
  (func $string-equal (export "string-equal")
 
@@ -598,25 +620,24 @@
    (local $addr2 i32)
    (local $count i32)
 
-   (%set! $count (call $get-string-size (%get $s1)))
+   (set! $count ($get-string-size $s1))
 
-   (if (i32.ne (%get $count) (call $get-string-size (%get $s2)))
+   (if (i32.ne $count ($get-string-size $s2))
        (then
         (return (i32.const 0))))
 
-   (if (i32.ne (call $get-string-length (%get $s1))
-               (call $get-string-length (%get $s2)))
+   (if (i32.ne ($get-string-length $s1)
+               ($get-string-length $s2))
        (then
         (return (i32.const 0))))
 
-   (%set! $addr1 (call $get-string-addr (%get $s1)))
-   (%set! $addr2 (call $get-string-addr (%get $s2)))
+   (set! $addr1 ($get-string-addr $s1))
+   (set! $addr2 ($get-string-addr $s2))
 
    (loop $again
-     (if (i32.ge_u (%get $count) (i32.const 8))
+     (if (i32.ge_u $count (i32.const 8))
          (then
-          (if (i64.ne (i64.load (%get $addr1))
-                      (i64.load (%get $addr2)))
+          (if (i64.ne (i64.load $addr1) (i64.load $addr2))
               (then
                (return (i32.const 0))))
           (%decr-n i32 $count 8)
@@ -624,30 +645,27 @@
           (%incr-n i32 $addr2 8)
           (br $again))))
 
-   (if (i32.ge_u (%get $count) (i32.const 4))
+   (if (i32.ge_u $count (i32.const 4))
        (then
-        (if (i32.ne (i32.load (%get $addr1))
-                    (i32.load (%get $addr2)))
+        (if (i32.ne (i32.load $addr1) (i32.load $addr2))
             (then
              (return (i32.const 0))))
         (%decr-n i32 $count 4)
         (%incr-n i32 $addr1 4)
         (%incr-n i32 $addr2 4)))
 
-   (if (i32.ge_u (%get $count) (i32.const 2))
+   (if (i32.ge_u $count (i32.const 2))
        (then
-        (if (i32.ne (i32.load16_u (%get $addr1))
-                    (i32.load16_u (%get $addr2)))
+        (if (i32.ne (i32.load16_u $addr1) (i32.load16_u $addr2))
             (then
              (return (i32.const 0))))
         (%decr-n i32 $count 2)
         (%incr-n i32 $addr1 2)
         (%incr-n i32 $addr2 2)))
 
-   (if (i32.eq (%get $count) (i32.const 1))
+   (if (i32.eq $count (i32.const 1))
        (then
-        (if (i32.ne (i32.load8_u (%get $addr1))
-                    (i32.load8_u (%get $addr2)))
+        (if (i32.ne (i32.load8_u $addr1) (i32.load8_u $addr2))
             (then
              (return (i32.const 0))))))
 

@@ -100,14 +100,14 @@ dirs:
 	mkdir -p obj/src
 	mkdir -p log
 
-all: dirs test
+all: test
 
 clean:
 	rm -rf obj/*
 
 wasm: ${OBJECTS}
 
-test: wasm ${TOOLS}
+test: dirs wasm ${TOOLS}
 	scripts/test-runner.sh
 
 .PHONY: all objects test clean

@@ -22,8 +22,7 @@
 
  (macro %get-bytevector-addr
    (expr ,bv)
-   (i32.add (call $get-block-addr (%get-box-value ,bv))
-            (global.get $value-size)))
+   (i32.add ($get-block-addr (%get-box-value ,bv)) _value-size))
 
  (macro %get-bytevector-element-addr
    (expr ,bv)
@@ -32,7 +31,7 @@
 
  (macro %get-bytevector-size
    (expr ,bv)
-   (i32.load (call $get-block-addr (%get-box-value ,bv))))
+   (i32.load ($get-block-addr (%get-box-value ,bv))))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -41,8 +40,8 @@
 
  (start $init-bytevectors)
  (func $init-bytevectors (debug (export "init-bytevectors"))
-   (call $init-blockset (global.get $bytevectors-blockset) (i32.const 0x400))
-   (call $init-blockset-memory-proxies (global.get $bytevectors-blockset)))
+   ($init-blockset _bytevectors-blockset (i32.const 0x400))
+   ($init-blockset-memory-proxies _bytevectors-blockset))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -55,13 +54,11 @@
 
    (local $block i32)
 
-   (local.set $block (call $alloc-block
-                               (global.get $bytevectors-blockset)
-                               (i32.add (local.get $size) (global.get $value-size))))
+   (set! $block ($alloc-block _bytevectors-blockset (i32.add $size _value-size)))
 
-   (i32.store (call $get-block-addr (local.get $block)) (local.get $size))
+   (i32.store ($get-block-addr $block) $size)
 
-   (%make-box (global.get $type-bytevector) (local.get $block)))
+   (%make-box _type-bytevector $block))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -71,11 +68,9 @@
  (func $dealloc-bytevector (export "dealloc-bytevector")
    (param $bv i32)
 
-   (call $dealloc-block
-         (global.get $bytevectors-blockset)
-         (%get-box-value (local.get $bv)))
+   ($dealloc-block _bytevectors-blockset (%get-box-value $bv))
 
-   (%dealloc-box (local.get $bv)))
+   (%dealloc-box $bv))
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -85,22 +80,21 @@
  (func $get-bytevector-size (export "get-bytevector-size")
    (param $bv i32)
    (result i32)
-   (%get-bytevector-size (local.get $bv)))
+   (%get-bytevector-size $bv))
 
  (func $get-bytevector-i8-u (export "get-bytevector-i8-u")
    (param $bv i32)
    (param $offset i32)
    (result i32)
 
-   (i32.load8_u (%get-bytevector-element-addr (local.get $bv) (local.get $offset))))
+   (i32.load8_u (%get-bytevector-element-addr $bv $offset)))
 
  (func $set-bytevector-i8 (export "set-bytevector-i8")
    (param $bv i32)
    (param $offset i32)
    (param $value i32)
 
-   (i32.store8 (%get-bytevector-element-addr (local.get $bv) (local.get $offset))
-               (local.get $value)))
+   (i32.store8 (%get-bytevector-element-addr $bv $offset) $value))
 
  ;; end of module
  )

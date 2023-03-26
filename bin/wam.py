@@ -49,6 +49,17 @@ class MacroArgumentCountMismatchError(WamException):
         path = self.expr[0][5]
         return f'error: argument count mismatch: {self.name} at line {line_no} of {path}:\n{line_text}'
 
+class Redefinition(WamException):
+    def __init__(self, name, expr):
+        self.name = name
+        self.expr = expr
+
+    def __str__(self):
+        line_no = self.expr[0][2]
+        line_text = '\n'.join(self.expr[0][4].split('\n')[line_no-1:line_no+2])
+        path = self.expr[0][5]
+        return f'error: redefinition: {self.name} at line {line_no} of {path}:\n{line_text}'
+
 class UnrecognizedToken(WamException):
     def __init__(self, line, column, src, path):
         self.line = line
@@ -80,7 +91,7 @@ lexemes = {
     'newline': re.compile('\n'),
     'label': re.compile(r'[_A-Z$%,#+][-+a-zA-Z0-9._/?!]+'),
     'string': re.compile(r'"([^"\\]|\\.)*"'),
-    'token': re.compile(r'[-a-z0-9._]+'),
+    'token': re.compile(r'[-a-z0-9._]+!?'),
 }
 
 @contextlib.contextmanager
@@ -163,20 +174,39 @@ def translate(expr, env):
             if expr[1] in env['defs']:
                 return ('splice', env['defs'][expr[1]], -1)
 
+            if expr[1].startswith('$'):
+                return [
+                    ('token', 'local.get', expr[2:]),
+                    ('whitespace', ' ', expr[2:]),
+                    expr
+                ]
+
         return expr
 
     op = None
-    rest = expr
 
     if type(expr[0]) == tuple:
         op = expr[0][1]
-        rest = expr[0:]
 
     if op and op.startswith('%'):
         return expand_macro(expr, env)
 
     if op and op.startswith('+'):
         return translate_serial(expr, env)
+
+    if op and op.startswith('$'):
+        return translate_call(expr, env)
+
+    if op == 'set!':
+        return translate_set(expr, env)
+
+    if op == 'local.get':
+        return expr
+
+    if op in ('br', 'br_if', 'call', 'call_indirect', 'func', 'global', 'global.get',
+              'global.set', 'local', 'local.get', 'local.set', 'loop', 'memory',
+              'param', 'ref.func', 'start', 'table', 'table.set', 'type'):
+        return translate_labeled_expr(expr, env)
 
     if op == 'debug':
 
@@ -214,8 +244,61 @@ def translate(expr, env):
 
     return [
         e1
-        for e1 in (translate(e0, env) for e0 in rest)
+        for e1 in (translate(e0, env) for e0 in expr)
         if e1 is not None
+    ]
+
+def translate_labeled_expr(expr, env):
+
+    label = False
+    head = []
+    rest = []
+
+    for e in expr:
+
+        if rest or label or type(e) != tuple:
+            rest.append(e)
+
+        elif type(e) == tuple and e[0] == 'label':
+            label = True
+            head.append(e)
+
+        else:
+            head.append(e)
+
+    return [
+        *head,
+        *[
+            e1
+            for e1 in (translate(e0, env) for e0 in rest)
+            if e1 is not None
+        ]
+    ]
+
+def translate_set(expr, env):
+
+    return [
+        ('token', 'local.set', *expr[0][2:]),
+        expr[1], # whitespace
+        expr[2], # target label
+        *[
+            e1
+            for e1 in (translate(e0, env) for e0 in expr[3:])
+            if e1 is not None
+        ]
+    ]
+
+def translate_call(expr, env):
+
+    return [
+        ('token', 'call', *expr[0][2:]),
+        ('whitespace', ' ', *expr[0][2:]),
+        expr[0], #func label
+        *[
+            e1
+            for e1 in (translate(e0, env) for e0 in expr[1:])
+            if e1 is not None
+        ]
     ]
 
 def translate_string(expr, env):

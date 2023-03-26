@@ -9,41 +9,41 @@
 
 (macro %get-box-type
   (expr ,box)
-  (call $get-pair-car ,box))
+  ($get-pair-car ,box))
 
 (macro %get-box-value
   (expr ,box)
-  (call $get-pair-cdr ,box))
+  ($get-pair-cdr ,box))
 
 (macro %get-box-value-f32
   (expr ,box)
-  (call $get-pair-cdr-f32 ,box))
+  ($get-pair-cdr-f32 ,box))
 
 (macro %set-box-type
   (expr ,box)
   (expr ,type)
-  (call $set-pair-car ,box ,type))
+  ($set-pair-car ,box ,type))
 
 (macro %set-box-value
   (expr ,box)
   (expr ,value)
-  (call $set-pair-cdr ,box ,value))
+  ($set-pair-cdr ,box ,value))
 
 (macro %set-box-value-f32
   (expr ,box)
   (expr ,value)
-  (call $set-pair-cdr-f32 ,box ,value))
+  ($set-pair-cdr-f32 ,box ,value))
 
 (macro %dealloc-box
   (expr ,box)
-  (call $dealloc-pair ,box))
+  ($dealloc-pair ,box))
 
 (macro %make-box
   (expr ,box-type)
   (expr ,value)
-  (call $make-pair ,box-type ,value))
+  ($make-pair ,box-type ,value))
 
 (macro %make-box-f32
   (expr ,box-type)
   (expr ,value)
-  (call $make-pair-f32 ,box-type ,value))
+  ($make-pair-f32 ,box-type ,value))
