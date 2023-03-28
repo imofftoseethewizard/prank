@@ -18,7 +18,6 @@ scan pending for inbound using inverse index
   if not present, mark children pending
   mark free
 
-keep refindex in blockstore
 pair memory lifecycle
   cons:
     get from head of free list
@@ -165,7 +164,6 @@ parser
   wasi snapshot preview 1 doc
     https://docs.rs/wasi/latest/wasi/wasi_snapshot_preview1/
 
-  split lex module into lex and r7rs-lex
   errors
     distinguished error objects that cannot be read
 
@@ -176,12 +174,6 @@ parser
       call set-string-bytes s offset encoded-char
       offset += char-width
     call build-string-index
-
-  interface with bytevector
-    scan token to determine length
-    call alloc-bytevector
-    loop for each byte
-      call set-bytevector-u8 for each byte (TODO)
 
   interface with symbol
     create new string
@@ -209,13 +201,19 @@ parser
       build with call make-rational or make-complex
 
 tooling improvements
-  wat
-    different face for local.set and local.get
-
   wam.py
+    translate to guile or racket?
+
     rename to sweet, create repo
     error messages
     check syntax of expr vs label in macros
+
+    code gen
+
+    type inference
+      use types on locals, globals, func param and results, etc
+      remove i32, i64, etc prefixes from ops
+      infer result type for conditionals
 
     generate .witf files from a module
 

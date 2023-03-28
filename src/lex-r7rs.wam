@@ -1101,7 +1101,7 @@
    (result i32 i32)
 
    ($lex-match-rule/one-or-more _lex-rule-hex-scalar-value
-                                _lex-rule-hex-digit
+                                _lex-rule-digit-16
                                 $text
                                 $end))
 

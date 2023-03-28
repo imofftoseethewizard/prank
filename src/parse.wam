@@ -1,17 +1,161 @@
 (module
 
+ (include "./globals.wam")
  (include "./lex-r7rs-rule-ids.wam")
+
+ (macro %get-small-integer-value
+   (expr ,v))
+
+ (macro %is-small-integer
+   (expr ,v))
+
+ (define _parse-context-size (i32.const 3))
+
+ (global $parse-ctx-stack (debug (export "parse-ctx-stack")) (mut i32) _null)
+
+ (macro %get-ctx-stack
+   )
+
+ (macro %get-current-ctx
+   )
+
+ (macro %get-parse-result
+   )
+
+ (macro %is-parse-finished
+   )
+
+ (macro %set-ctx-stack
+   (expr ,v)
+   )
+
+ (macro %set-parse-location
+   (expr ,v)
+   )
+
+ ;; parse context properties
+ ;; flags
+ ;;   finalizing
+ ;;   finalized
+ ;;   auto-unnest
+ ;;   vector
+ ;;   bytevector
+ ;; tail
+ ;; value
+
+ (macro %get-ctx-flags
+   (expr ,ctx)
+
+   )
+
+ (macro %get-ctx-value
+   (expr ,ctx)
+
+   )
+
+ (macro %get-ctx-tail
+   (expr ,ctx)
+
+   )
+
+ (macro %is-auto-unnest-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %is-bytevector-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %is-finalized-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %is-finalizing-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %is-list-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %is-vector-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %set-ctx-flags
+   (label $ctx)
+   (expr ,flags)
+
+   )
+
+ (macro %set-ctx-value
+   (expr ,ctx)
+   (expr ,value)
+
+   )
+
+ (macro %set-ctx-tail
+   (expr ,ctx)
+   (expr ,value)
+
+   )
+
+ (macro %set-auto-unnest-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %set-bytevector-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %set-finalized-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %set-finalizing-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %set-list-ctx
+   (expr ,ctx)
+
+   )
+
+ (macro %set-vector-ctx
+   (expr ,ctx)
+
+   )
 
  (func $make-parse-context (debug (export "make-parse-context"))
    (result i32)
 
    (local $ctx i32)
+   (local $value i32)
 
-   (%set! $ctx ($alloc-vector _parse-context-size))
+   (set! $ctx ($alloc-bytevector (i32.shl _parse-context-size _value_size_bits)))
+
    (%set-ctx-flags $ctx (i32.const 0))
-   (%set-ctx-value $ctx ($make-pair _null _null))
 
-   (%get $ctx))
+   (set! $value ($make-pair _null _null))
+   (%set-ctx-value $ctx $value)
+   (%set-ctx-tail $ctx $value)
+
+   $ctx)
+
+ (func $dealloc-parse-context (debug (export "dealloc-parse-context"))
+   (param $ctx i32)
+   ($dealloc-pair (%get-ctx-value $ctx))
+   ($dealloc-bytevector $ctx))
 
  (func $nest (debug (export "nest"))
 
@@ -25,67 +169,67 @@
    (local $head i32)
    (local $value i32)
 
-   (%set! $head (%get-ctx-stack))
+   (set! $head (%get-ctx-stack))
 
-   (if (i32.eq (%get $head) _null)
+   (if (i32.eq $head _null)
        (then
         ;; fail unmatched close paren
         (return)
         ))
 
-   (%set! $ctx ($get-pair-car (%get $head)))
-   (%set-ctx-stack ($get-pair-cdr (%get $head)))
+   (set! $ctx ($get-pair-car $head))
+   (%set-ctx-stack ($get-pair-cdr $head))
 
-   ($dealloc-pair (%get $head))
-   (%set! $value (%get-ctx-value (%get $ctx)))
+   ($dealloc-pair $head)
+   (set! $value ($get-pair-cdr (%get-ctx-value $ctx)))
 
-   (if (%is-bytevector-ctx (%get $ctx))
-       (then
-        ($append-value ($make-bytevector (%get $value)))
-        ($dealloc-list (%get $value)))
-     (else
-      (if (%is-vector-ctx (%get $ctx))
-          (then
-           ($append-value ($make-vector (%get $value)))
-           ($dealloc-list (%get $value)))
-        (else
-         ($append-value (%get $value))))))
+   ($append-value (if (result i32) (%is-list-ctx $ctx)
+                    (then (%make-value _tag-pair $value))
+                    (else
+                     (if (result i32) (%is-vector-ctx $ctx)
+                       (then (%make-value _tag-vector ($make-vector $value)))
+                       (else (%make-value _tag-bytevector ($make-bytevector $value))))
+                     ($dealloc-list $value))))
 
-   ($dealloc-parse-context (%get $ctx)))
+   ($dealloc-parse-context $ctx))
 
  (func $append-value (debug (export "append-value"))
    (param $v i32)
 
-   (if (%is-bytevector-ctx (%get-current-ctx))
+   (local $ctx i32)
+
+   (set! $ctx (%get-current-ctx))
+
+   (if (%is-bytevector-ctx $ctx)
        (then
-        (if (i32.eqz (%is-small-integer (%get $v)))
+        (if (i32.eqz (%is-small-integer $v))
             (then
              ;; bytevector type error
              )
           (else
-           (%set! $v (%get-small-integer-value (%get $v)))
-           (if (i32.gt_u (%get $v) (i32.const 0xff))
+           (set! $v (%get-small-integer-value $v))
+           (if (i32.gt_u $v (i32.const 0xff))
                (then
                 ;; bytevector type error
                 ))))))
 
-   (if (%is-finalized-ctx (%get-current-ctx))
+   (if (%is-finalized-ctx $ctx)
        (then
         ;; more than one value appears after a dot at the end of a list
         ;; missing close paren
         )
      (else
-      (if (%is-finalizing-ctx (%get-current-ctx))
+      (if (%is-finalizing-ctx $ctx)
           (then
-           (%set-finalized-ctx (%get-current-ctx))
-           (%set-current-tail (%get $v) (%get-current-tail)))
+           (%set-finalized-ctx $ctx)
+           (%set-ctx-tail $ctx $v))
         (else
-         (%set-current-tail ($make-pair (%get $v) (%get-current-tail)))))))
+         (%set-ctx-tail $ctx ($make-pair $v _null))))))
 
    ;; quote, quasiquote, splice, unquote, and unquote-splicing all
    ;; generate auto-unnest contexts.
 
-   (if (%is-auto-unnest (%get-current-ctx))
+   (if (%is-auto-unnest $ctx)
        (then
         ($unnest))))
 
@@ -102,51 +246,50 @@
 
      ;; Atmosphere matches whitespace, comments, and directives.
 
-     (%set! $rule-id
-            (%set! $end-match ($lex-match-atmosphere (%get $text) (%get $end))))
+     (set! $rule-id
+           (set! $end-match ($lex-match-atmosphere $text $end)))
 
-     (if (i32.ne (%get $end-match) _null)
+     (if (i32.ne $end-match _null)
          (then
 
           ;; Directives must be followed by a delimiter, or the end of the input.
 
-          (if (i32.eq (%get $rule-id) _lex-rule-directive)
+          (if (i32.eq $rule-id _lex-rule-directive)
               (then
-               (if (i32.lt_u (%get $text) (%get $end))
+               (if (i32.lt_u $text $end)
                    (then
                     (drop ;; rule-id
-                     (%set! $end-delimiter
-                            ($lex-match-delimiter (%get $end-match) (%get $end))))
+                     (set! $end-delimiter ($lex-match-delimiter $end-match $end)))
 
-                    (if (i32.eq (%get $end-delimiter) _null)
+                    (if (i32.eq $end-delimiter _null)
                         (then
-                         (%set-parse-location (%get $text))
+                         (%set-parse-location $text)
                          (return _error-delimiter-must-follow-directive)))))
 
                ;; set parser state for fold-case/no-fold-case
 
-               ($process-directive (%get $text) (%get $match-end))))
+               ($process-directive $text $match-end)))
 
-          (%set! $text (%get $end-match))
+          (set! $text $end-match)
           (br $again)))
 
      ;; Delimited tokens are strings, vertical bar-delimited identifiers, and
      ;; the open and close paren characters.
 
-     (%set! $rule-id
-            (%set! $end-match
-                   ($lex-match-delimited-token (%get $text) (%get $end))))
+     (set! $rule-id
+           (set! $end-match
+                 ($lex-match-delimited-token $text $end)))
 
-     (if (i32.ne (%get $end-match) _null)
+     (if (i32.ne $end-match _null)
          (then
-          ($parse-delimited-token (%get $rule-id) (%get $text) (%get $end-match))
+          ($parse-delimited-token $rule-id $text $end-match)
 
           ;; If the text processed so far makes a complete value, then stop and
           ;; return that to the caller.
 
-          (if (%is-parse-complete)
+          (if (%is-parse-finished)
               (then
-               (%set-parse-location (%get $end-match))
+               (%set-parse-location $end-match)
                (return (%get-parse-result))))
 
           (br $again)))
@@ -154,13 +297,13 @@
      ;; Undelimited token are everything else that isn't whitespace, a comment,
      ;; or a directive.
 
-     (%set! $rule-id
-            (%set! $end-match
-                   ($lex-match-undelimited-token (%get $text) (%get $end))))
+     (set! $rule-id
+           (set! $end-match
+                 ($lex-match-undelimited-token $text $end)))
 
-     (if (i32.ne (%get $end-match) _null)
+     (if (i32.ne $end-match _null)
          (then
-          (if (i32.lt_u (%get $end-match) (%get $end))
+          (if (i32.lt_u $end-match $end)
               (then
 
                ;; A delimiter must follow an undelimited token, where a
@@ -168,15 +311,14 @@
                ;; semicolon, open paren, or close paren.
 
                (drop ;; rule-id
-                (%set! $end-delimiter
-                       ($lex-match-delimiter (%get $end-match) (%get $end))))
+                (set! $end-delimiter ($lex-match-delimiter $end-match $end)))
 
-               (if (i32.eq (%get $end-delimiter) _null)
+               (if (i32.eq $end-delimiter _null)
                    (then
-                    (%set-parse-location (%get $text))
+                    (%set-parse-location $text)
                     (return _error-unrecognized-token)))))
 
-          ($parse-undelimited-token (%get $rule-id) (%get $text) (%get $end-match))
+          ($parse-undelimited-token $rule-id $text $end-match)
 
           ;; If the text processed so far makes a complete value or
           ;; has resulted in an error, then stop and return that to
@@ -184,7 +326,7 @@
 
           (if (%is-parse-finished)
               (then
-               (%set-parse-location (%get $end-match))
+               (%set-parse-location $end-match)
                (return (%get-parse-result))))
 
           (br $again))))
@@ -192,8 +334,8 @@
    ;; todo: separate unterminated value (ie. missing closing paren) from
    ;; unrecognized token.
 
-   (%set-parse-location (%get $text))
-   (if (i32.eq (%get $text) (%get $end))
+   (%set-parse-location $text)
+   (if (i32.eq $text $end)
        (then
         (%incomplete-input))
      (else
@@ -204,10 +346,9 @@
    (param $text i32)
    (param $end i32)
 
-   (if (i32.eq (%get $rule-id) _lex-rule-paren-char)
+   (if (i32.eq $rule-id _lex-rule-paren-char)
        (then
-        (if (i32.eq ($get-string-addr-char (%get $text))
-                    _char-open-paren)
+        (if (i32.eq ($get-string-addr-char $text) _char-open-paren)
             (then
              ($nest))
           (else
@@ -218,17 +359,15 @@
               ($unnest)))))
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-string)
+   (if (i32.eq $rule-id _lex-rule-string)
        (then
-        ($append-value ($parse-string (%get $text) (%get $end)))
+        ($parse-string $text $end)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-delimited-token-string)
+   (if (i32.eq $rule-id _lex-rule-delimited-token-string)
        (then
-        (if (i32.eq ($lex-match-static-string (%get $text)
-                                              (%get $end)
-                                              _string-begin-vector)
-                    (%get $end))
+        (if (i32.eq ($lex-match-static-string $text $end _string-begin-vector)
+                    $end)
             (then
              ($nest)
              (%set-vector-ctx (%get-current-ctx)))
@@ -237,10 +376,9 @@
            (%set-bytevector-ctx (%get-current-ctx))))
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-vertical-line-quoted-symbol)
+   (if (i32.eq $rule-id _lex-rule-vertical-line-quoted-symbol)
        (then
-        ($append-value
-         ($parse-vertical-line-quoted-symbol (%get $text) (%get $end)))
+        ($parse-vertical-line-quoted-symbol $text $end)
         (return)))
 
    (unreachable))
@@ -250,58 +388,76 @@
    (param $text i32)
    (param $end i32)
 
-   (if (i32.eq (%get $rule-id) _lex-rule-token-char)
+   (if (i32.eq $rule-id _lex-rule-token-char)
        (then
         ;; $lex-rule-token-char  '`,.
-        ($parse-token-char (%get $text) (%get $end))
+        ($parse-token-char $text $end)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-ordinary-identifier)
+   (if (i32.eq $rule-id _lex-rule-ordinary-identifier)
        (then
-        ($parse-ordinary-identifier (%get $text) (%get $end-token))
+        ($parse-simple-identifier $text $end-token)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-boolean)
+   (if (i32.eq $rule-id _lex-rule-boolean)
        (then
-        ($parse-boolean (%get $text) (%get $end-token))
+        ($parse-boolean $text $end-token)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-character)
+   (if (i32.eq $rule-id _lex-rule-escaped-character)
        (then
-        ($parse-character (%get $text) (%get $end-token))
+        ($parse-escaped-character $text $end-token)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-num-10)
+   (if (i32.eq $rule-id _lex-rule-named-character)
        (then
-        ($parse-num-10 (%get $text) (%get $end-token))
+        ($parse-named-character $text $end-token)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-num-16)
+   (if (i32.eq $rule-id _lex-rule-escaped-character-hex)
        (then
-        ($parse-num-16 (%get $text) (%get $end-token))
+        ($parse-escaped-character-hex $text $end-token)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-num-2)
+   (if (i32.eq $rule-id _lex-rule-num-10)
        (then
-        ($parse-num-2 (%get $text) (%get $end-token))
+        ($parse-num-10 $text $end-token)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-num-8)
+   (if (i32.eq $rule-id _lex-rule-num-16)
        (then
-        ($parse-num-8 (%get $text) (%get $end-token))
+        ($parse-num-16 $text $end-token)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-unquote-splicing)
+   (if (i32.eq $rule-id _lex-rule-num-2)
        (then
-        ($parse-unquote-splicing (%get $text) (%get $end))
+        ($parse-num-2 $text $end-token)
         (return)))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-peculiar-identifier)
+   (if (i32.eq $rule-id _lex-rule-num-8)
        (then
-        ($parse-peculiar-identifier (%get $text) (%get $end-token))
+        ($parse-num-8 $text $end-token)
+        (return)))
+
+   (if (i32.eq $rule-id _lex-rule-unquote-splicing)
+       (then
+        ($parse-unquote-splicing $text $end)
+        (return)))
+
+   (if (i32.eq $rule-id _lex-rule-peculiar-identifier)
+       (then
+        ($parse-simple-identifier $text $end-token)
         (return)))
 
    (unreachable))
+
+ (func $parse-unquote-splicing (debug (export "parse-unquote-splicing"))
+   (param $text i32)
+   (param $end i32)
+
+   ($nest)
+   ($append-value (%symbol-unquote-splicing))
+   (%set-auto-unnest-ctx (%get-current-ctx)))
 
  (func $parse-token-char (debug (export "parse-token-char"))
    (param $text i32)
@@ -311,109 +467,455 @@
    (local $char i32)
    (local $symbol i32)
 
-   (%set! $char ($load-char (%get $text)))
+   (set! $char ($load-char $text))
 
-   (if (i32.eq (%get $char) _char-dot)
+   (if (i32.eq $char _char-dot)
        (then
         (%set-finalizing-ctx (%get-current-ctx))
         (return)))
 
    ($nest)
 
-   (if (i32.eq (%get $char) _char-quote)
+   (if (i32.eq $char _char-quote)
        (then
-        (%set! $symbol (%quote-symbol)))
+        (set! $symbol (%quote-symbol)))
      (else
-      (if (i32.eq (%get $char) _char-backtick)
+      (if (i32.eq $char _char-backtick)
           (then
-           (%set! $symbol (%quasiquote-symbol)))
+           (set! $symbol (%quasiquote-symbol)))
         (else
-         (if (i32.eq (%get $char) _char-comma)
+         (if (i32.eq $char _char-comma)
              (then
-              (%set! $symbol (%unquote-symbol)))
+              (set! $symbol (%unquote-symbol)))
            (else
             (unreachable)))))))
 
-   ($append-value (%get $symbol))
+   ($append-value $symbol)
    (%set-auto-unnest-ctx (%get-current-ctx)))
 
- (func $parse-unquote-splicing (debug (export "parse-unquote-splicing"))
+ (func $parse-simple-identifier (debug (export "parse-simple-identifier"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $char i32)
+   (local $char-list i32)
+   (local $tail i32)
+
+   (set! $char-list ($make-pair _null _null))
+   (set! $tail $char-list)
+
+   (loop $again
+
+     (if (i32.lt_u $text $end)
+         (then
+
+          (set! $char ($get-string-char $text))
+
+          (set! $next ($make-pair $char _null))
+          ($set-pair-cdr $tail $next)
+          (set! $tail $next)
+
+          (set! $text (i32.add $text ($calc-encoded-length $char)))
+          (br $again))))
+
+   ($append-value (%make-value _tag-symbol
+                               ($inter-symbol ($make-string ($get-pair-cdr $char-list)))))
+
+   ($dealloc-list $char-list))
+
+ (func $parse-boolean (debug (export "parse-boolean"))
+   (param $text i32)
+   (param $end i32)
+
+   ;; "#true" has length 5, "#false" has length 6
+   ($append-value (if (result i32) (i32.eq (i32.const 5) (i32.sub $end $text))
+                    (then _true)
+                    (else _false))))
+
+ (func $parse-escaped-character (debug (export "parse-escaped-character"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value (%make-value _tag-char ($get-string-addr-char (i32.add $text (i32.const 2))))))
+
+ (func $parse-named-character (debug (export "parse-named-character"))
+   (param $text i32)
+   (param $end i32)
+
+   (set! $text (i32.add $text (i32.const 2)))
+   (set! $length (i32.sub $end $text))
+
+   (set! $char
+         (if (result i32) (i32.eq $length (i32.const 5))
+           (then
+            (if (result i32) ($lex-match-static-string $text $end _static-string-alarm)
+              (then _char-bell)
+              (else _char-space)))
+           (else
+            (if (result i32) (i32.eq $length (i32.const 6))
+              (then
+               (if (result i32) ($lex-match-static-string $text $end _static-string-delete)
+                 (then _char-delete)
+                 (else
+                  (if (result i32) ($lex-match-static-string $text $end _static-string-escape)
+                    (then _char-escape)
+                    (else _char-carriage-return)))))
+              (else
+               (if (result i32) (i32.eq $length (i32.const 3)) ;; tab
+                 (then _char-tab)
+                 (else
+                  (if (result i32) (i32.eq $length (i32.const 4)) ;; null
+                    (then _char-null)
+                    (else
+                     (if (result i32) (i32.eq $length (i32.const 7)) ;; newline
+                       (then _char-line-feed)
+                       (else
+                        (debug
+                         (if (result i32) (i32.ne $length (i32.const 9)) ;; backspace
+                           (then (unreachable))))
+                        _char-backspace)))))))))))
+
+   ($append-value (%make-value _tag-char $char)))
+
+ (func $parse-escaped-character-hex (debug (export "parse-escaped-character-hex"))
+   (param $text i32)
+   (param $end i32)
+
+   ;; add 1 to skip over the #
+   ($append-value (%make-value _tag-char ($parse-hex-escape (i32.add $text (i32.const 1)) $end))))
+
+ (func $parse-vertical-line-quoted-symbol (debug (export "parse-vertical-line-quoted-symbol"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $char i32)
+   (local $char-list i32)
+   (local $end-match i32)
+   (local $rule-id i32)
+   (local $tail i32)
+
+   (set! $char-list ($make-pair _null _null))
+   (set! $tail $char-list)
+
+   ;; skip over initial vertical line
+   (set! $text (i32.add $text (i32.const 1)))
+
+   (loop $again
+
+     (if (i32.lt_u $text $end)
+         (then
+
+          (set! $rule-id
+                (set! $end-match ($lex-match-symbol-element $text $end)))
+
+          (set! $char
+                (if (result i32) (i32.eq $rule-id _lex-rule-symbol-element/character)
+                  (then
+                   ($get-string-addr-char $text))
+                  (else
+                   (if (result i32) (i32.eq $rule-id _lex-rule-escaped-vertical-line)
+                     (then
+                      ;; add 1 to skip over backslash
+                      ($get-string-addr-char (i32.add $text (i32.const 1))))
+                     (else
+                      (if (result i32) (i32.eq $rule-id _lex-rule-mnemonic-escape)
+                        (then
+                         ;; add 1 to skip over backslash
+                         ($parse-mnemonic-char (i32.add $text (i32.const 1))))
+                        (else
+                         (debug
+                          (if (i32.ne $rule-id _lex-rule-inline-hex-escape)
+                              (then
+                               (unreachable))))
+
+                         ($parse-hex-escape $text $end-match)
+                         ;; lexically correct inline escapes can overflow or specify
+                         ;; invalid code points.
+                         (if (%is-parse-finished)
+                             (then
+                              (drop)
+                              ($dealloc-list $char-list)
+                              (return))))))))))
+
+          (set! $next ($make-pair $char _null))
+          ($set-pair-cdr $tail $next)
+          (set! $tail $next)
+
+          (set! $text $end-match)
+          (br $again))))
+
+   ($append-value (%make-value _tag-symbol
+                               ($inter-symbol ($make-string ($get-pair-cdr $char-list)))))
+   ($dealloc-list $char-list))
+
+ (func $parse-string (debug (export "parse-string"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $char i32)
+   (local $char-list i32)
+   (local $end-match i32)
+   (local $rule-id i32)
+   (local $tail i32)
+
+   (set! $char-list ($make-pair _null _null))
+   (set! $tail $char-list)
+
+   ;; skip over initial double quote
+   (set! $text (i32.add $text (i32.const 1)))
+
+   (loop $again
+
+     (if (i32.lt_u $text $end)
+         (then
+
+          (set! $rule-id
+                (set! $end-match ($lex-match-string-element $text $end)))
+
+          (if (i32.ne $rule-id _lex-rule-escaped-line-ending)
+              (then
+               (set! $char
+                     (if (result i32) (i32.eq $rule-id _lex-rule-string-element/character)
+                       (then
+                        ($get-string-addr-char $text))
+                       (else
+                        (if (result i32) (i32.or (i32.eq $rule-id _lex-rule-escaped-double-quote)
+                                                 (i32.eq $rule-id _lex-rule-escaped-backslash))
+                          (then
+                           ;; add 1 to skip over backslash
+                           ($get-string-addr-char (i32.add $text (i32.const 1))))
+                          (else
+                           (if (result i32) (i32.eq $rule-id _lex-rule-mnemonic-escape)
+                             (then
+                              ;; add 1 to skip over backslash
+                              ($parse-mnemonic-char (i32.add $text (i32.const 1))))
+                             (else
+                              (debug
+                               (if (i32.ne $rule-id _lex-rule-inline-hex-escape)
+                                   (then
+                                    (unreachable))))
+
+                              ($parse-hex-escape $text $end-match)
+                              ;; lexically correct inline escapes can overflow or specify
+                              ;; invalid code points.
+                              (if (%is-parse-finished)
+                                  (then
+                                   (drop)
+                                   ($dealloc-list $char-list)
+                                   (return))))))))))
+
+               (set! $next ($make-pair $char _null))
+               ($set-pair-cdr $tail $next)
+               (set! $tail $next)))
+
+          (set! $text $end-match)
+          (br $again))))
+
+   ($append-value (%make-string _tag-string ($make-string ($get-pair-cdr $char-list))))
+   ($dealloc-list $char-list))
+
+ (func $parse-mnemonic-char (debug (export "parse-mnemonic-char"))
+   (param $text i32)
+   (result i32)
+
+   (local $char i32)
+
+   (set! $char ($get-string-addr-char $text))
+
+   (if (result i32) (i32.eq $char _char-a)
+     (then _char-bell)
+     (else
+      (if (result i32) (i32.eq $char _char-b)
+        (then _char-backspace)
+        (else
+         (if (result i32) (i32.eq $char _char-t)
+           (then _char-tab)
+           (else
+            (if (result i32) (i32.eq $char _char-n)
+              (then _char-line-feed)
+              (else
+               (if (result i32) (i32.eq $char _char-r)
+                 (then _char-carriage-return)
+                 (else (unreachable) _null)))))))))))
+
+ (func $parse-hex-escape (debug (export "parse-hex-escape"))
    (param $text i32)
    (param $end i32)
    (result i32)
 
-   ($nest)
-   ($append-value (%symbol-unquote-splicing))
-   (%set-auto-unnest-ctx (%get-current-ctx)))
+   (local $accum i32)
+
+   ;; move text forward 2 to skip over \x
+   (set! $text (i32.add $text (i32.const 2)))
+
+   ;; move end back 1 to account for final semicolon
+   (set! $end (i32.sub $end (i32.const 1)))
+
+   (set! $code-point (i32.const 0))
+   (loop $again
+
+     (if (i32.and $code-point 0xf0000000)
+         (then
+          ;; inline hex overflow error
+          (return $code-point)))
+
+     (set! $char ($get-string-addr-char $text))
+
+     (set! $value (i32.sub $char
+                           (if (result i32) (i32.le_u $char _char-9)
+                             (then _char-0)
+                             (else
+                              (if (result i32) (i32.le_u $char _char-F)
+                                (then _char-A)
+                                (else _char-a))))))
+
+     (set! $code-point (i32.or (i32.shl $code-point (i32.const 4)) $value))
+
+     (set! $text (i32.add $text (i32.const 1)))
+
+     (if (i32.lt_u $text $end)
+         (then
+          (br $again))))
+
+   (if (i32.eq ($calc-encoded-length $code-point) (i32.const -1))
+       (then
+        ;; invalid code point
+        ))
+
+   $code-point)
 
  (func $parse-num-2 (debug (export "parse-num-2"))
    (param $text i32)
    (param $end i32)
-   (result i32)
 
    (local $rule-id i32)
 
-   (drop ;; rule-id
-    (%set! $end ($lex-match-prefix-2 (%get $text) (%get $end))))
+  (drop ;; rule-id
+    (set! $end ($lex-match-prefix-2 $text $end)))
 
-   (%set! $rule-id
-          (drop ;; end
-           ($lex-match-complex-2 (%get $text) (%get $end))))
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-complex-2 $text $end)))
 
-   ;; $lex-rule-signed-real-2
-   ;; $lex-rule-full-complex-2
-   ;; $lex-rule-complex-polar-2
-   ;; $lex-rule-complex-unit-im-2
-   ;; $lex-rule-complex-im-only-2
-   ;; $lex-rule-complex-infnan-im-2
-   ;; $lex-rule-unit-im
-   ;; $lex-rule-infnan
-   ;; $lex-rule-infnan-im
-
-   (if (i32.eq (%get $rule-id) _lex-rule-signed-real-2)
+   (if (i32.eq $rule-id _lex-rule-signed-real-2)
        (then
-        (return ($parse-signed-real-2 (%get $text) (%get $end)))))
+        (return ($parse-signed-real-2 $text $end))))
 
-   (if (i32.eq (%get $rule-id) _lex-rule-full-complex-2)
+   (if (i32.eq $rule-id _lex-rule-full-complex-2)
        (then
-        (return ($parse-full-complex-2 (%get $text) (%get $end)))))
+        (return ($parse-full-complex-2 $text $end))))
 
-   )
+   (if (i32.eq $rule-id _lex-rule-complex-polar-2)
+       (then
+        (return ($parse-complex-polar-2 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-unit-im-2)
+       (then
+        (return ($parse-complex-unit-im-2 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-im-only-2)
+       (then
+        (return ($parse-complex-im-only-2 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-infnan-im-2)
+       (then
+        (return ($parse-complex-infnan-im-2 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-unit-im)
+       (then
+        (return ($parse-unit-im $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-infnan)
+       (then
+        (return ($parse-infnan $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-infnan-im)
+       (then
+        (return ($parse-infnan-im $text $end))))
+
+   (unreachable))
 
  (func $parse-signed-real-2 (debug (export "parse-signed-real-2"))
    (param $text i32)
    (param $end i32)
-   (result i32)
 
    (local $start i32)
    (local $rule-id i32)
    (local $value i32)
 
-   (%set! $start (%get $text))
+   (set! $start $text)
 
    (drop ;; rule-id
-    (%set! $text ($lex-match-prefix-2 (%get $text) (%get $end))))
+    (set! $text ($lex-match-prefix-2 $text $end)))
 
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-ureal-2 $text $end)))
 
-   (%set! $rule-id
-          (drop ;; end
-           ($lex-match-ureal-2 (%get $text) (%get $end))))
+   (set! $value
+         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-2)
+           (then
+            ($parse-uinteger-2 $text $end))
+           (else
+            ($parse-urational-2 $text $end)))) ;; todo
 
-   ;; $lex-rule-uinteger-2
-   ;; $lex-rule-urational-2
-
-   (%set! $value
-          (if (result i32) (i32.eq (%get $rule-id) _lex-rule-uinteger-2)
-            (then
-             ($parse-uinteger-2 (%get $text) (%get $end)))
-            (else
-             ($parse-urational-2 (%get $text) (%get $end))))) ;; todo
-
-   (if (i32.ne (%get $start) (%get $text))
+   (if (i32.ne $start $text)
        (then
-        (%set! $value ($negate-number (%get $value))))) ;; todo
+        (set! $value ($negate-number $value)))) ;; todo
 
-   (%get $value))
+   ($append-value $value))
+
+ (func $parse-full-complex-2 (debug (export "parse-full-complex-2"))
+   (param $text i32)
+   (param $end i32)
+   _lex-rule-real-2
+   _lex-rule-explicit-sign
+   _lex-rule-ureal-2
+   _lex-rule-complex-i
+
+   ($append-value $value))
+
+ (func $parse-complex-polar-2 (debug (export "parse-complex-polar-2"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value $value))
+
+ (func $parse-complex-unit-im-2 (debug (export "parse-complex-unit-im-2"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value $value))
+
+ (func $parse-complex-im-only-2 (debug (export "parse-complex-im-only-2"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value $value))
+
+ (func $parse-complex-infnan-im-2 (debug (export "parse-complex-infnan-im-2"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value $value))
+
+ (func $parse-unit-im (debug (export "parse-unit-im"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value $value))
+
+ (func $parse-infnan (debug (export "parse-infnan"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value $value))
+
+ (func $parse-infnan-im (debug (export "parse-infnan-im"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value $value))
 
  (func $parse-uinteger-2 (debug (export "parse-uinteger-2"))
    (param $text i32)
@@ -421,20 +923,20 @@
    (result i32)
 
    (local $length i32)
-   (%set! $length (i32.sub (%get $end) (%get $text)))
+   (set! $length (i32.sub $end $text))
 
-   (if (i32.lt_u (%get $length) (i32.const 29))
+   (if (i32.lt_u $length (i32.const 29))
        (then
         ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
-        (return ($parse-small-uinteger-2) (%get $text) (%get $end))))
+        (return ($parse-small-uinteger-2) $text $end)))
 
-   (if (i32.lt_u (%get $length) (i32.const 64))
+   (if (i32.lt_u $length (i32.const 64))
        (then
         ;; 29-63 bits will fit in an i64
-        (return ($parse-i64-uinteger-2) (%get $text) (%get $end))))
+        (return ($parse-i64-uinteger-2) $text $end)))
 
    ;; >= 64 bits
-   ($parse-integer-uintger-2 (%get $text) (%get $end)))
+   ($parse-integer-uintger-2 $text $end))
 
  (func $parse-small-uinteger-2 (debug (export "parse-small-uinteger-2"))
    (param $text i32)
@@ -443,19 +945,18 @@
 
    (local $value i32)
 
-   (%set! $value (i32.const 0))
+   (set! $value (i32.const 0))
 
    (loop $again
-     (if (i32.ne (%get $text) (%get $end))
+     (if (i32.ne $text $end)
          (then
-          (%set! $char ($load-char (%get $text)))
-          (%set! $value (i32.add (i32.shl (%get $value) (i32.const 1))
-                                 (i32.eq (%get $char) _char-1)))
+          (set! $char ($load-char $text))
+          (set! $value (i32.add (i32.shl $value (i32.const 1)) (i32.eq $char _char-1)))
 
           (%incr i32 $text)
           (br $again))))
 
-   ($make-small-integer (%get $value)))
+   ($make-small-integer $value))
 
  (func $parse-i64-uinteger-2 (debug (export "parse-i64-uinteger-2"))
    (param $text i32)
@@ -464,20 +965,19 @@
 
    (local $value i64)
 
-   (%set! $value (i64.const 0))
+   (set! $value (i64.const 0))
 
    (loop $again
-     (if (i32.ne (%get $text) (%get $end))
+     (if (i32.ne $text $end)
          (then
-          (%set! $char ($load-char (%get $text)))
-          (%set! $value (i64.add (i64.shl (%get $value) (i64.const 1))
-                                 (i64.extend_i32_u
-                                  (i32.eq (%get $char) _char-1))))
+          (set! $char ($load-char $text))
+          (set! $value (i64.add (i64.shl $value (i64.const 1))
+                                (i64.extend_i32_u (i32.eq $char _char-1))))
 
           (%incr i32 $text)
           (br $again))))
 
-   ($make-boxed-i64 (%get $value)))
+   ($make-boxed-i64 $value))
 
  (func $parse-integer-uintger-2 (debug (export "parse-integer-uinteger-2"))
    (param $text i32)
@@ -488,37 +988,32 @@
    (local $bit-length i32)
    (local $value i32)
 
-   (%set! $bit-length (i32.sub (%get $end) (%get $text)))
+   (set! $bit-length (i32.sub $end $text))
 
    ;; normally, we'd have (x + 63) >> 6, but here we need to allow for a sign
    ;; bit as well, so it becomes (x + 64) >> 6 = (x >> 6) + 1.
-   (%set! $value ($alloc-integer
-                  (i32.add (i32.shr_u (%get $bit-length)
-                                      (i32.const 6))
-                           (i32.const 1))))
+   (set! $value ($alloc-integer (i32.add (i32.shr_u $bit-length (i32.const 6))
+                                         (i32.const 1))))
 
-   (%set! $accum (i64.const 0))
+   (set! $accum (i64.const 0))
 
    (loop $again
-     (if (i32.ne (%get $text) (%get $end))
+     (if (i32.ne $text $end)
          (then
-          (%set! $char ($load-char (%get $text)))
-          (%set! $accum (i64.add (i64.shl (%get $accum) (i64.const 1))
-                                 (i64.extend_i32_u
-                                  (i32.eq (%get $char) _char-1))))
+          (set! $char ($load-char $text))
+          (set! $accum (i64.add (i64.shl $accum (i64.const 1))
+                                (i64.extend_i32_u (i32.eq $char _char-1))))
 
-          (if (i32.eqz (i32.and (%get $bit-length) (0x3f)))
+          (if (i32.eqz (i32.and $bit-length (i32.const 0x3f)))
               (then
-               ($set-integer-digit-i64 (%get $value)
-                                       (i32.shr_u (%get $bit-length) (i32.const 6))
-                                       (%get $accum))
-               (%set! $accum (i64.const 0))))
+               ($set-integer-digit-i64 $value (i32.shr_u $bit-length (i32.const 6)) $accum)
+               (set! $accum (i64.const 0))))
 
           (%incr i32 $text)
           (%decr i32 $bit-length)
           (br $again))))
 
-   (%get $value))
+   $value)
 
  (func $parse-unit-im (debug (export "parse-unit-im"))
    (param $text i32)

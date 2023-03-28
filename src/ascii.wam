@@ -1,3 +1,6 @@
+(define _char-bell            (i32.const 7))
+(define _char-backspace       (i32.const 8))
+(define _char-tab             (i32.const 9))
 (define _char-line-feed       (i32.const 10))
 (define _char-carriage-return (i32.const 13))
 (define _char-space           (i32.const 32))

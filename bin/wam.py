@@ -375,6 +375,7 @@ def translate_serial(expr, env):
 
     name = None
     value = None
+    step = None
 
     for e in expr:
 
@@ -391,14 +392,22 @@ def translate_serial(expr, env):
             assert e[0] == 'token'
             value = int(e[1])
 
+        elif step is None:
+
+            assert e[0] == 'token'
+            step = int(e[1])
+
         else:
             print(e)
             assert False
 
     if value is None:
-        value = env['sequences'].get(name, 0)
+        value = env['sequences'].get(name, (0, 1))[0]
 
-    env['sequences'][name] = value + 1
+    if step is None:
+        step = env['sequences'].get(name, (0, 1))[1]
+
+    env['sequences'][name] = (value + step, step)
 
     ctx = expr[0][2:]
     return [
