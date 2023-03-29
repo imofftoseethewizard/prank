@@ -151,26 +151,24 @@
  ;;     complex          xxxx xxxx xxxx xxxx xxxx 0101 0000 0001
  ;;     integer          rrrr rrrr rrrr rrrr rrrr 1001 0000 0001
 
- (define _number-block-size           (i32.const 0x400))
+ (define _number-block-size    (i32.const 0x400))
 
- (define _number-type-i64             (i32.const 0x00000101))
- (define _number-type-f64             (i32.const 0x00000001))
- (define _number-type-inexact-complex (i32.const 0x00000401))
- (define _number-type-exact-complex   (i32.const 0x00000501))
- (define _number-type-rational        (i32.const 0x00000301))
- (define _number-type-integer         (i32.const 0x00000901))
- (define _number-type-mask            (i32.const 0x00000fff))
+ (define _number-type-i64      (i32.const 0x00000101))
+ (define _number-type-f64      (i32.const 0x00000001))
+ (define _number-type-complex  (i32.const 0x00000401))
+ (define _number-type-rational (i32.const 0x00000301))
+ (define _number-type-integer  (i32.const 0x00000901))
+ (define _number-type-mask     (i32.const 0x00000fff))
 
  (debug
-  (global $number-block-size (export "number-block-size") i32 _number-block-size)
+  (global $number-block-size    (export "number-block-size")    i32 _number-block-size)
 
-  (global $number-type-i64             (export "number-type-i64")             i32 _number-type-i64)
-  (global $number-type-f64             (export "number-type-f64")             i32 _number-type-f64)
-  (global $number-type-inexact-complex (export "number-type-inexact-complex") i32 _number-type-inexact-complex)
-  (global $number-type-exact-complex   (export "number-type-exact-complex")   i32 _number-type-exact-complex)
-  (global $number-type-rational        (export "number-type-rational")        i32 _number-type-rational)
-  (global $number-type-integer         (export "number-type-integer")         i32 _number-type-integer)
-  (global $number-type-mask            (export "number-type-mask")            i32 _number-type-mask))
+  (global $number-type-i64      (export "number-type-i64")      i32 _number-type-i64)
+  (global $number-type-f64      (export "number-type-f64")      i32 _number-type-f64)
+  (global $number-type-complex  (export "number-type-complex")  i32 _number-type-complex)
+  (global $number-type-rational (export "number-type-rational") i32 _number-type-rational)
+  (global $number-type-integer  (export "number-type-integer")  i32 _number-type-integer)
+  (global $number-type-mask     (export "number-type-mask")     i32 _number-type-mask))
 
  (const #i32-size 4)
  (const #i64-size 8)
@@ -314,16 +312,12 @@
         (%dealloc-box $x)
         (return)))
 
-   (if (i32.or (i32.eq $type _number-type-exact-complex)
-               (i32.eq $type _number-type-rational))
+   (if (i32.eq $type _number-type-complex)
        (then
+        ;; todo check each component for type
         ($dealloc-number ($get-pair-car $value))
         ($dealloc-number ($get-pair-cdr $value))
-        (%dealloc-box $x)
-        (return)))
 
-   (if (i32.eq $type _number-type-inexact-complex)
-       (then
         ($dealloc-x64 ($get-pair-car $value))
         ($dealloc-x64 ($get-pair-cdr $value))
         (%dealloc-box $x)
@@ -386,19 +380,12 @@
 
    (%make-box _number-type-rational ($make-pair $n $d)))
 
- (func $make-exact-complex (export "make-exact-complex")
+ (func $make-complex (export "make-complex")
    (param $re i32)
    (param $im i32)
    (result i32)
 
-   (%make-box _number-type-exact-complex ($make-pair $re $im)))
-
- (func $make-inexact-complex (export "make-inexact-complex")
-   (param $re i32)
-   (param $im i32)
-   (result i32)
-
-   (%make-box _number-type-inexact-complex ($make-pair $re $im)))
+   (%make-box _number-type-complex ($make-pair $re $im)))
 
  (func $make-integer (export "make-integer")
    (param $x i64)

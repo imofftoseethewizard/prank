@@ -839,41 +839,45 @@
    (param $text i32)
    (param $end i32)
 
-   (local $start i32)
-   (local $rule-id i32)
-   (local $value i32)
-
-   (set! $start $text)
-
-   (drop ;; rule-id
-    (set! $text ($lex-match-prefix-2 $text $end)))
-
-   (set! $rule-id
-         (drop ;; end
-          ($lex-match-ureal-2 $text $end)))
-
-   (set! $value
-         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-2)
-           (then
-            ($parse-uinteger-2 $text $end))
-           (else
-            ($parse-urational-2 $text $end)))) ;; todo
-
-   (if (i32.ne $start $text)
-       (then
-        (set! $value ($negate-number $value)))) ;; todo
-
-   ($append-value $value))
+   ($append-value ($parse-signed-real-2-value $text $end)))
 
  (func $parse-full-complex-2 (debug (export "parse-full-complex-2"))
    (param $text i32)
    (param $end i32)
-   _lex-rule-real-2
-   _lex-rule-explicit-sign
-   _lex-rule-ureal-2
-   _lex-rule-complex-i
 
-   ($append-value $value))
+   (local $end-match i32)
+   (local $im i32)
+   (local $is-negative-im i32)
+   (local $re i32)
+   (local $rule-id i32)
+
+   (set! $rule-id
+         (set! $end-match
+               ($lex-match-real-2 $text $end)))
+
+   (set! $re
+         (if (result i32) (i32.eq $rule-id _lex-rule-infnan)
+           (then ($parse-infnan-value $text $end-match))
+           (else ($parse-signed-real-2-value $text $end-match))))
+
+   (set! $is-negative-im (i32.eq ($get-string-addr-char $end-match) _char-minus))
+
+   (set! $text (i32.add $end-match (i32.const 1)))
+
+   (set! $rule-id
+         (set! $end-match
+               ($lex-match-ureal-2 $text $end)))
+
+   (set! $im
+         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-2)
+           (then ($parse-uinteger-2-value $text $end-match))
+           (else ($parse-urational-2-value $text $end-match))))
+
+   (if $is-negative-im
+       (then
+        (set! $im ($negate-number $im))))
+
+   ($append-value ($make-complex $re $im)))
 
  (func $parse-complex-polar-2 (debug (export "parse-complex-polar-2"))
    (param $text i32)
@@ -917,7 +921,51 @@
 
    ($append-value $value))
 
- (func $parse-uinteger-2 (debug (export "parse-uinteger-2"))
+ (func $parse-signed-real-2-value (debug (export "parse-signed-real-2-value"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $start i32)
+   (local $rule-id i32)
+   (local $value i32)
+
+   (set! $start $text)
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-prefix-2 $text $end)))
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-ureal-2 $text $end)))
+
+   (set! $value
+         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-2)
+           (then
+            ($parse-uinteger-2-value $text $end))
+           (else
+            ($parse-urational-2 $text $end)))) ;; todo
+
+   (if (i32.ne $start $text)
+       (then
+        (set! $value ($negate-number $value)))) ;; todo
+
+   $value)
+
+ (func $parse-urational-2-value (debug (export "parse-urational-2-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $end-match i32)
+
+   (drop ;; rule-id
+    (set! $end-match
+          ($lex-match-uinteger-2 $text $end)))
+
+   ($make-rational ($parse-uinteger-2-value $text $end-match)
+                   ($parse-uinteger-2-value (i32.add $end-match (i32.const 1)) $end)))
+
+ (func $parse-uinteger-2-value (debug (export "parse-uinteger-2-value"))
    (param $text i32)
    (param $end i32)
    (result i32)
@@ -928,17 +976,17 @@
    (if (i32.lt_u $length (i32.const 29))
        (then
         ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
-        (return ($parse-small-uinteger-2) $text $end)))
+        (return ($parse-small-uinteger-2-value) $text $end)))
 
    (if (i32.lt_u $length (i32.const 64))
        (then
         ;; 29-63 bits will fit in an i64
-        (return ($parse-i64-uinteger-2) $text $end)))
+        (return ($parse-i64-uinteger-2-value) $text $end)))
 
    ;; >= 64 bits
    ($parse-integer-uintger-2 $text $end))
 
- (func $parse-small-uinteger-2 (debug (export "parse-small-uinteger-2"))
+ (func $parse-small-uinteger-2-value (debug (export "parse-small-uinteger-2-value"))
    (param $text i32)
    (param $end i32)
    (result i32)
@@ -958,7 +1006,7 @@
 
    ($make-small-integer $value))
 
- (func $parse-i64-uinteger-2 (debug (export "parse-i64-uinteger-2"))
+ (func $parse-i64-uinteger-2-value (debug (export "parse-i64-uinteger-2-value"))
    (param $text i32)
    (param $end i32)
    (result i32)
@@ -979,7 +1027,7 @@
 
    ($make-boxed-i64 $value))
 
- (func $parse-integer-uintger-2 (debug (export "parse-integer-uinteger-2"))
+ (func $parse-integer-uintger-2-value (debug (export "parse-integer-uinteger-2-value"))
    (param $text i32)
    (param $end i32)
    (result i32)
@@ -1014,6 +1062,24 @@
           (br $again))))
 
    $value)
+
+ (func $parse-infnan-value (debug (export "parse-infnan-value"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $initial i32)
+
+   (set! $initial ($ascii-lower ($get-string-addr-char (i32.add $text (i32.const 1)))))
+
+   ($make-boxed-f64 (if (result f64) (i32.eq ($get-string-addr-char $text) _char-plus)
+                      (then
+                       (if (result f64) (i32.eq $initial _char-i)
+                         (then (i64.const +inf))
+                         (else (i64.const +nan))))
+                      (else
+                       (if (result f64) (i32.eq $initial _char-i)
+                         (then (i64.const -inf))
+                         (else (i64.const -nan)))))))
 
  (func $parse-unit-im (debug (export "parse-unit-im"))
    (param $text i32)

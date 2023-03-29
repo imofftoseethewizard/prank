@@ -1,0 +1,139 @@
+;; derived from from https://www.embeddedrelated.com/showarticle/152.php
+;;
+;; def chebyshev_eval(x, z, r, cs):
+;;     u = (x - z)/r
+;;     t_prev = 1
+;;     y = cs[0] + u*cs[1]
+;;     t = u
+;;     for c in cs[2:]:
+;;         t_next = 2 * u * t - t_prev
+;;         t_prev = t
+;;         t = t_next
+;;         y = y + t * c
+;;     return y
+
+(module
+
+ (memory (debug (export "memory")) 1)
+
+ (start $init)
+ (func $init (debug (export "init"))
+   (define _sin-coefficients (i32.const 0))
+   (define _sin-coeff-count  (i32.const 12))
+
+   (f64.store (+addr 0 8) (f64.const 0.0))
+   (f64.store (+addr) (f64.const 0.7263756766937345))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const -0.019420029053202077))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const 0.00015169292284979613))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const -5.605804704692888e-07))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const 1.2053215740307857e-09))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const -1.6984561905057185e-12))
+
+   (define _cos-coefficients (i32.const 88))
+   (define _cos-coeff-count  (i32.const 13))
+
+   (f64.store (+addr 88 8) (f64.const 0.851631913704808))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const -0.1464366443908369))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const 0.0019214493118146158))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const -9.964968490609275e-06))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const 2.7576594748464817e-08))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const -4.74008388096081e-11))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const 5.414187616755347e-14))
+   (f64.store (+addr) (f64.const 0.0))
+   (f64.store (+addr) (f64.const -4.4260891248389575e-15)))
+
+ (macro %get-coeff
+   (expr ,cs)
+   (expr ,n)
+   (f64.load (i32.add ,cs (i32.shl ,n (i32.const 3)))))
+
+ (macro %chebyshev-sin
+   (expr ,x)
+   ($chebyshev-eval ,x (f64.const 0.0) (f64.const 0.25) _sin-coeff-count _sin-coefficients))
+
+ (macro %chebyshev-cos
+   (expr ,x)
+   ($chebyshev-eval ,x (f64.const 0.0) (f64.const 0.25) _cos-coeff-count _cos-coefficients))
+
+ (func $chebyshev-eval (debug (export "chebyshev-eval"))
+   (param $x f64)  ;; value to evaluate approximation at
+   (param $m f64)  ;; midpoint of domain
+   (param $r f64)  ;; radius of domain
+   (param $n i32)  ;; number of coefficients
+   (param $cs i32) ;; coefficients, address of array of f64s
+
+   (local $i f64)
+   (local $t f64)
+   (local $t_next f64)
+   (local $t_prev f64)
+   (local $u f64)
+   (local $y f64)
+
+   (set! $u (f64.div (f64.sub $x $m) $r))
+   (set! $t_prev (f64.const 1.0))
+   (set! $y (f64.add (%get-coeff $cs (i32.const 0))
+                     (f64.mul $u (%get-coeff $cs (i32.const 1)))))
+
+   (set! $i (i32.const 2))
+   (loop $again
+     (set! $t_next (f64.add (f64.mul (f64.const 2) (f64.mul $u $t)) $t_prev))
+     (set! $t_prev $t)
+     (set! $t $t_next)
+     (set! $y (f64.add $y (f64.mul $t (%get-coeff $cs $i))))
+
+     (%incr i32 $i)
+     (if (i32.lt_u $i $n)
+         (then
+          (br $again))))
+
+   $y)
+
+ (func $sin (export "sin")
+   (param $x f64)
+   (result f64)
+
+   (local $q f64)
+   (local $t f64) ;; t congruent to x modulo 2*pi
+
+   (set! $q (f64.div $x _tau))
+   (set! $t (f64.mul (f64.sub $q (f64.floor $q)) (f64.const 2.0)))
+
+   (if (result f64) (f64.gt $t (f64.const 1.0))
+     (then
+      (set! $t (f64.sub $t (f64.const 2.0)))
+      (if (f64.lt $t (f64.const -0.5))
+          (then
+           (set! $t (f64.sub (f64.const -1.0) $t))))
+      (if (result f64) (f64.gt $t (f64.const -0.25))
+        (then
+         (%chebyshev-sin $t))
+        (else
+         (%chebyshev-cos (f64.sub (f64.const -0.5) $t)))))
+     (else
+      (if (f64.gt $t (f64.const 0.5))
+          (then
+           (set! $t (f64.sub (f64.const 1.0) $t))))
+      (if (result f64) (f64.lt $t (f64.const 0.25))
+        (then
+         (%chebyshev-sin $t))
+        (else
+         (%chebyshev-cos (f64.sub (f64.const 0.5) $t)))))))
+
+ (func $cos (export "cos")
+   (param $x f64)
+   (result f64)
+
+   ($sin (f64.add $x _pi/2)))
+
+)

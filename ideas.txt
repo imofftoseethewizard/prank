@@ -437,3 +437,6 @@ lex/parse
     in bytevector
 
   parse-r7rs
+
+transcendental functions/Chebyshev
+  https://www.embeddedrelated.com/showarticle/152.php
