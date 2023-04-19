@@ -447,7 +447,7 @@ def define_test(expr, env):
                 ])
 
         else:
-            result.append(e)
+            result.append(translate(e, env))
 
     return result
 

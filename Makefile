@@ -24,6 +24,7 @@ OBJECTS = \
 	obj/debug/chars.wasm \
 	obj/debug/lex.wasm \
 	obj/debug/lists.wasm \
+	obj/debug/math.wasm \
 	obj/debug/numbers.wasm \
 	obj/debug/pairs.wasm \
 	obj/debug/strings.wasm \
@@ -36,6 +37,7 @@ OBJECTS = \
 	obj/chars.wasm \
 	obj/lex.wasm \
 	obj/lists.wasm \
+	obj/math.wasm \
 	obj/numbers.wasm \
 	obj/pairs.wasm \
 	obj/strings.wasm \

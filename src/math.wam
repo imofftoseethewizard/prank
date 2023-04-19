@@ -16,28 +16,33 @@
 
  (memory (debug (export "memory")) 1)
 
+ (define _tau  (f64.const 6.283185307179586))
+ (define _pi/2 (f64.const 1.5707963267948966))
+
  (start $init)
  (func $init (debug (export "init"))
    (define _sin-coefficients (i32.const 0))
-   (define _sin-coeff-count  (i32.const 12))
+   (define _sin-coeff-count  (i32.const 14))
 
-   (f64.store (+addr 0 8) (f64.const 0.0))
-   (f64.store (+addr) (f64.const 0.7263756766937345))
-   (f64.store (+addr) (f64.const 0.0))
-   (f64.store (+addr) (f64.const -0.019420029053202077))
-   (f64.store (+addr) (f64.const 0.0))
-   (f64.store (+addr) (f64.const 0.00015169292284979613))
-   (f64.store (+addr) (f64.const 0.0))
-   (f64.store (+addr) (f64.const -5.605804704692888e-07))
-   (f64.store (+addr) (f64.const 0.0))
-   (f64.store (+addr) (f64.const 1.2053215740307857e-09))
-   (f64.store (+addr) (f64.const 0.0))
-   (f64.store (+addr) (f64.const -1.6984561905057185e-12))
+   (f64.store (+addr 0 8) (f64.const 0.0                    ))
+   (f64.store (+addr)     (f64.const 0.7505609124136443     ))
+   (f64.store (+addr)     (f64.const 0.0                    ))
+   (f64.store (+addr)     (f64.const -0.02177571966277506   ))
+   (f64.store (+addr)     (f64.const 0.0                    ))
+   (f64.store (+addr)     (f64.const 0.0001841694833682699  ))
+   (f64.store (+addr)     (f64.const 0.0                    ))
+   (f64.store (+addr)     (f64.const -7.365236180152073e-07 ))
+   (f64.store (+addr)     (f64.const 0.0                    ))
+   (f64.store (+addr)     (f64.const 1.713388899014591e-09  ))
+   (f64.store (+addr)     (f64.const 0.0                    ))
+   (f64.store (+addr)     (f64.const -2.6090518634447335e-12 ))
+   (f64.store (+addr)     (f64.const 0.0                    ))
+   (f64.store (+addr)     (f64.const -2.4484382775215504e-15 ))
 
-   (define _cos-coefficients (i32.const 88))
+   (define _cos-coefficients (i32.const 112))
    (define _cos-coeff-count  (i32.const 13))
 
-   (f64.store (+addr 88 8) (f64.const 0.851631913704808))
+   (f64.store (+addr 112 8) (f64.const 0.851631913704808))
    (f64.store (+addr) (f64.const 0.0))
    (f64.store (+addr) (f64.const -0.1464366443908369))
    (f64.store (+addr) (f64.const 0.0))
@@ -55,16 +60,18 @@
 
  (macro %get-coeff
    (expr ,cs)
-   (expr ,n)
-   (f64.load (i32.add ,cs (i32.shl ,n (i32.const 3)))))
+   (expr ,offset)
+   (f64.load (i32.add ,cs (i32.shl ,offset (i32.const 3)))))
 
  (macro %chebyshev-sin
    (expr ,x)
-   ($chebyshev-eval ,x (f64.const 0.0) (f64.const 0.25) _sin-coeff-count _sin-coefficients))
+   ($chebyshev-eval ,x (f64.const 0.0) (f64.const 0.13) _sin-coeff-count _sin-coefficients))
 
  (macro %chebyshev-cos
    (expr ,x)
-   ($chebyshev-eval ,x (f64.const 0.0) (f64.const 0.25) _cos-coeff-count _cos-coefficients))
+   ($chebyshev-eval ,x (f64.const 0.0) (f64.const 0.2) _cos-coeff-count _cos-coefficients))
+
+ (debug (func (export "chebyshev-sin") (param $x f64) (result f64) (%chebyshev-sin $x)))
 
  (func $chebyshev-eval (debug (export "chebyshev-eval"))
    (param $x f64)  ;; value to evaluate approximation at
@@ -72,8 +79,9 @@
    (param $r f64)  ;; radius of domain
    (param $n i32)  ;; number of coefficients
    (param $cs i32) ;; coefficients, address of array of f64s
+   (result f64)
 
-   (local $i f64)
+   (local $i i32)
    (local $t f64)
    (local $t_next f64)
    (local $t_prev f64)
@@ -81,18 +89,21 @@
    (local $y f64)
 
    (set! $u (f64.div (f64.sub $x $m) $r))
+
    (set! $t_prev (f64.const 1.0))
+   (set! $t $u)
    (set! $y (f64.add (%get-coeff $cs (i32.const 0))
-                     (f64.mul $u (%get-coeff $cs (i32.const 1)))))
+                     (f64.mul $t (%get-coeff $cs (i32.const 1)))))
 
    (set! $i (i32.const 2))
    (loop $again
-     (set! $t_next (f64.add (f64.mul (f64.const 2) (f64.mul $u $t)) $t_prev))
+     (set! $t_next (f64.sub (f64.mul (f64.const 2) (f64.mul $u $t)) $t_prev))
      (set! $t_prev $t)
      (set! $t $t_next)
      (set! $y (f64.add $y (f64.mul $t (%get-coeff $cs $i))))
 
-     (%incr i32 $i)
+     (set! $i (i32.add $i (i32.const 1)))
+
      (if (i32.lt_u $i $n)
          (then
           (br $again))))
@@ -107,28 +118,32 @@
    (local $t f64) ;; t congruent to x modulo 2*pi
 
    (set! $q (f64.div $x _tau))
-   (set! $t (f64.mul (f64.sub $q (f64.floor $q)) (f64.const 2.0)))
+   (set! $t (f64.sub $q (f64.floor $q)))
 
-   (if (result f64) (f64.gt $t (f64.const 1.0))
+   ;; floating point constants below represent the fraction of a full
+   ;; period -- for example, 0.25 is a quadrant corresponding to pi/2
+   ;; radians.
+
+   (if (result f64) (f64.gt $t (f64.const 0.5))
      (then
-      (set! $t (f64.sub $t (f64.const 2.0)))
-      (if (f64.lt $t (f64.const -0.5))
+      (set! $t (f64.sub $t (f64.const 1.0)))
+      (if (f64.lt $t (f64.const -0.25))
           (then
-           (set! $t (f64.sub (f64.const -1.0) $t))))
-      (if (result f64) (f64.gt $t (f64.const -0.25))
+           (set! $t (f64.sub (f64.const -0.5) $t))))
+      (if (result f64) (f64.gt $t (f64.const -0.125))
         (then
          (%chebyshev-sin $t))
         (else
-         (%chebyshev-cos (f64.sub (f64.const -0.5) $t)))))
+         (%chebyshev-cos (f64.sub (f64.const -0.25) $t)))))
      (else
-      (if (f64.gt $t (f64.const 0.5))
+      (if (f64.gt $t (f64.const 0.25))
           (then
-           (set! $t (f64.sub (f64.const 1.0) $t))))
-      (if (result f64) (f64.lt $t (f64.const 0.25))
+           (set! $t (f64.sub (f64.const 0.5) $t))))
+      (if (result f64) (f64.lt $t (f64.const 0.125))
         (then
          (%chebyshev-sin $t))
         (else
-         (%chebyshev-cos (f64.sub (f64.const 0.5) $t)))))))
+         (%chebyshev-cos (f64.sub (f64.const 0.25) $t)))))))
 
  (func $cos (export "cos")
    (param $x f64)
@@ -136,4 +151,35 @@
 
    ($sin (f64.add $x _pi/2)))
 
+ (define _eps (f64.const 1.0e-14))
+
+ (debug
+  (func $approx (export "approx")
+    (param $actual f64)
+    (param $expected f64)
+    (result i32)
+
+    (f64.gt _eps (f64.abs (f64.sub $expected $actual))))
+
+  (func $error-ratio (export "error-ratio")
+    (param $actual f64)
+    (param $expected f64)
+    (result f64)
+
+    (f64.abs (f64.div (f64.sub $expected $actual) $expected))))
+
+ (test $sin-0
+   (if (f64.ne ($sin (f64.const 0.0)) (f64.const 0.0))
+       (then
+        (unreachable))))
+
+ (test $sin-pi/2
+   (if (f64.ne ($sin _pi/2) (f64.const 1.0))
+       (then
+        (unreachable))))
+
+ (test $sin-pi/4
+   (if (f64.ne ($sin (f64.mul _pi/2 (f64.const 0.5))) (f64.const 0.7071067811865476))
+       (then
+        (unreachable))))
 )

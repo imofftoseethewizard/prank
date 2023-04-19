@@ -883,25 +883,76 @@
    (param $text i32)
    (param $end i32)
 
-   ($append-value $value))
+   (local $magnitude f64)
+   (local $arg f64)
+
+   (set! $magnitude ($coerce-f64 ($parse-real-2-value $text $end))) ;; todo coerce-f64
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-signed-real-2 $text $end)))
+
+   (set! $arg ($coerce-f64 ($parse-real-2-value $text $end)))
+
+   ($append-value ($make-complex
+                   ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))
+                                    (f64.mul $magnitude ($sin $arg))))))
 
  (func $parse-complex-unit-im-2 (debug (export "parse-complex-unit-im-2"))
    (param $text i32)
    (param $end i32)
 
-   ($append-value $value))
+   (local $re i32)
+
+   (set! $re ($parse-real-2-value $text $end))
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-signed-real-2 $text $end)))
+
+   ($append-value
+    ($make-complex $re
+                   ($make-small-integer
+                    (if (result i32) (i32.eq ($get-string-addr-char $text) _char-plus)
+                      (then (i32.const 1))
+                      (else (i32.conts -1)))))))
 
  (func $parse-complex-im-only-2 (debug (export "parse-complex-im-only-2"))
    (param $text i32)
    (param $end i32)
 
-   ($append-value $value))
+   (local $im i32)
+
+   (set! $im ($parse-real-2-value (i32.add $text (i32.const 1)) $end))
+
+   ($append-value
+    ($make-complex _small_integer_0
+                   (if (result i32) (i32.eq ($get-string-addr-char $text) _char-plus)
+                     (then $im)
+                     (else ($negate $im))))))
 
  (func $parse-complex-infnan-im-2 (debug (export "parse-complex-infnan-im-2"))
    (param $text i32)
    (param $end i32)
 
-   ($append-value $value))
+   (local $re i32)
+   (local $im i32)
+
+   (set! $re ($parse-real-2-value $text $end))
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-complex-infnan-im-2 $text $end)))
+
+   (set! $im ($make-boxed-f64
+              (if (result i32) ($lex-match-static-string (i32.add $text (i32.const 1))
+                                                         $end
+                                                         _static-string-inf)
+                (then (f64.const inf))
+                (else (f64.const nan)))))
+
+   ($append-value
+    ($make-complex $re
+                   (if (result i32) (i32.eq ($get-string-addr-char $text) _char-plus)
+                     (then $im)
+                     (else ($negate $im))))))
 
  (func $parse-unit-im (debug (export "parse-unit-im"))
    (param $text i32)

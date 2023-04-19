@@ -21,7 +21,6 @@ def chebmat(u, N):
     for n in range(2,N+1):
         Tnext = 2*u*T[:,n-1] - T[:,n-2]
         T = np.column_stack((T,Tnext))
-    print(T)
     return T
 class Cheby(object):
     def __init__(self, a, b, *coeffs):
@@ -112,10 +111,10 @@ def make_cos(n):
   return c
 
 def sin_pi_x(x):
-  return math.sin(x*math.pi)
+  return math.sin(x*2*math.pi)
 
 def cos_pi_x(x):
-  return math.cos(x*math.pi)
+  return math.cos(x*2*math.pi)
 
 np_sin_pi_x = np.frompyfunc(sin_pi_x, 1, 1)
 np_cos_pi_x = np.frompyfunc(cos_pi_x, 1, 1)

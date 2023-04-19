@@ -1,3 +1,5 @@
+import re
+
 from pathlib import Path
 from wasmer import engine, Store, Module, Instance
 from wasmer_compiler_cranelift import Compiler
@@ -31,7 +33,10 @@ def export_name_to_identifier(export_name):
     if export_name.startswith('#'):
         export_name = export_name[1:].upper()
 
-    return export_name.replace('-', '_')
+    if export_name.startswith('!'):
+        export_name = f'check-{export_name[1:]}'
+
+    return re.sub('[^a-zA-Z_0-9]', '_', export_name)
 
 def exports_dict(instance):
     return dict(iter(instance.exports))
