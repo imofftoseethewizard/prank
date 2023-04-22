@@ -82,6 +82,13 @@
    (result i32)
    (%get-bytevector-size $bv))
 
+ (func $get-bytevector-i32 (export "get-bytevector-i32")
+   (param $bv i32)
+   (param $offset i32)
+   (result i32)
+
+   (i32.load (%get-bytevector-element-addr $bv $offset)))
+
  (func $get-bytevector-i8-u (export "get-bytevector-i8-u")
    (param $bv i32)
    (param $offset i32)
@@ -95,6 +102,13 @@
    (param $value i32)
 
    (i32.store8 (%get-bytevector-element-addr $bv $offset) $value))
+
+ (func $set-bytevector-i32 (export "set-bytevector-i32")
+   (param $bv i32)
+   (param $offset i32)
+   (param $value i32)
+
+   (i32.store (%get-bytevector-element-addr $bv $offset) $value))
 
  ;; end of module
  )

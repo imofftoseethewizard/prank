@@ -323,6 +323,8 @@
         (%dealloc-box $x)
         (return)))
 
+   ;; todo rational
+
    (if (i32.eq $type _number-type-integer)
        (then
         ($dealloc-block _numbers-blockset (%get-box-value $x))
@@ -431,6 +433,62 @@
           (set! $c (i64.shr_u $v (i64.const 32)))
           (%incr-n i32 $addr #i32-size)
           (br $again)))))
+
+ (func $negate-number (export "negate-number")
+   (param $x i32)
+   (result i32)
+
+   (local $type i32)
+   (local $value i32)
+
+   (if (i32.eq (%get-value-tag $x) _tag-small-integer)
+       (then
+        (return (%negate-small-integer $x)))) ;; todo
+
+   (set! $type (%get-number-type $x))
+   (set! $value (%get-box-value $x))
+
+   (if (i32.eq $type _number-type-f64)
+       (then
+        ($negate-f64 $x)
+        (return $x)))
+
+   (if (i32.eq $type _number-type-i64)
+       (then
+        ($negate-i64 $x)
+        (return $x)))
+
+   (if (i32.eq $type _number-type-complex)
+       (then
+        (%set-real-part $x ($negate-number (%get-real-part $x))) ;; todo
+        (%set-imaginary-part $x ($negate-number (%get-imaginary-part $x))) ;; todo
+        (return $x)))
+
+   (if (i32.eq $type _number-type-rational)
+       (then
+        (%set-numerator $x ($negate-number (%get-numerator $x))) ;; todo
+        (return $x)))
+
+   (if (i32.eq $type _number-type-integer)
+       (then
+        ($negate-integer $x)
+        (return $x)))
+
+   (unreachable))
+
+ (func $negate-f64 (export "negate-f64")
+   (param $x)
+   (local $addr i32)
+
+   (set! addr (%get-box-value $x))
+   (f64.store $addr (f64.neg (f64.load $addr))))
+
+ (func $negate-i64 (export "negate-i64")
+   (param $x)
+   (local $addr i32)
+
+   (set! addr (%get-box-value $x))
+   (i64.store $addr (i64.sub (i64.const 0) (i64.load $addr))))
 
  (func $negate-integer (export "negate-integer")
    (param $int i32)
