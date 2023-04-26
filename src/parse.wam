@@ -15,11 +15,11 @@
  (define _ctx-flags-offset (i32.const (+offset 0 4)))
  (define _ctx-tail-offset  (i32.const (+offset)))
  (define _ctx-value-offset (i32.const (+offset)))
- (define _ctx-size         (+offset))
+ (define _ctx-size         (i32.const (+offset)))
 
  ;; Flags
  (define _ctx-auto-unnest     (i32.const 0x01))
- (define _ctx-finalized       (i32.const 0x04))
+ (define _ctx-finalized       (i32.const 0x02))
  (define _ctx-finalizing      (i32.const 0x04))
  (define _ctx-type-bytevector (i32.const 0x08))
  (define _ctx-type-vector     (i32.const 0x10))
@@ -883,7 +883,7 @@
    (local $magnitude f64)
    (local $arg f64)
 
-   (set! $magnitude ($coerce-f64 ($parse-real-2-value $text $end))) ;; todo coerce-f64
+   (set! $magnitude ($coerce-f64 ($parse-real-2-value $text $end)))
 
    (drop ;; rule-id
     (set! $text ($lex-match-real-2 $text $end)))

@@ -222,6 +222,10 @@
    (expr ,idx)
    (i32.add (%get-integer-addr ,int) (i32.shl ,idx (i32.const #i32-size-bits))))
 
+ (macro %negate-small-integer
+   (expr ,x)
+   (i32.sub (i32.const 0) ,x))
+
  ;;-----------------------------------------------------------------------------
  ;;
  ;; Allocation
@@ -312,22 +316,18 @@
         (%dealloc-box $x)
         (return)))
 
-   (if (i32.eq $type _number-type-complex)
+   (if (i32.or (i32.eq $type _number-type-complex)
+               (i32.eq $type _number-type-rational))
        (then
-        ;; todo check each component for type
         ($dealloc-number ($get-pair-car $value))
         ($dealloc-number ($get-pair-cdr $value))
-
-        ($dealloc-x64 ($get-pair-car $value))
-        ($dealloc-x64 ($get-pair-cdr $value))
+        ($dealloc-pair $value)
         (%dealloc-box $x)
         (return)))
 
-   ;; todo rational
-
    (if (i32.eq $type _number-type-integer)
        (then
-        ($dealloc-block _numbers-blockset (%get-box-value $x))
+        ($dealloc-block _numbers-blockset $value)
         (%dealloc-box $x)
         (return)))
 
@@ -443,7 +443,7 @@
 
    (if (i32.eq (%get-value-tag $x) _tag-small-integer)
        (then
-        (return (%negate-small-integer $x)))) ;; todo
+        (return (%negate-small-integer $x))))
 
    (set! $type (%get-number-type $x))
    (set! $value (%get-box-value $x))
@@ -460,13 +460,16 @@
 
    (if (i32.eq $type _number-type-complex)
        (then
-        (%set-real-part $x ($negate-number (%get-real-part $x))) ;; todo
-        (%set-imaginary-part $x ($negate-number (%get-imaginary-part $x))) ;; todo
+        ;; re
+        ($set-pair-car $x ($negate-number ($get-pair-car $value)))
+        ;; im
+        ($set-pair-cdr $x ($negate-number ($get-pair-cdr $value)))
         (return $x)))
 
    (if (i32.eq $type _number-type-rational)
        (then
-        (%set-numerator $x ($negate-number (%get-numerator $x))) ;; todo
+        ;; numerator
+        ($set-pair-car $x ($negate-number ($get-pair-car $value)))
         (return $x)))
 
    (if (i32.eq $type _number-type-integer)
@@ -549,4 +552,154 @@
    (param $idx i32)
    (param $digit i64)
 
-   (i64.store (%get-i64-digit-addr $int $idx) $digit)))
+   (i64.store (%get-i64-digit-addr $int $idx) $digit))
+
+ (func $coerce-f64 (export "coerce-f64")
+   (param $x i32)
+   (result f64)
+
+   (local $type i32)
+   (local $value i32)
+
+   (if (i32.eq (%get-value-tag $x) _tag-small-integer)
+       (then
+        (return (f64.convert_i32_s (i32.shr_s $x _tag-size-bits)))))
+
+   (set! $type (%get-number-type $x))
+   (set! $value (%get-box-value $x))
+
+   (if (i32.eq $type _number-type-f64)
+       (then
+        (f64.load $value)
+        ($dealloc-number $x)
+        (return)))
+
+   (if (i32.eq $type _number-type-i64)
+       (then
+        (f64.convert_i64_s (i64.load $value))
+        ($dealloc-number $x)
+        (return)))
+
+   (if (i32.eq $type _number-type-rational)
+       (then
+        ;; Where the rational contains an integer of sufficient size,
+        ;; this may produce an inf or 0 where it might otherwise have
+        ;; a finite non-zero value.  Once extended integer division is
+        ;; implemented, this can be addressed more simply. todo
+        (f64.div ($coerce-f64 ($get-pair-car $value))
+                 ($coerce-f64 ($get-pair-cdr $value)))
+        ($dealloc-pair $value)
+        ($dealloc-pair $x)
+        (return)))
+
+   (if (i32.eq $type _number-type-integer)
+       (then
+        ($coerce-integer-f64 $x)
+        ($dealloc-number $x)
+        (return)))
+
+   (if (i32.eq $type _number-type-complex)
+       ;; technically possible when im=0, but the use case is in
+       ;; parsing where this case is not possible due to the lexical
+       ;; structure.
+       (then (unreachable)))
+
+   (unreachable)
+
+   ;; needed for type check
+   (f64.const 0))
+
+ (func $coerce-integer-f64 (debug (export "coerce-integer-f64"))
+   (param $int i32)
+   (result i32)
+
+   (local $addr i32)
+   (local $end-addr i32)
+   (local $precision i32)
+   (local $sign i32)
+   (local $size i32)
+
+   (set! $size (%get-integer-size $int))
+
+   ;; size is the number of 64 bit digits so multiply by 64.
+   (set! $precision (i32.shl $size 6))
+
+   (set! $end-addr (%get-integer-addr $int))
+   (set! $addr (i32.add $end-addr
+                        (i32.shl (i32.sub $size (i32.const 1))
+                                 (i32.const #i64-size-bits))))
+
+   (set! $is-negative (i64.lt_s (i64.load $addr) (i32.const 0)))
+
+   (if $is-negative
+       (then ($negate-integer $int)))
+
+   (loop $again
+     (set! $digit (i64.load $addr))
+
+     (if (i32.and (i32.eqz $digit)
+                  (i32.ne $addr $end-addr))
+         (then
+          (%decr-n i32 $addr 8)
+          (br $again))))
+
+   (set! $precision (if (result i32) $digit
+                      (then
+                       (i32.add (i32.sub (i32.const 64 (i32.wrap_i64 (i64.clz $digit))))
+                                (i32.shl (i32.sub $addr $end-addr)
+                                         (i32.const 3))))
+                      (else
+                       (i32.const 0))))
+
+   (set! $abs-result (if (result f64) (i32.lt_u $precision (i32.const 64))
+                       (then
+                        (f64.convert_i64_u $digit))
+                       (else
+                        (if (result f64) (i32.le_u $precision (i32.const 1024))
+                          (then
+                           ($build-f64 $precision
+                                       $digit
+                                       (i64.load (i32.sub $addr (i32.const 8)))))
+                          (else
+                           (f64.const +inf))))))
+
+   (if (result f64) $is-negative
+     (then (f64.neg $abs-result))
+     (else $abs-result)))
+
+ (func $build-f64 (debug (export "build-f64"))
+   (param $leading-digit i64)
+   (param $next-digit i64)
+   (param $precision i32)
+   (result f64)
+
+   (local $abcissa i64)
+   (local $mantissa i64)
+   (local $prec-rem i32)
+   (local $shift i64)
+
+   (set! $abcissa (i64.shl (i32.add (i32.sub $precision (i32.const 1))
+                                    (i32.const 1023))
+                           (i64.const 53)))
+
+   ;; remainder of $precision when divided by 64
+   (set! $prec-rem (i32.and $precision (i32.const 0x1f)))
+
+   (set! $mantissa (i64.and
+                    (i64.const 0x001fffffffffffff) ;; trim to 53 bits
+                    ;; collect the most significant 54 bits of the integer
+                    (if (result i64) (i32.ge_u $prec-rem (i32.const 54))
+                      (then
+                       (i64.shr_u $leading-digit
+                                  (i64.sub (i64.extend_i32_u $prec-rem)
+                                           (i64.const 54))))
+                      (else
+                       (set! $shift (i64.sub (i64.const 54) (i64.extend_i32_u $prec-rem)))
+                       (i64.or (i64.shl $leading-digit $shift)
+                               (i64.shr_u $next-digit (i64.sub (i64.const 64) $shift)))))))
+
+   (f64.reinterpret_i64 (i64.or $abcissa $mantissa)))
+
+
+
+)
