@@ -26,7 +26,7 @@
 (define _tag-char              (i32.const 0x02))
 (define _tag-pair              (i32.const 0x03))
 (define _tag-procedure         (i32.const 0x04))
-(define _tag-string            (i32.const 0x05))
+(define _tag-unused            (i32.const 0x05))
 (define _tag-symbol            (i32.const 0x06))
 (define _tag-singleton         (i32.const 0x07))
 
@@ -35,6 +35,7 @@
 (define _type-null           (i32.const 0x00000f07))
 (define _type-boolean        (i32.const 0x00000007))
 (define _type-eof            (i32.const 0x00000e07))
+(define _type-error          (i32.const 0x00000107))
 
 (define _eof                 (i32.const 0x00000e0f))
 (define _false               (i32.const 0x00000007))
@@ -63,6 +64,13 @@
 (define _vectors-blockset     (i32.const 0x000000c0))
 (define _blockset-count       (i32.const 4))
 
+(define _error-delimiter-must-follow-directive (i32.const 0x00010107))
+(define _error-illegal-bytevector-element      (i32.const 0x00020107))
+(define _error-incomplete-input                (i32.const 0x00030107))
+(define _error-pair-missing-close-parenthesis  (i32.const 0x00040107))
+(define _error-unmatched-close-parenthesis     (i32.const 0x00050107))
+(define _error-unrecognized-token              (i32.const 0x00060107))
+
 (debug
  (global $page-size            (export "page-size")            i32 _page-size)
  (global $pair-size            (export "pair-size")            i32 _pair-size)
@@ -78,7 +86,7 @@
  (global $tag-char             (export "tag-char")             i32 _tag-char)
  (global $tag-pair             (export "tag-pair")             i32 _tag-pair)
  (global $tag-procedure        (export "tag-procedure")        i32 _tag-procedure)
- (global $tag-string           (export "tag-string")           i32 _tag-string)
+ (global $tag-unused           (export "tag-unused")           i32 _tag-unused)
  (global $tag-symbol           (export "tag-symbol")           i32 _tag-symbol)
  (global $tag-singleton        (export "tag-singleton")        i32 _tag-singleton)
 
