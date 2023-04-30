@@ -8,6 +8,7 @@
  (import "strings" "hash-string"      (func $hash-string    (param i32)         (result i32)))
 
  (include "./globals.wam")
+ (include "./values.wam")
 
  (memory (debug (export "memory")) 1)
 
@@ -130,10 +131,22 @@
 
  ;;-----------------------------------------------------------------------------
  ;;
+ ;; Make symbol
+ ;;
+ ;;
+
+ (func $make-symbol (export ("export-symbol"))
+   (param $name i32)
+   (result i32)
+
+   (%make-value _tag-symbol ($inter-symbol $name)))
+
+ ;;-----------------------------------------------------------------------------
+ ;;
  ;; Inter symbol
  ;;
 
- (func $inter-symbol (export "inter-symbol")
+ (func $inter-symbol (debug (export "inter-symbol"))
 
    ;; inter-symbol checks the hash table for the given string.  If it's not
    ;; found, then it is added to the hash table, and the new symbol is returned
@@ -167,7 +180,7 @@
      (if (i32.eq $candidate _null)
          (then
           ;; an unused slot means that this string has not yet been interred
-          (set! $symbol ($make-symbol $name $hash $hash-addr)))
+          (set! $symbol ($store-symbol $name $hash $hash-addr)))
        (else
         (if ($string-equal $name (%get-symbol-name $candidate))
             (then
@@ -182,7 +195,7 @@
 
    $symbol)
 
- (func $make-symbol (debug (export "make-symbol"))
+ (func $store-symbol (debug (export "store-symbol"))
    (param $name i32)
    (param $hash i32)
    (param $hash-addr i32)

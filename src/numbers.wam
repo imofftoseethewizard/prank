@@ -133,6 +133,8 @@
  (import "pairs" "dealloc-pair"       (func $dealloc-pair   (param i32)))
  (import "pairs" "get-pair-car"       (func $get-pair-car   (param i32)     (result i32)))
  (import "pairs" "get-pair-cdr"       (func $get-pair-cdr   (param i32)     (result i32)))
+ (import "pairs" "set-pair-car"       (func $set-pair-car   (param i32 i32)))
+ (import "pairs" "set-pair-cdr"       (func $set-pair-cdr   (param i32 i32)))
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
@@ -480,17 +482,17 @@
    (unreachable))
 
  (func $negate-f64 (export "negate-f64")
-   (param $x)
+   (param $x i32)
    (local $addr i32)
 
-   (set! addr (%get-box-value $x))
+   (set! $addr (%get-box-value $x))
    (f64.store $addr (f64.neg (f64.load $addr))))
 
  (func $negate-i64 (export "negate-i64")
-   (param $x)
+   (param $x i32)
    (local $addr i32)
 
-   (set! addr (%get-box-value $x))
+   (set! $addr (%get-box-value $x))
    (i64.store $addr (i64.sub (i64.const 0) (i64.load $addr))))
 
  (func $negate-integer (export "negate-integer")
@@ -611,10 +613,13 @@
 
  (func $coerce-integer-f64 (debug (export "coerce-integer-f64"))
    (param $int i32)
-   (result i32)
+   (result f64)
 
+   (local $abs-result f64)
    (local $addr i32)
+   (local $digit i64)
    (local $end-addr i32)
+   (local $is-negative i32)
    (local $precision i32)
    (local $sign i32)
    (local $size i32)
@@ -622,14 +627,14 @@
    (set! $size (%get-integer-size $int))
 
    ;; size is the number of 64 bit digits so multiply by 64.
-   (set! $precision (i32.shl $size 6))
+   (set! $precision (i32.shl $size (i32.const 6)))
 
    (set! $end-addr (%get-integer-addr $int))
    (set! $addr (i32.add $end-addr
                         (i32.shl (i32.sub $size (i32.const 1))
                                  (i32.const #i64-size-bits))))
 
-   (set! $is-negative (i64.lt_s (i64.load $addr) (i32.const 0)))
+   (set! $is-negative (i64.lt_s (i64.load $addr) (i64.const 0)))
 
    (if $is-negative
        (then ($negate-integer $int)))
@@ -637,19 +642,19 @@
    (loop $again
      (set! $digit (i64.load $addr))
 
-     (if (i32.and (i32.eqz $digit)
+     (if (i32.and (i64.eqz $digit)
                   (i32.ne $addr $end-addr))
          (then
           (%decr-n i32 $addr 8)
           (br $again))))
 
-   (set! $precision (if (result i32) $digit
+   (set! $precision (if (result i32) (i64.eqz $digit)
                       (then
+                       (i32.const 0))
+                      (else
                        (i32.add (i32.sub (i32.const 64 (i32.wrap_i64 (i64.clz $digit))))
                                 (i32.shl (i32.sub $addr $end-addr)
-                                         (i32.const 3))))
-                      (else
-                       (i32.const 0))))
+                                         (i32.const 3))))))
 
    (set! $abs-result (if (result f64) (i32.lt_u $precision (i32.const 64))
                        (then
@@ -657,9 +662,9 @@
                        (else
                         (if (result f64) (i32.le_u $precision (i32.const 1024))
                           (then
-                           ($build-f64 $precision
-                                       $digit
-                                       (i64.load (i32.sub $addr (i32.const 8)))))
+                           ($build-f64 $digit
+                                       (i64.load (i32.sub $addr (i32.const 8)))
+                                       $precision))
                           (else
                            (f64.const +inf))))))
 
@@ -678,8 +683,8 @@
    (local $prec-rem i32)
    (local $shift i64)
 
-   (set! $abcissa (i64.shl (i32.add (i32.sub $precision (i32.const 1))
-                                    (i32.const 1023))
+   (set! $abcissa (i64.shl (i64.extend_i32_u (i32.add (i32.sub $precision (i32.const 1))
+                                                      (i32.const 1023)))
                            (i64.const 53)))
 
    ;; remainder of $precision when divided by 64

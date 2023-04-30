@@ -37,15 +37,20 @@
  (import "pairs" "get-pair-car"                     (func $get-pair-car                  (param i32)             (result i32)))
  (import "pairs" "get-pair-cdr"                     (func $get-pair-cdr                  (param i32)             (result i32)))
  (import "pairs" "make-pair"                        (func $make-pair                     (param i32 i32)         (result i32)))
- (import "pairs" "set-pair-car"                     (func $set-pair-car                  (param i32 i32)         (result i32)))
- (import "pairs" "set-pair-cdr"                     (func $set-pair-cdr                  (param i32 i32)         (result i32)))
+ (import "pairs" "set-pair-car"                     (func $set-pair-car                  (param i32 i32)))
+ (import "pairs" "set-pair-cdr"                     (func $set-pair-cdr                  (param i32 i32)))
  (import "strings" "get-string-char"                (func $get-string-char               (param i32)             (result i32)))
  (import "strings" "make-string"                    (func $make-string                   (param i32)             (result i32)))
- (import "symbols" "inter-symbol"                   (func $inter-symbol                  (param i32)             (result i32)))
+ (import "symbols" "make-symbol"                    (func $make-symbol                   (param i32)             (result i32)))
  (import "vectors" "make-vector"                    (func $make-vector                   (param i32)             (result i32)))
 
+ (include "./string-loader-imports.wam")
+
  (include "./globals.wam")
+ (include "./values.wam")
+ (include "./boxes.wam")
  (include "./lex-r7rs-rule-ids.wam")
+ (include "./string-loader.wam")
 
  ;; todo: belongs elsewhere
  (macro %get-small-integer-value
@@ -77,9 +82,13 @@
  (macro %get-ctx-stack
    (global.get $ctx-stack))
 
+ (macro %set-ctx-stack
+   (expr ,v)
+   (global.set $ctx-stack ,v))
+
  (macro %push-ctx
    (expr ,v)
-   (global.set $ctx-stack ($make-pair ,v (global.get $ctx-stack))))
+   (%set-ctx-stack ($make-pair ,v (global.get $ctx-stack))))
 
  (macro %get-current-ctx
    ($get-pair-car (%get-ctx-stack)))
@@ -163,9 +172,9 @@
    (label $ctx)
    (%set-ctx-flags $ctx (i32.or (%get-ctx-flags $ctx) _ctx-finalizing)))
 
- (macro %set-vector-ctx
-   (label $ctx)
-   (%set-ctx-flags $ctx (i32.and (%get-ctx-flags $ctx) _ctx-type-mask-inverse)))
+ ;; (macro %set-list-ctx
+ ;;   (label $ctx)
+ ;;   (%set-ctx-flags $ctx (i32.and (%get-ctx-flags $ctx) _ctx-type-mask-inverse)))
 
  (macro %set-vector-ctx
    (label $ctx)
@@ -199,6 +208,18 @@
  (macro %set-parse-location
    (expr ,v)
    (global.set $parse-location ,v))
+
+ (start $init-parse)
+ (func $init-parse (debug (export "init-parse"))
+   (global.set $quasiquote-symbol       ($load-symbol (global.get $static-string-quasiquote-symbol)))
+   (global.set $quote-symbol            ($load-symbol (global.get $static-string-quote-symbol)))
+   (global.set $unquote-splicing-symbol ($load-symbol (global.get $static-string-unquote-splicing-symbol)))
+   (global.set $unquote-symbol          ($load-symbol (global.get $static-string-unquote-symbol))))
+
+ (func $load-symbol (debug (export "load-symbol"))
+   (param $s i32)
+   (result i32)
+   ($make-symbol ($load-static-string $s)))
 
  (func $make-parse-context (debug (export "make-parse-context"))
    (result i32)
@@ -289,7 +310,7 @@
    ;; quote, quasiquote, splice, unquote, and unquote-splicing all
    ;; generate auto-unnest contexts.
 
-   (if (%is-auto-unnest $ctx)
+   (if (%is-auto-unnest-ctx $ctx)
        (then
         ($unnest))))
 
@@ -599,7 +620,7 @@
    (param $end i32)
 
    ($nest)
-   ($append-value (%symbol-unquote-splicing))
+   ($append-value (%symbol-unquote-splicing)) ;; todo
    (%set-auto-unnest-ctx (%get-current-ctx)))
 
  (func $parse-token-char (debug (export "parse-token-char"))
@@ -621,15 +642,15 @@
 
    (if (i32.eq $char _char-quote)
        (then
-        (set! $symbol (%quote-symbol)))
+        (set! $symbol (%quote-symbol))) ;; todo
      (else
       (if (i32.eq $char _char-backtick)
           (then
-           (set! $symbol (%quasiquote-symbol)))
+           (set! $symbol (%quasiquote-symbol))) ;; todo
         (else
          (if (i32.eq $char _char-comma)
              (then
-              (set! $symbol (%unquote-symbol)))
+              (set! $symbol (%unquote-symbol))) ;; todo
            (else
             (unreachable)))))))
 
@@ -661,8 +682,7 @@
           (set! $text (i32.add $text ($calc-encoded-length $char)))
           (br $again))))
 
-   ($append-value (%make-value _tag-symbol
-                               ($inter-symbol ($make-string ($get-pair-cdr $char-list)))))
+   ($append-value ($make-symbol ($make-string ($get-pair-cdr $char-list))))
 
    ($dealloc-list $char-list))
 
@@ -789,8 +809,7 @@
           (set! $text $end-match)
           (br $again))))
 
-   ($append-value (%make-value _tag-symbol
-                               ($inter-symbol ($make-string ($get-pair-cdr $char-list)))))
+   ($append-value ($make-symbol ($make-string ($get-pair-cdr $char-list))))
    ($dealloc-list $char-list))
 
  (func $parse-string (debug (export "parse-string"))

@@ -60,6 +60,17 @@ class Redefinition(WamException):
         path = self.expr[0][5]
         return f'error: redefinition: {self.name} at line {line_no} of {path}:\n{line_text}'
 
+class MacroRedefinition(WamException):
+    def __init__(self, name, expr):
+        self.name = name
+        self.expr = expr
+
+    def __str__(self):
+        line_no = self.expr[0][2]
+        line_text = '\n'.join(self.expr[0][4].split('\n')[line_no-1:line_no+2])
+        path = self.expr[0][5]
+        return f'error: macro redefinition: {self.name} at line {line_no} of {path}:\n{line_text}'
+
 class UnrecognizedToken(WamException):
     def __init__(self, line, column, src, path):
         self.line = line
@@ -303,6 +314,7 @@ def translate_call(expr, env):
 
 def translate_string(expr, env):
 
+    name = None
     body = []
     value = None
     offset = env['data-offset']
@@ -317,6 +329,10 @@ def translate_string(expr, env):
             value = e[1].strip('"')
 
         else:
+
+            if name is None and e[0] == 'label':
+                name = e[1]
+
             body.append(e)
 
     assert value is not None
@@ -339,6 +355,7 @@ def translate_string(expr, env):
             ('whitespace', ' ', *ctx),
             const_expr,
         ],
+        ('whitespace', ' ', *ctx),
         ('string', f'"\\{length:02x}{value}"', *ctx),
     ]
 
@@ -351,6 +368,10 @@ def translate_string(expr, env):
         ('whitespace', ' ', *ctx),
         const_expr,
     ]
+
+    def_name = '_' + name[1:]
+
+    env['defs'][def_name] = [const_expr]
 
     return ('splice', [data_expr, line_break, global_expr], -1)
 

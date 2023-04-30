@@ -23,10 +23,12 @@ OBJECTS = \
 	obj/debug/bytevectors.wasm \
 	obj/debug/chars.wasm \
 	obj/debug/lex.wasm \
+	obj/debug/lex-r7rs.wasm \
 	obj/debug/lists.wasm \
 	obj/debug/math.wasm \
 	obj/debug/numbers.wasm \
 	obj/debug/pairs.wasm \
+	obj/debug/parse.wasm \
 	obj/debug/strings.wasm \
 	obj/debug/symbols.wasm \
 	obj/debug/vectors.wasm \
@@ -36,10 +38,12 @@ OBJECTS = \
 	obj/bytevectors.wasm \
 	obj/chars.wasm \
 	obj/lex.wasm \
+	obj/lex-r7rs.wasm \
 	obj/lists.wasm \
 	obj/math.wasm \
 	obj/numbers.wasm \
 	obj/pairs.wasm \
+	obj/parse.wasm \
 	obj/strings.wasm \
 	obj/symbols.wasm \
 	obj/vectors.wasm
@@ -67,6 +71,13 @@ obj/src/chars.wat obj/debug/src/chars.wat: src/globals.wam src/values.wam
 
 obj/src/lex.wat obj/debug/src/lex.wat: src/ascii.wam
 
+obj/src/lex-r7rs.wat obj/debug/src/lex-r7rs.wat: \
+	src/ascii.wam \
+	src/globals.wam \
+	src/lex-r7rs-rule-ids.wam \
+	src/string-loader.wam \
+	src/string-loader-imports.wam
+
 obj/src/lists.wat obj/debug/src/lists.wat: src/globals.wam
 
 obj/src/numbers.wat obj/debug/src/numbers.wat: \
@@ -77,6 +88,12 @@ obj/src/numbers.wat obj/debug/src/numbers.wat: \
 	src/values.wam
 
 obj/src/pairs.wat obj/debug/src/pairs.wat: src/globals.wam src/gc-client.wam
+
+obj/src/parse.wat obj/debug/src/parse.wat: \
+	src/globals.wam \
+	src/lex-r7rs-rule-ids.wam \
+	src/string-loader.wam \
+	src/string-loader-imports.wam
 
 obj/src/strings.wat obj/debug/src/strings.wat: \
 	src/block-mgr-memory-proxies.wam \

@@ -1,0 +1,3 @@
+(import "strings" "get-string-addr"  (func $get-string-addr  (param i32)     (result i32)))
+(import "strings" "set-string-bytes" (func $set-string-bytes (param i32 i32 i32)))
+(import "strings" "alloc-string"     (func $alloc-string     (param i32 i32) (result i32)))
