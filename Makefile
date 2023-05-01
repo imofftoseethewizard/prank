@@ -90,10 +90,10 @@ obj/src/numbers.wat obj/debug/src/numbers.wat: \
 obj/src/pairs.wat obj/debug/src/pairs.wat: src/globals.wam src/gc-client.wam
 
 obj/src/parse.wat obj/debug/src/parse.wat: \
+	src/ascii.wam \
 	src/globals.wam \
 	src/lex-r7rs-rule-ids.wam \
-	src/string-loader.wam \
-	src/string-loader-imports.wam
+	src/values.wam
 
 obj/src/strings.wat obj/debug/src/strings.wat: \
 	src/block-mgr-memory-proxies.wam \

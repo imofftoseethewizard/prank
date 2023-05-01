@@ -165,6 +165,7 @@
 
  (func $match-charset (export "match-charset")
    ;; todo move to strings
+   ;; todo static strings
    (param $str i32)
    (param $length i32)
    (param $text i32)
@@ -211,6 +212,7 @@
 
  (func $match-static-string (export "match-static-string")
    ;; todo move to strings
+   ;; todo static strings
    (param $str i32)
    (param $length i32)
    (param $text i32)
@@ -218,6 +220,7 @@
 
    (result i32)
 
+   (local $length i32)
    (local $s i32)
    (local $s-end i32)
    (local $t i32)
@@ -260,6 +263,7 @@
 
  (func $match-static-string/ascii-ci (export "match-static-string/ascii-ci")
    ;; todo move to strings
+   ;; todo static strings
    (param $str i32)
    (param $length i32)
    (param $text i32)
