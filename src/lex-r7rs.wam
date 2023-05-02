@@ -2,39 +2,39 @@
 
  (const #max-lexical-rules 178)
 
- (import "lex" "lex-match-any-char"                              (func $lex-match-any-char                              (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-char-complement/ascii/set-of-2"        (func $lex-match-char-complement/ascii/set-of-2        (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-char-range/ascii"                      (func $lex-match-char-range/ascii                      (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-char/ascii"                            (func $lex-match-char/ascii                            (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-char/ascii-ci"                         (func $lex-match-char/ascii-ci                         (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-charset"                               (func $lex-match-charset                               (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-rule?"                                 (func $lex-match-rule?                                 (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-rule/one-or-more"                      (func $lex-match-rule/one-or-more                      (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-rule/zero-or-more"                     (func $lex-match-rule/zero-or-more                     (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-rules/longest-of-2"                    (func $lex-match-rules/longest-of-2                    (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-rules/longest-of-3"                    (func $lex-match-rules/longest-of-3                    (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
- (import "lex" "lex-match-rules/longest-of-4"                    (func $lex-match-rules/longest-of-4                    (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
- (import "lex" "lex-match-rules/longest-unordered-sequence-of-2" (func $lex-match-rules/longest-unordered-sequence-of-2 (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-rules/sequence-of-2"                   (func $lex-match-rules/sequence-of-2                   (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-rules/sequence-of-3"                   (func $lex-match-rules/sequence-of-3                   (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
- (import "lex" "lex-match-rules/sequence-of-4"                   (func $lex-match-rules/sequence-of-4                   (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
- (import "lex" "lex-match-static-string"                         (func $lex-match-static-string                         (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-static-string/ascii-ci"                (func $lex-match-static-string/ascii-ci                (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-static-strings/ascii-ci/longest-of-2"  (func $lex-match-static-strings/ascii-ci/longest-of-2  (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-static-strings/ascii-ci/longest-of-3"  (func $lex-match-static-strings/ascii-ci/longest-of-3  (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
- (import "lex" "lex-match-static-strings/longest-of-2"           (func $lex-match-static-strings/longest-of-2           (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-static-strings/longest-of-3"           (func $lex-match-static-strings/longest-of-3           (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
- (import "lex" "lex-match-static-strings/longest-of-4"           (func $lex-match-static-strings/longest-of-4           (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
- (import "lex" "lex-match-until-rule"                            (func $lex-match-until-rule                            (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-any-char"                       (func $lex-match-any-char                       (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-char-complement/ascii/set-of-2" (func $lex-match-char-complement/ascii/set-of-2 (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-char-range/ascii"               (func $lex-match-char-range/ascii               (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-char/ascii"                     (func $lex-match-char/ascii                     (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-char/ascii-ci"                  (func $lex-match-char/ascii-ci                  (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-charset"                        (func $lex-match-charset                        (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rule/one-or-more"               (func $lex-match-rule/one-or-more               (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rule/zero-or-more"              (func $lex-match-rule/zero-or-more              (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rule?"                          (func $lex-match-rule?                          (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rules/longest-of-2"             (func $lex-match-rules/longest-of-2             (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-rules/longest-of-3"             (func $lex-match-rules/longest-of-3             (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-rules/longest-of-4"             (func $lex-match-rules/longest-of-4             (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-rules/sequence-of-2"            (func $lex-match-rules/sequence-of-2            (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-rules/sequence-of-3"            (func $lex-match-rules/sequence-of-3            (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-rules/sequence-of-4"            (func $lex-match-rules/sequence-of-4            (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-rules/set-of-2"                 (func $lex-match-rules/set-of-2                 (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-string"                         (func $lex-match-string                         (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-string/ascii-ci"                (func $lex-match-string/ascii-ci                (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-strings/ascii-ci/longest-of-2"  (func $lex-match-strings/ascii-ci/longest-of-2  (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-strings/ascii-ci/longest-of-3"  (func $lex-match-strings/ascii-ci/longest-of-3  (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-strings/longest-of-2"           (func $lex-match-strings/longest-of-2           (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-strings/longest-of-3"           (func $lex-match-strings/longest-of-3           (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-strings/longest-of-4"           (func $lex-match-strings/longest-of-4           (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-until-rule"                     (func $lex-match-until-rule                     (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "strings" "get-string-addr"  (func $get-string-addr  (param i32)     (result i32)))
+ (import "strings" "set-string-bytes" (func $set-string-bytes (param i32 i32 i32)))
+ (import "strings" "alloc-string"     (func $alloc-string     (param i32 i32) (result i32)))
 
  (import "lex" "lexical-rules"  (table $lexical-rules #max-lexical-rules funcref))
-
- (include "./string-loader-imports.wam")
 
  (include "./globals.wam")
  (include "./ascii.wam")
  (include "./lex-r7rs-rule-ids.wam")
- (include "./string-loader.wam")
 
  (memory (debug (export "memory")) 1)
 
@@ -86,96 +86,96 @@
  (global $string-radix-10               (export "string-radix-10")               (mut i32) (i32.const 0))
  (global $string-radix-16               (export "string-radix-16")               (mut i32) (i32.const 0))
 
- (string $static-string-paren-charset          (export "static-string-paren-charset")           "()")
- (string $static-string-token-charset          (export "static-string-token-charset")           "'`,.")
- (string $static-string-begin-vector           (export "static-string-begin-vector")            "#(")
- (string $static-string-begin-bytevector       (export "static-string-begin-bytevector")        "#u8(")
- (string $static-string-unquote-splicing       (export "static-string-unquote-splicing")        ",@")
- (string $static-string-delimiter-charset      (export "static-string-delimiter-charset")       "|()\22\3b")
- (string $static-string-intraline-whitespace   (export "static-string-intraline-whitespace")    " \09")
- (string $static-string-line-ending-charset    (export "static-string-line-ending-charset")     "\0d\0a")
- (string $static-string-dos-line-ending        (export "static-string-dos-line-ending")         "\0d\0a")
- (string $static-string-begin-datum-comment    (export "static-string-begin-datum-comment")     "#;")
- (string $static-string-begin-nested-comment   (export "static-string-begin-nested-comment")    "#|")
- (string $static-string-end-nested-comment     (export "static-string-end-nested-comment")      "|#")
- (string $static-string-directive-fold-case    (export "static-string-directive-fold-case")     "#!fold-case")
- (string $static-string-directive-no-fold-case (export "static-string-directive-no-fold-case")  "#!no-fold-case")
- (string $static-string-special-initials       (export "static-string-special-initials")        "!$%&*/:<=>?^_~")
- (string $static-string-explicit-sign-charset  (export "static-string-explicit-sign-charset")   "+-")
- (string $static-string-dot-and-at             (export "static-string-dot-and-at")              ".@")
- (string $static-string-inline-escape-prefix   (export "static-string-inline-escape-prefix")    "\\x")
- (string $static-string-mnemonic-escapes       (export "static-string-mnemonic-escapes")        "abnrt")
- (string $static-string-boolean-t              (export "static-string-boolean-t")               "#t")
- (string $static-string-boolean-f              (export "static-string-boolean-f")               "#f")
- (string $static-string-boolean-true           (export "static-string-boolean-true")            "#true")
- (string $static-string-boolean-false          (export "static-string-boolean-false")           "#false")
- (string $static-string-character-prefix       (export "static-string-character-prefix")        "#\\")
- (string $static-string-character-hex-prefix   (export "static-string-character-hex-prefix")    "#\\x")
- (string $static-string-alarm                  (export "static-string-alarm")                   "alarm")
- (string $static-string-backspace              (export "static-string-backspace")               "backspace")
- (string $static-string-delete                 (export "static-string-delete")                  "delete")
- (string $static-string-escape                 (export "static-string-escape")                  "escape")
- (string $static-string-newline                (export "static-string-newline")                 "newline")
- (string $static-string-null                   (export "static-string-null")                    "null")
- (string $static-string-return                 (export "static-string-return")                  "return")
- (string $static-string-space                  (export "static-string-space")                   "space")
- (string $static-string-tab                    (export "static-string-tab")                     "tab")
- (string $static-string-inf                    (export "static-string-inf")                     "inf.0")
- (string $static-string-nan                    (export "static-string-nan")                     "nan.0")
- (string $static-string-empty                  (export "static-string-empty")                   "")
- (string $static-string-exact-prefix           (export "static-string-exact-prefix")            "#e")
- (string $static-string-inexact-prefix         (export "static-string-inexact-prefix")          "#i")
- (string $static-string-radix-2                (export "static-string-radix-2")                 "#b")
- (string $static-string-radix-8                (export "static-string-radix-8")                 "#o")
- (string $static-string-radix-10               (export "static-string-radix-10")                "#d")
- (string $static-string-radix-16               (export "static-string-radix-16")                "#x")
+ (string _string-paren-charset-data          (export "string-paren-charset-data")           "()")
+ (string _string-token-charset-data          (export "string-token-charset-data")           "'`,.")
+ (string _string-begin-vector-data           (export "string-begin-vector-data")            "#(")
+ (string _string-begin-bytevector-data       (export "string-begin-bytevector-data")        "#u8(")
+ (string _string-unquote-splicing-data       (export "string-unquote-splicing-data")        ",@")
+ (string _string-delimiter-charset-data      (export "string-delimiter-charset-data")       "|()\22\3b")
+ (string _string-intraline-whitespace-data   (export "string-intraline-whitespace-data")    " \09")
+ (string _string-line-ending-charset-data    (export "string-line-ending-charset-data")     "\0d\0a")
+ (string _string-dos-line-ending-data        (export "string-dos-line-ending-data")         "\0d\0a")
+ (string _string-begin-datum-comment-data    (export "string-begin-datum-comment-data")     "#;")
+ (string _string-begin-nested-comment-data   (export "string-begin-nested-comment-data")    "#|")
+ (string _string-end-nested-comment-data     (export "string-end-nested-comment-data")      "|#")
+ (string _string-directive-fold-case-data    (export "string-directive-fold-case-data")     "#!fold-case")
+ (string _string-directive-no-fold-case-data (export "string-directive-no-fold-case-data")  "#!no-fold-case")
+ (string _string-special-initials-data       (export "string-special-initials-data")        "!$%&*/:<=>?^_~")
+ (string _string-explicit-sign-charset-data  (export "string-explicit-sign-charset-data")   "+-")
+ (string _string-dot-and-at-data             (export "string-dot-and-at-data")              ".@")
+ (string _string-inline-escape-prefix-data   (export "string-inline-escape-prefix-data")    "\\x")
+ (string _string-mnemonic-escapes-data       (export "string-mnemonic-escapes-data")        "abnrt")
+ (string _string-boolean-t-data              (export "string-boolean-t-data")               "#t")
+ (string _string-boolean-f-data              (export "string-boolean-f-data")               "#f")
+ (string _string-boolean-true-data           (export "string-boolean-true-data")            "#true")
+ (string _string-boolean-false-data          (export "string-boolean-false-data")           "#false")
+ (string _string-character-prefix-data       (export "string-character-prefix-data")        "#\\")
+ (string _string-character-hex-prefix-data   (export "string-character-hex-prefix-data")    "#\\x")
+ (string _string-alarm-data                  (export "string-alarm-data")                   "alarm")
+ (string _string-backspace-data              (export "string-backspace-data")               "backspace")
+ (string _string-delete-data                 (export "string-delete-data")                  "delete")
+ (string _string-escape-data                 (export "string-escape-data")                  "escape")
+ (string _string-newline-data                (export "string-newline-data")                 "newline")
+ (string _string-null-data                   (export "string-null-data")                    "null")
+ (string _string-return-data                 (export "string-return-data")                  "return")
+ (string _string-space-data                  (export "string-space-data")                   "space")
+ (string _string-tab-data                    (export "string-tab-data")                     "tab")
+ (string _string-inf-data                    (export "string-inf-data")                     "inf.0")
+ (string _string-nan-data                    (export "string-nan-data")                     "nan.0")
+ (string _string-empty-data                  (export "string-empty-data")                   "")
+ (string _string-exact-prefix-data           (export "string-exact-prefix-data")            "#e")
+ (string _string-inexact-prefix-data         (export "string-inexact-prefix-data")          "#i")
+ (string _string-radix-2-data                (export "string-radix-2-data")                 "#b")
+ (string _string-radix-8-data                (export "string-radix-8-data")                 "#o")
+ (string _string-radix-10-data               (export "string-radix-10-data")                "#d")
+ (string _string-radix-16-data               (export "string-radix-16-data")                "#x")
 
  (start $init)
  (func $init
 
-   (global.set $string-paren-charset          ($load-static-string (global.get $static-string-paren-charset)))
-   (global.set $string-token-charset          ($load-static-string (global.get $static-string-token-charset)))
-   (global.set $string-begin-vector           ($load-static-string (global.get $static-string-begin-vector)))
-   (global.set $string-begin-bytevector       ($load-static-string (global.get $static-string-begin-bytevector)))
-   (global.set $string-unquote-splicing       ($load-static-string (global.get $static-string-unquote-splicing)))
-   (global.set $string-delimiter-charset      ($load-static-string (global.get $static-string-delimiter-charset)))
-   (global.set $string-intraline-whitespace   ($load-static-string (global.get $static-string-intraline-whitespace)))
-   (global.set $string-line-ending-charset    ($load-static-string (global.get $static-string-line-ending-charset)))
-   (global.set $string-dos-line-ending        ($load-static-string (global.get $static-string-dos-line-ending)))
-   (global.set $string-begin-datum-comment    ($load-static-string (global.get $static-string-begin-datum-comment)))
-   (global.set $string-begin-nested-comment   ($load-static-string (global.get $static-string-begin-nested-comment)))
-   (global.set $string-end-nested-comment     ($load-static-string (global.get $static-string-end-nested-comment)))
-   (global.set $string-directive-fold-case    ($load-static-string (global.get $static-string-directive-fold-case)))
-   (global.set $string-directive-no-fold-case ($load-static-string (global.get $static-string-directive-no-fold-case)))
-   (global.set $string-special-initials       ($load-static-string (global.get $static-string-special-initials)))
-   (global.set $string-explicit-sign-charset  ($load-static-string (global.get $static-string-explicit-sign-charset)))
-   (global.set $string-dot-and-at             ($load-static-string (global.get $static-string-dot-and-at)))
-   (global.set $string-inline-escape-prefix   ($load-static-string (global.get $static-string-inline-escape-prefix)))
-   (global.set $string-mnemonic-escapes       ($load-static-string (global.get $static-string-mnemonic-escapes)))
-   (global.set $string-boolean-t              ($load-static-string (global.get $static-string-boolean-t)))
-   (global.set $string-boolean-f              ($load-static-string (global.get $static-string-boolean-f)))
-   (global.set $string-boolean-true           ($load-static-string (global.get $static-string-boolean-true)))
-   (global.set $string-boolean-false          ($load-static-string (global.get $static-string-boolean-false)))
-   (global.set $string-character-prefix       ($load-static-string (global.get $static-string-character-prefix)))
-   (global.set $string-character-hex-prefix   ($load-static-string (global.get $static-string-character-hex-prefix)))
-   (global.set $string-alarm                  ($load-static-string (global.get $static-string-alarm)))
-   (global.set $string-backspace              ($load-static-string (global.get $static-string-backspace)))
-   (global.set $string-delete                 ($load-static-string (global.get $static-string-delete)))
-   (global.set $string-escape                 ($load-static-string (global.get $static-string-escape)))
-   (global.set $string-newline                ($load-static-string (global.get $static-string-newline)))
-   (global.set $string-null                   ($load-static-string (global.get $static-string-null)))
-   (global.set $string-return                 ($load-static-string (global.get $static-string-return)))
-   (global.set $string-space                  ($load-static-string (global.get $static-string-space)))
-   (global.set $string-tab                    ($load-static-string (global.get $static-string-tab)))
-   (global.set $string-inf                    ($load-static-string (global.get $static-string-inf)))
-   (global.set $string-nan                    ($load-static-string (global.get $static-string-nan)))
-   (global.set $string-empty                  ($load-static-string (global.get $static-string-empty)))
-   (global.set $string-exact-prefix           ($load-static-string (global.get $static-string-exact-prefix)))
-   (global.set $string-inexact-prefix         ($load-static-string (global.get $static-string-inexact-prefix)))
-   (global.set $string-radix-2                ($load-static-string (global.get $static-string-radix-2)))
-   (global.set $string-radix-8                ($load-static-string (global.get $static-string-radix-8)))
-   (global.set $string-radix-10               ($load-static-string (global.get $static-string-radix-10)))
-   (global.set $string-radix-16               ($load-static-string (global.get $static-string-radix-16)))
+   (global.set $string-paren-charset          ($load-string _string-paren-charset-data))
+   (global.set $string-token-charset          ($load-string _string-token-charset-data))
+   (global.set $string-begin-vector           ($load-string _string-begin-vector-data))
+   (global.set $string-begin-bytevector       ($load-string _string-begin-bytevector-data))
+   (global.set $string-unquote-splicing       ($load-string _string-unquote-splicing-data))
+   (global.set $string-delimiter-charset      ($load-string _string-delimiter-charset-data))
+   (global.set $string-intraline-whitespace   ($load-string _string-intraline-whitespace-data))
+   (global.set $string-line-ending-charset    ($load-string _string-line-ending-charset-data))
+   (global.set $string-dos-line-ending        ($load-string _string-dos-line-ending-data))
+   (global.set $string-begin-datum-comment    ($load-string _string-begin-datum-comment-data))
+   (global.set $string-begin-nested-comment   ($load-string _string-begin-nested-comment-data))
+   (global.set $string-end-nested-comment     ($load-string _string-end-nested-comment-data))
+   (global.set $string-directive-fold-case    ($load-string _string-directive-fold-case-data))
+   (global.set $string-directive-no-fold-case ($load-string _string-directive-no-fold-case-data))
+   (global.set $string-special-initials       ($load-string _string-special-initials-data))
+   (global.set $string-explicit-sign-charset  ($load-string _string-explicit-sign-charset-data))
+   (global.set $string-dot-and-at             ($load-string _string-dot-and-at-data))
+   (global.set $string-inline-escape-prefix   ($load-string _string-inline-escape-prefix-data))
+   (global.set $string-mnemonic-escapes       ($load-string _string-mnemonic-escapes-data))
+   (global.set $string-boolean-t              ($load-string _string-boolean-t-data))
+   (global.set $string-boolean-f              ($load-string _string-boolean-f-data))
+   (global.set $string-boolean-true           ($load-string _string-boolean-true-data))
+   (global.set $string-boolean-false          ($load-string _string-boolean-false-data))
+   (global.set $string-character-prefix       ($load-string _string-character-prefix-data))
+   (global.set $string-character-hex-prefix   ($load-string _string-character-hex-prefix-data))
+   (global.set $string-alarm                  ($load-string _string-alarm-data))
+   (global.set $string-backspace              ($load-string _string-backspace-data))
+   (global.set $string-delete                 ($load-string _string-delete-data))
+   (global.set $string-escape                 ($load-string _string-escape-data))
+   (global.set $string-newline                ($load-string _string-newline-data))
+   (global.set $string-null                   ($load-string _string-null-data))
+   (global.set $string-return                 ($load-string _string-return-data))
+   (global.set $string-space                  ($load-string _string-space-data))
+   (global.set $string-tab                    ($load-string _string-tab-data))
+   (global.set $string-inf                    ($load-string _string-inf-data))
+   (global.set $string-nan                    ($load-string _string-nan-data))
+   (global.set $string-empty                  ($load-string _string-empty-data))
+   (global.set $string-exact-prefix           ($load-string _string-exact-prefix-data))
+   (global.set $string-inexact-prefix         ($load-string _string-inexact-prefix-data))
+   (global.set $string-radix-2                ($load-string _string-radix-2-data))
+   (global.set $string-radix-8                ($load-string _string-radix-8-data))
+   (global.set $string-radix-10               ($load-string _string-radix-10-data))
+   (global.set $string-radix-16               ($load-string _string-radix-16-data))
 
    (table.set $lexical-rules _lex-rule-undelimited-token               (ref.func $lex-match-undelimited-token))
    (table.set $lexical-rules _lex-rule-token/group-1                   (ref.func $lex-match-token/group-1))
@@ -251,7 +251,7 @@
    (table.set $lexical-rules _lex-rule-character-name/group-1          (ref.func $lex-match-character-name/group-1))
    (table.set $lexical-rules _lex-rule-character-name/group-2          (ref.func $lex-match-character-name/group-2))
    (table.set $lexical-rules _lex-rule-character-name/group-3          (ref.func $lex-match-character-name/group-3))
-   (table.set $lexical-rules _lex-rule-string                          (ref.func $lex-match-string))
+   (table.set $lexical-rules _lex-rule-quoted-string                   (ref.func $lex-match-quoted-string))
    (table.set $lexical-rules _lex-rule-double-quote                    (ref.func $lex-match-double-quote))
    (table.set $lexical-rules _lex-rule-string-elements                 (ref.func $lex-match-string-elements))
    (table.set $lexical-rules _lex-rule-string-element                  (ref.func $lex-match-string-element))
@@ -351,6 +351,30 @@
    (table.set $lexical-rules _lex-rule-digit-16/A-F                    (ref.func $lex-match-digit-16/A-F))
    (table.set $lexical-rules _lex-rule-digit-16/a-f                    (ref.func $lex-match-digit-16/a-f)))
 
+ (func $load-string (debug (export "load-string"))
+   (param $data i32)
+   (result i32)
+
+   (local $addr i32)
+   (local $end i32)
+   (local $length i32)
+   (local $s i32)
+
+   (set! $length (i32.load8_u $data))
+   (set! $s ($alloc-string $length $length))
+   (set! $addr ($get-string-addr $s))
+
+   (%incr i32 $data)
+   (loop $again
+     ($set-string-bytes $addr (i32.load8_u $data) (i32.const 1))
+     (if (i32.lt_u $data $end)
+         (then
+          (%incr i32 $addr)
+          (%incr i32 $data)
+          (br $again))))
+
+   $s)
+
  (func $lex-match-delimited-token (export "lex-match-delimited-token")
    (param $text i32)
    (param $end i32)
@@ -359,7 +383,7 @@
 
    ($lex-match-rules/longest-of-4 _lex-rule-delimited-token
                                   _lex-rule-paren-char
-                                  _lex-rule-string
+                                  _lex-rule-quoted-string
                                   _lex-rule-delimited-token-string
                                   _lex-rule-vertical-line-quoted-symbol
                                   $text
@@ -374,7 +398,7 @@
    (result i32 i32)
 
    ($lex-match-charset _lex-rule-paren-char
-                       _static-string-paren-charset
+                       _string-paren-charset
                        $text
                        $end))
 
@@ -435,7 +459,7 @@
    (result i32 i32)
 
    ($lex-match-charset _lex-rule-token-char
-                       _static-string-token-charset
+                       _string-token-charset
                        $text
                        $end))
 
@@ -447,11 +471,11 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/longest-of-2 _lex-rule-delimited-token-string
-                                           _static-string-begin-vector
-                                           _static-string-begin-bytevector
-                                           $text
-                                           $end))
+   ($lex-match-strings/longest-of-2 _lex-rule-delimited-token-string
+                                    _string-begin-vector
+                                    _string-begin-bytevector
+                                    $text
+                                    $end))
 
  (elem funcref (ref.func $lex-match-delimited-token-string))
 
@@ -462,10 +486,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string _lex-rule-unquote-splicing
-                             _static-string-unquote-splicing
-                             $text
-                             $end))
+   ($lex-match-string _lex-rule-unquote-splicing
+                      _string-unquote-splicing
+                      $text
+                      $end))
 
  (elem funcref (ref.func $lex-match-unquote-splicing))
 
@@ -494,7 +518,7 @@
    (result i32 i32)
 
    ($lex-match-charset _lex-rule-delimiter-char
-                       _static-string-delimiter-charset
+                       _string-delimiter-charset
                        $text
                        $end))
 
@@ -510,7 +534,7 @@
    (result i32 i32)
 
    ($lex-match-charset _lex-rule-intraline-whitespace
-                       _static-string-intraline-whitespace
+                       _string-intraline-whitespace
                        $text
                        $end))
 
@@ -571,7 +595,7 @@
    (result i32 i32)
 
    ($lex-match-charset _lex-rule-line-ending-char
-                       _static-string-line-ending-charset
+                       _string-line-ending-charset
                        $text
                        $end))
 
@@ -584,10 +608,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string _lex-rule-dos-line-ending
-                             _static-string-dos-line-ending
-                             $text
-                             $end))
+   ($lex-match-string _lex-rule-dos-line-ending
+                      _string-dos-line-ending
+                      $text
+                      $end))
 
  (elem funcref (ref.func $lex-match-dos-line-ending))
 
@@ -672,10 +696,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string _lex-rule-begin-datum-comment
-                             _static-string-begin-datum-comment
-                             $text
-                             $end))
+   ($lex-match-string _lex-rule-begin-datum-comment
+                      _string-begin-datum-comment
+                      $text
+                      $end))
 
  (elem funcref (ref.func $lex-match-begin-datum-comment))
 
@@ -704,10 +728,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string _lex-rule-begin-nested-comment
-                             _static-string-begin-nested-comment
-                             $text
-                             $end))
+   ($lex-match-string _lex-rule-begin-nested-comment
+                      _string-begin-nested-comment
+                      $text
+                      $end))
 
  (elem funcref (ref.func $lex-match-begin-nested-comment))
 
@@ -731,10 +755,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string _lex-rule-end-nested-comment
-                             _static-string-end-nested-comment
-                             $text
-                             $end))
+   ($lex-match-string _lex-rule-end-nested-comment
+                      _string-end-nested-comment
+                      $text
+                      $end))
 
  (elem funcref (ref.func $lex-match-end-nested-comment))
 
@@ -760,11 +784,11 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/longest-of-2 _lex-rule-nested-comment-delimiters
-                                           _static-string-begin-nested-comment
-                                           _static-string-end-nested-comment
-                                           $text
-                                           $end))
+   ($lex-match-strings/longest-of-2 _lex-rule-nested-comment-delimiters
+                                    _string-begin-nested-comment
+                                    _string-end-nested-comment
+                                    $text
+                                    $end))
 
  (elem funcref (ref.func $lex-match-nested-comment-delimiters))
 
@@ -792,11 +816,11 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/longest-of-2 _lex-rule-directive
-                                           _static-string-directive-fold-case
-                                           _static-string-directive-no-fold-case
-                                           $text
-                                           $end))
+   ($lex-match-strings/longest-of-2 _lex-rule-directive
+                                    _string-directive-fold-case
+                                    _string-directive-no-fold-case
+                                    $text
+                                    $end))
 
  (elem funcref (ref.func $lex-match-directive))
 
@@ -976,7 +1000,7 @@
    (result i32 i32)
 
    ($lex-match-charset _lex-rule-special-initial
-                       _static-string-special-initials
+                       _string-special-initials
                        $text
                        $end))
 
@@ -1055,7 +1079,7 @@
    (result i32 i32)
 
    ($lex-match-charset _lex-rule-explicit-sign
-                       _static-string-explicit-sign-charset
+                       _string-explicit-sign-charset
                        $text
                        $end))
 
@@ -1085,7 +1109,7 @@
    (result i32 i32)
 
    ($lex-match-charset _lex-rule-special-subsequent/dot-or-at
-                       _static-string-dot-and-at
+                       _string-dot-and-at
                        $text
                        $end))
 
@@ -1115,10 +1139,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string _lex-rule-inline-hex-escape-prefix
-                             _static-string-inline-escape-prefix
-                             $text
-                             $end))
+   ($lex-match-string _lex-rule-inline-hex-escape-prefix
+                      _string-inline-escape-prefix
+                      $text
+                      $end))
 
  (elem funcref (ref.func $lex-match-inline-hex-escape-prefix))
 
@@ -1174,7 +1198,7 @@
    (result i32 i32)
 
    ($lex-match-charset _lex-rule-mnemonic-escape-character
-                       _static-string-mnemonic-escapes
+                       _string-mnemonic-escapes
                        $text
                        $end))
 
@@ -1364,13 +1388,13 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/longest-of-4 _lex-rule-boolean
-                                           _static-string-boolean-t
-                                           _static-string-boolean-f
-                                           _static-string-boolean-true
-                                           _static-string-boolean-false
-                                           $text
-                                           $end))
+   ($lex-match-strings/longest-of-4 _lex-rule-boolean
+                                    _string-boolean-t
+                                    _string-boolean-f
+                                    _string-boolean-true
+                                    _string-boolean-false
+                                    $text
+                                    $end))
 
  (elem funcref (ref.func $lex-match-boolean))
 
@@ -1417,10 +1441,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string _lex-rule-character-prefix
-                             _static-string-character-prefix
-                             $text
-                             $end))
+   ($lex-match-string _lex-rule-character-prefix
+                      _string-character-prefix
+                      $text
+                      $end))
 
  (elem funcref (ref.func $lex-match-character-prefix))
 
@@ -1459,10 +1483,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string _lex-rule-character-hex-prefix
-                             _static-string-character-hex-prefix
-                             $text
-                             $end))
+   ($lex-match-string _lex-rule-character-hex-prefix
+                      _string-character-hex-prefix
+                      $text
+                      $end))
 
  (elem funcref (ref.func $lex-match-character-hex-prefix))
 
@@ -1502,12 +1526,12 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/longest-of-3 _lex-rule-character-name/group-1
-                                           _static-string-alarm
-                                           _static-string-backspace
-                                           _static-string-delete
-                                           $text
-                                           $end))
+   ($lex-match-strings/longest-of-3 _lex-rule-character-name/group-1
+                                    _string-alarm
+                                    _string-backspace
+                                    _string-delete
+                                    $text
+                                    $end))
 
  (elem funcref (ref.func $lex-match-character-name/group-1))
 
@@ -1517,12 +1541,12 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/longest-of-3 _lex-rule-character-name/group-2
-                                           _static-string-escape
-                                           _static-string-newline
-                                           _static-string-null
-                                           $text
-                                           $end))
+   ($lex-match-strings/longest-of-3 _lex-rule-character-name/group-2
+                                    _string-escape
+                                    _string-newline
+                                    _string-null
+                                    $text
+                                    $end))
 
  (elem funcref (ref.func $lex-match-character-name/group-2))
 
@@ -1532,25 +1556,25 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/longest-of-3 _lex-rule-character-name/group-3
-                                           _static-string-return
-                                           _static-string-space
-                                           _static-string-tab
-                                           $text
-                                           $end))
+   ($lex-match-strings/longest-of-3 _lex-rule-character-name/group-3
+                                    _string-return
+                                    _string-space
+                                    _string-tab
+                                    $text
+                                    $end))
 
  (elem funcref (ref.func $lex-match-character-name/group-3))
 
 
  ;; <string> -> " <string element>* "
 
- (func $lex-match-string (export "lex-match-string")
+ (func $lex-match-quoted-string (export "lex-match-quoted-string")
    (param $text i32)
    (param $end i32)
 
    (result i32 i32)
 
-   ($lex-match-rules/sequence-of-3 _lex-rule-string
+   ($lex-match-rules/sequence-of-3 _lex-rule-quoted-string
                                    _lex-rule-double-quote
                                    _lex-rule-string-elements
                                    _lex-rule-double-quote
@@ -2717,11 +2741,11 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-unordered-sequence-of-2 _lex-rule-prefix-16
-                                                     _lex-rule-radix-16
-                                                     _lex-rule-exactness
-                                                     $text
-                                                     $end))
+   ($lex-match-rules/set-of-2 _lex-rule-prefix-16
+                              _lex-rule-radix-16
+                              _lex-rule-exactness
+                              $text
+                              $end))
 
  (elem funcref (ref.func $lex-match-prefix-16))
 
@@ -2731,11 +2755,11 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-unordered-sequence-of-2 _lex-rule-prefix-10
-                                                     _lex-rule-radix-10
-                                                     _lex-rule-exactness
-                                                     $text
-                                                     $end))
+   ($lex-match-rules/set-of-2 _lex-rule-prefix-10
+                              _lex-rule-radix-10
+                              _lex-rule-exactness
+                              $text
+                              $end))
 
  (elem funcref (ref.func $lex-match-prefix-10))
 
@@ -2745,11 +2769,11 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-unordered-sequence-of-2 _lex-rule-prefix-8
-                                                     _lex-rule-radix-8
-                                                     _lex-rule-exactness
-                                                     $text
-                                                     $end))
+   ($lex-match-rules/set-of-2 _lex-rule-prefix-8
+                              _lex-rule-radix-8
+                              _lex-rule-exactness
+                              $text
+                              $end))
 
  (elem funcref (ref.func $lex-match-prefix-8))
 
@@ -2759,11 +2783,11 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-unordered-sequence-of-2 _lex-rule-prefix-2
-                                                     _lex-rule-radix-2
-                                                     _lex-rule-exactness
-                                                     $text
-                                                     $end))
+   ($lex-match-rules/set-of-2 _lex-rule-prefix-2
+                              _lex-rule-radix-2
+                              _lex-rule-exactness
+                              $text
+                              $end))
 
  (elem funcref (ref.func $lex-match-prefix-2))
 
@@ -2789,11 +2813,11 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/ascii-ci/longest-of-2 _lex-rule-inf-or-nan
-                                                    _static-string-inf
-                                                    _static-string-nan
-                                                    $text
-                                                    $end))
+   ($lex-match-strings/ascii-ci/longest-of-2 _lex-rule-inf-or-nan
+                                             _string-inf
+                                             _string-nan
+                                             $text
+                                             $end))
 
  (elem funcref (ref.func $lex-match-inf-or-nan))
 
@@ -2866,12 +2890,12 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/ascii-ci/longest-of-3 _lex-rule-exactness
-                                                    _static-string-empty
-                                                    _static-string-exact-prefix
-                                                    _static-string-inexact-prefix
-                                                    $text
-                                                    $end))
+   ($lex-match-strings/ascii-ci/longest-of-3 _lex-rule-exactness
+                                             _string-empty
+                                             _string-exact-prefix
+                                             _string-inexact-prefix
+                                             $text
+                                             $end))
 
  (elem funcref (ref.func $lex-match-exactness))
 
@@ -2884,10 +2908,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string/ascii-ci _lex-rule-radix-2
-                                      _static-string-radix-2
-                                      $text
-                                      $end))
+   ($lex-match-string/ascii-ci _lex-rule-radix-2
+                               _string-radix-2
+                               $text
+                               $end))
 
  (elem funcref (ref.func $lex-match-radix-2))
 
@@ -2900,10 +2924,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string/ascii-ci _lex-rule-radix-8
-                                      _static-string-radix-8
-                                      $text
-                                      $end))
+   ($lex-match-string/ascii-ci _lex-rule-radix-8
+                               _string-radix-8
+                               $text
+                               $end))
 
  (elem funcref (ref.func $lex-match-radix-8))
 
@@ -2916,11 +2940,11 @@
 
    (result i32 i32)
 
-   ($lex-match-static-strings/ascii-ci/longest-of-2 _lex-rule-radix-10
-                                                    _static-string-empty
-                                                    _static-string-radix-10
-                                                    $text
-                                                    $end))
+   ($lex-match-strings/ascii-ci/longest-of-2 _lex-rule-radix-10
+                                             _string-empty
+                                             _string-radix-10
+                                             $text
+                                             $end))
 
  (elem funcref (ref.func $lex-match-radix-10))
 
@@ -2933,10 +2957,10 @@
 
    (result i32 i32)
 
-   ($lex-match-static-string/ascii-ci _lex-rule-radix-16
-                                      _static-string-radix-16
-                                      $text
-                                      $end))
+   ($lex-match-string/ascii-ci _lex-rule-radix-16
+                               _string-radix-16
+                               $text
+                               $end))
 
  (elem funcref (ref.func $lex-match-radix-16))
 

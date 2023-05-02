@@ -120,7 +120,7 @@
 (define _lex-rule-character-name/group-1          (+rule-id))
 (define _lex-rule-character-name/group-2          (+rule-id))
 (define _lex-rule-character-name/group-3          (+rule-id))
-(define _lex-rule-string                          (+rule-id))
+(define _lex-rule-quoted-string                   (+rule-id))
 (define _lex-rule-double-quote                    (+rule-id))
 (define _lex-rule-string-elements                 (+rule-id))
 (define _lex-rule-string-element                  (+rule-id))

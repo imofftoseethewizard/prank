@@ -315,7 +315,6 @@ def translate_call(expr, env):
 def translate_string(expr, env):
 
     name = None
-    body = []
     value = None
     offset = env['data-offset']
     ctx = expr[0][2:]
@@ -332,8 +331,6 @@ def translate_string(expr, env):
 
             if name is None and e[0] == 'label':
                 name = e[1]
-
-            body.append(e)
 
     assert value is not None
 
@@ -361,19 +358,9 @@ def translate_string(expr, env):
 
     line_break = ('whitespace', '\n' + ' ' * (column-1), *ctx,)
 
-    global_expr = [
-        ('token', 'global', *ctx),
-        *body,
-        ('token', 'i32', *ctx),
-        ('whitespace', ' ', *ctx),
-        const_expr,
-    ]
+    env['defs'][name] = [const_expr]
 
-    def_name = '_' + name[1:]
-
-    env['defs'][def_name] = [const_expr]
-
-    return ('splice', [data_expr, line_break, global_expr], -1)
+    return ('splice', [data_expr, line_break], -1)
 
 def wat_string_len(s):
 

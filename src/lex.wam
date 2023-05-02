@@ -1,39 +1,19 @@
 (module
 
- ;; todo: write get-string-char (incl reserving 16B at end of block)
- (import "strings" "get-string-char" (func $get-string-char (param i32) (result i32)))
+ (import "chars" "char-eq/ascii-ci"        (func $char-eq/ascii-ci      (param i32 i32)     (result i32)))
+ (import "strings" "get-string-char"       (func $get-string-char       (param i32)         (result i32)))
+ (import "strings" "match-charset/ascii"   (func $match-charset/ascii   (param i32 i32 i32) (result i32)))
+ (import "strings" "match-string"          (func $match-string          (param i32 i32 i32) (result i32)))
+ (import "strings" "match-string/ascii-ci" (func $match-string/ascii-ci (param i32 i32 i32) (result i32)))
 
- (include "./ascii.wam")
  (include "./globals.wam")
 
  (type $lexical-rule-func (func (param i32 i32) (result i32 i32)))
- (table $lexical-rules 200 funcref) ;; todo export
+ (table $lexical-rules 200 funcref) ;; todo export, parameterize size
 
  (macro %get-char
    (expr ,addr)
    ($get-string-char ,addr))
-
- (func $ascii-lower (export "ascii-lower")
-   (param $x i32)
-
-   (result i32)
-
-   (if (result i32)
-       (i32.and (i32.ge_u $x _char-A)
-                (i32.le_u $x _char-Z))
-     (then
-      (i32.add $x (i32.const 0x20)))
-     (else
-      $x)))
-
- (func $char-eq/ascii-ci (export "char-eq/ascii-ci")
-   (param $x i32)
-   (param $y i32)
-
-   (result i32)
-
-   (i32.or (i32.eq $x $y)
-           (i32.eq ($ascii-lower $x ($ascii-lower $y)))))
 
  (func $lex-match-empty (export "lex-match-empty")
    (param $rule-id i32)
@@ -79,7 +59,7 @@
    (if (result i32 i32) (i32.eq $char $c)
      (then
       $rule-id
-      (i32.add (i32.const 1) $text)) ;; todo unicode
+      (i32.add (i32.const 1) $text))
      (else
       $rule-id
       _null)))
@@ -104,7 +84,7 @@
    (if (result i32 i32) ($char-eq/ascii-ci $char $c)
      (then
       $rule-id
-      (i32.add (i32.const 1) $text)) ;; todo unicode
+      (i32.add (i32.const 1) $text))
      (else
       $rule-id
       _null)))
@@ -131,7 +111,7 @@
        (i32.and (i32.ne $first-char $c) (i32.ne $second-char $c))
      (then
       $rule-id
-      (i32.add (i32.const 1) $text)) ;; todo unicode
+      (i32.add (i32.const 1) $text))
      (else
       $rule-id
       _null)))
@@ -158,48 +138,12 @@
        (i32.and (i32.ge_u $c $min-char) (i32.le_u $c $max-char))
      (then
       $rule-id
-      (i32.add (i32.const 1) $text)) ;; todo unicode
+      (i32.add (i32.const 1) $text))
      (else
       $rule-id
       _null)))
 
- (func $match-charset (export "match-charset")
-   ;; todo move to strings
-   ;; todo static strings
-   (param $str i32)
-   (param $length i32)
-   (param $text i32)
-   (param $end i32)
-
-   (result i32)
-
-   (local $c i32)
-   (local $s i32)
-   (local $s-end i32)
-
-   (if (i32.eq $text $end)
-       (then
-        (return _null)))
-
-   (set! $c (%get-char $text))
-
-   (set! $s $str)
-   (set! $s-end (i32.add $s $length))
-
-   (loop $again
-     (if (i32.lt_u $s $s-end)
-         (then
-          (if (i32.eq $c (%get-char $s))
-              (then
-               (i32.add (i32.const 1) $text) ;; todo unicode
-               (return))
-            (else
-             (set! $s (i32.add $s (i32.const 1)))
-             (br $again))))))
-
-   _null)
-
- (func $lex-match-charset (export "lex-match-charset")
+ (func $lex-match-charset/ascii (export "lex-match-charset/ascii")
    (param $rule-id i32)
    (param $str i32)
    (param $text i32)
@@ -208,49 +152,9 @@
    (result i32 i32)
 
    $rule-id
-   ($match-charset (i32.add (i32.const 1) $str) (%get-char $str) $text $end))
+   ($match-charset/ascii $str $text $end))
 
- (func $match-static-string (export "match-static-string")
-   ;; todo move to strings
-   ;; todo static strings
-   (param $str i32)
-   (param $length i32)
-   (param $text i32)
-   (param $end i32)
-
-   (result i32)
-
-   (local $length i32)
-   (local $s i32)
-   (local $s-end i32)
-   (local $t i32)
-
-   (if (i32.gt_u $length (i32.sub $end $text))
-       (then
-        (return _null)))
-
-   (set! $s $str)
-   (set! $s-end (i32.add $s $length))
-
-   (set! $t $text)
-
-   (loop $again
-
-     (if (i32.lt_u $s $s-end)
-         (then
-          (if (i32.eq
-               (%get-char $s)
-               (%get-char $t))
-              (then
-               (set! $s (i32.add $s (i32.const 1)))
-               (set! $t (i32.add $t (i32.const 1)))
-               (br $again))
-            (else
-             (set! $t _null))))))
-
-   $t)
-
- (func $lex-match-static-string (export "lex-match-static-string")
+ (func $lex-match-string (export "lex-match-string")
    (param $rule-id i32)
    (param $str i32)
    (param $text i32)
@@ -259,46 +163,9 @@
    (result i32 i32)
 
    $rule-id
-   ($match-static-string (i32.add (i32.const 1) $str) (%get-char $str) $text $end))
+   ($match-string $str $text $end))
 
- (func $match-static-string/ascii-ci (export "match-static-string/ascii-ci")
-   ;; todo move to strings
-   ;; todo static strings
-   (param $str i32)
-   (param $length i32)
-   (param $text i32)
-   (param $end i32)
-
-   (result i32)
-
-   (local $s i32)
-   (local $s-end i32)
-   (local $t i32)
-
-   (if (i32.gt_u $length (i32.sub $end $text))
-       (then
-        (return _null)))
-
-   (set! $s $str)
-   (set! $s-end (i32.add $s $length))
-
-   (set! $t $text)
-
-   (loop $again
-
-     (if (i32.lt_u $s $s-end)
-         (then
-          (if ($char-eq/ascii-ci (%get-char $s) (%get-char $t))
-              (then
-               (set! $s (i32.add $s (i32.const 1)))
-               (set! $t (i32.add $t (i32.const 1)))
-               (br $again))
-            (else
-             (set! $t _null))))))
-
-   $t)
-
- (func $lex-match-static-string/ascii-ci (export "lex-match-static-string/ascii-ci")
+ (func $lex-match-string/ascii-ci (export "lex-match-string/ascii-ci")
    (param $rule-id i32)
    (param $str i32)
    (param $text i32)
@@ -307,9 +174,9 @@
    (result i32 i32)
 
    $rule-id
-   ($match-static-string/ascii-ci (i32.add (i32.const 1) $str) (%get-char $str) $text $end))
+   ($match-string/ascii-ci $str $text $end))
 
- (func $lex-match-static-strings/longest-of-2 (export "lex-match-static-strings/longest-of-2")
+ (func $lex-match-strings/longest-of-2 (export "lex-match-strings/longest-of-2")
    (param $rule-id i32)
    (param $first-str i32)
    (param $second-str i32)
@@ -324,20 +191,14 @@
    (set! $max-end (i32.const -1))
 
    (set! $end-match
-         ($match-static-string (i32.add (i32.const 1) $first-str)
-                               (%get-char $first-str)
-                               $text
-                               $end))
+         ($match-string $first-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
         (set! $max-end $end-match)))
 
    (set! $end-match
-         ($match-static-string (i32.add (i32.const 1) $second-str)
-                               (%get-char $second-str)
-                               $text
-                               $end))
+         ($match-string $second-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
@@ -346,7 +207,7 @@
    $rule-id
    $max-end)
 
- (func $lex-match-static-strings/ascii-ci/longest-of-2 (export "lex-match-static-strings/ascii-ci/longest-of-2")
+ (func $lex-match-strings/ascii-ci/longest-of-2 (export "lex-match-strings/ascii-ci/longest-of-2")
    (param $rule-id i32)
    (param $first-str i32)
    (param $second-str i32)
@@ -361,20 +222,14 @@
    (set! $max-end (i32.const -1))
 
    (set! $end-match
-         ($match-static-string/ascii-ci (i32.add (i32.const 1) $first-str)
-                                        (%get-char $first-str)
-                                        $text
-                                        $end))
+         ($match-string/ascii-ci $first-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
         (set! $max-end $end-match)))
 
    (set! $end-match
-         ($match-static-string/ascii-ci (i32.add (i32.const 1) $second-str)
-                                        (%get-char $second-str)
-                                        $text
-                                        $end))
+         ($match-string/ascii-ci $second-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
@@ -383,7 +238,7 @@
    $rule-id
    $max-end)
 
- (func $lex-match-static-strings/longest-of-3 (export "lex-match-static-strings/longest-of-3")
+ (func $lex-match-strings/longest-of-3 (export "lex-match-strings/longest-of-3")
    (param $rule-id i32)
    (param $first-str i32)
    (param $second-str i32)
@@ -399,30 +254,21 @@
    (set! $max-end (i32.const -1))
 
    (set! $end-match
-         ($match-static-string (i32.add (i32.const 1) $first-str)
-                               (%get-char $first-str)
-                               $text
-                               $end))
+         ($match-string $first-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
         (set! $max-end $end-match)))
 
    (set! $end-match
-         ($match-static-string (i32.add (i32.const 1) $second-str)
-                               (%get-char $second-str)
-                               $text
-                               $end))
+         ($match-string $second-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
         (set! $max-end $end-match)))
 
    (set! $end-match
-         ($match-static-string (i32.add (i32.const 1) $third-str)
-                               (%get-char $third-str)
-                               $text
-                               $end))
+         ($match-string $third-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
@@ -431,7 +277,7 @@
    $rule-id
    $max-end)
 
- (func $lex-match-static-strings/ascii-ci/longest-of-3 (export "lex-match-static-strings/ascii-ci/longest-of-3")
+ (func $lex-match-strings/ascii-ci/longest-of-3 (export "lex-match-strings/ascii-ci/longest-of-3")
    (param $rule-id i32)
    (param $first-str i32)
    (param $second-str i32)
@@ -447,30 +293,21 @@
    (set! $max-end (i32.const -1))
 
    (set! $end-match
-         ($match-static-string/ascii-ci (i32.add (i32.const 1) $first-str)
-                                        (%get-char $first-str)
-                                        $text
-                                        $end))
+         ($match-string/ascii-ci $first-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
         (set! $max-end $end-match)))
 
    (set! $end-match
-         ($match-static-string/ascii-ci (i32.add (i32.const 1) $second-str)
-                                        (%get-char $second-str)
-                                        $text
-                                        $end))
+         ($match-string/ascii-ci $second-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
         (set! $max-end $end-match)))
 
    (set! $end-match
-         ($match-static-string/ascii-ci (i32.add (i32.const 1) $third-str)
-                                        (%get-char $third-str)
-                                        $text
-                                        $end))
+         ($match-string/ascii-ci $third-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
@@ -479,7 +316,7 @@
    $rule-id
    $max-end)
 
- (func $lex-match-static-strings/longest-of-4 (export "lex-match-static-strings/longest-of-4")
+ (func $lex-match-strings/longest-of-4 (export "lex-match-strings/longest-of-4")
    (param $rule-id i32)
    (param $first-str i32)
    (param $second-str i32)
@@ -496,40 +333,28 @@
    (set! $max-end (i32.const -1))
 
    (set! $end-match
-         ($match-static-string (i32.add (i32.const 1) $first-str)
-                               (%get-char $first-str)
-                               $text
-                               $end))
+         ($match-string $first-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
         (set! $max-end $end-match)))
 
    (set! $end-match
-         ($match-static-string (i32.add (i32.const 1) $second-str)
-                               (%get-char $second-str)
-                               $text
-                               $end))
+         ($match-string $second-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
         (set! $max-end $end-match)))
 
    (set! $end-match
-         ($match-static-string (i32.add (i32.const 1) $third-str)
-                               (%get-char $third-str)
-                               $text
-                               $end))
+         ($match-string $third-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
         (set! $max-end $end-match)))
 
    (set! $end-match
-         ($match-static-string (i32.add (i32.const 1) $fourth-str)
-                               (%get-char $fourth-str)
-                               $text
-                               $end))
+         ($match-string $fourth-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
@@ -1029,7 +854,7 @@
    $longest-matching-rule-id
    $max-end)
 
- (func $lex-match-rules/longest-unordered-sequence-of-2 (export "lex-match-rules/longest-unordered-sequence-of-2")
+ (func $lex-match-rules/set-of-2 (export "lex-match-rules/set-of-2")
    (param $rule-id i32)
    (param $first-rule-id i32)
    (param $second-rule-id i32)

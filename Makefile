@@ -67,16 +67,17 @@ obj/src/bytevectors.wat obj/debug/src/bytevectors.wat: \
 	src/globals.wam \
 	src/values.wam
 
-obj/src/chars.wat obj/debug/src/chars.wat: src/globals.wam src/values.wam
+obj/src/chars.wat obj/debug/src/chars.wat: \
+	src/ascii.wam \
+	src/globals.wam \
+	src/values.wam
 
-obj/src/lex.wat obj/debug/src/lex.wat: src/ascii.wam
+obj/src/lex.wat obj/debug/src/lex.wat: src/globals.wam
 
 obj/src/lex-r7rs.wat obj/debug/src/lex-r7rs.wat: \
 	src/ascii.wam \
 	src/globals.wam \
-	src/lex-r7rs-rule-ids.wam \
-	src/string-loader.wam \
-	src/string-loader-imports.wam
+	src/lex-r7rs-rule-ids.wam
 
 obj/src/lists.wat obj/debug/src/lists.wat: src/globals.wam
 

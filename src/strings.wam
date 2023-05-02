@@ -14,6 +14,7 @@
  (import "block-mgr" "dealloc-block"   (func $dealloc-block       (param i32 i32)))
  (import "block-mgr" "get-block-addr"  (func $get-block-addr      (param i32)     (result i32)))
  (import "block-mgr" "init-blockset"   (func $init-blockset       (param i32 i32)))
+ (import "chars" "char-eq/ascii-ci"    (func $char-eq/ascii-ci    (param i32 i32) (result i32)))
  (import "chars" "calc-char-width"     (func $calc-char-width     (param i32)     (result i32)))
  (import "chars" "calc-encoded-length" (func $calc-encoded-length (param i32)     (result i32)))
  (import "chars" "encode-char"         (func $encode-char         (param i32)     (result i32)))
@@ -670,6 +671,137 @@
              (return (i32.const 0))))))
 
    (i32.const 1))
+
+ (func $match-charset/ascii (export "match-charset/ascii")
+   (param $charset i32)
+   (param $text i32)
+   (param $end i32)
+
+   (result i32)
+
+   (local $addr i32)
+   (local $c i32)
+   (local $length i32)
+   (local $chars i32)
+   (local $chars-end i32)
+
+   (if (i32.eq $text $end)
+       (then
+        (return _null)))
+
+   (set! $c (i32.load8_u $text))
+
+   (set! $length (%get-string-length $charset))
+   (set! $chars ($get-string-addr $charset))
+   (set! $chars-end (i32.add $chars $length))
+
+   (loop $again
+     (if (i32.lt_u $chars $chars-end)
+         (then
+          (if (i32.eq $c (i32.load8_u $chars))
+              (then
+               (i32.add $text (i32.const 1))
+               (return))
+            (else
+             (%incr i32 $chars)
+             (br $again))))))
+
+   _null)
+
+  (func $match-string (export "match-string")
+   (param $str i32)
+   (param $text i32)
+   (param $end i32)
+
+   (result i32)
+
+   (local $length i32)
+   (local $s i32)
+   (local $s-end i32)
+   (local $t i32)
+
+   (set! $length (%get-string-length $str))
+
+   (if (i32.gt_u $length (i32.sub $end $text))
+       (then
+        (return _null)))
+
+   (set! $s (%get-string-addr $str))
+   (set! $s-end (i32.add $s $length))
+
+   (set! $t $text)
+
+   (loop $again
+     (if (i32.ge_s (i32.sub $s-end $s) (i32.const 8))
+         (then
+          (if (i64.ne (i64.load $s) (i64.load $t))
+              (then (return _null)))
+
+          (%incr-n i32 $s 8)
+          (%incr-n i32 $t 8)
+
+          (br $again))))
+
+   (if (i32.ge_s (i32.sub $s-end $s) (i32.const 4))
+       (then
+        (if (i32.ne (i32.load $s) (i32.load $t))
+          (then (return _null)))
+
+        (%incr-n i32 $s 4)
+        (%incr-n i32 $t 4)))
+
+   (if (i32.ge_s (i32.sub $s-end $s) (i32.const 2))
+       (then
+        (if (i32.ne (i32.load16_u $s) (i32.load16_u $t))
+            (then (return _null)))
+
+        (%incr-n i32 $s 2)
+        (%incr-n i32 $t 2)))
+
+   (if (i32.lt_u $s $s-end)
+       (then
+        (if (i32.ne (i32.load8_u $s) (i32.load8_u $t))
+            (then (return _null)))
+
+        (%incr i32 $t)))
+
+   $t)
+
+ (func $match-string/ascii-ci (export "match-string/ascii-ci")
+   (param $str i32)
+   (param $text i32)
+   (param $end i32)
+
+   (result i32)
+
+   (local $length i32)
+   (local $s i32)
+   (local $s-end i32)
+   (local $t i32)
+
+   (set! $length (%get-string-length $str))
+
+   (if (i32.gt_u $length (i32.sub $end $text))
+       (then
+        (return _null)))
+
+   (set! $s (%get-string-addr $str))
+   (set! $s-end (i32.add $s $length))
+
+   (set! $t $text)
+
+   (loop $again
+     (if (i32.lt_u $s $s-end)
+         (then
+          (if ($char-eq/ascii-ci (i32.load8_u $s) (i32.load8_u $t))
+              (then
+               (%incr i32 $s)
+               (%incr i32 $t)
+               (br $again)))
+
+          (return _null))))
+
+   $t)
 
  ;; end of module
  )

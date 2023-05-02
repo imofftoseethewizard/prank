@@ -13,8 +13,32 @@
  ;; The encoding/decoding logic below is based on https://en.wikipedia.org/wiki/UTF-8
  ;;
 
+ (include "./ascii.wam")
  (include "./globals.wam")
  (include "./values.wam")
+
+ (func $ascii-lower (export "ascii-lower")
+   (param $x i32)
+
+   (result i32)
+
+   (if (result i32)
+       (i32.and (i32.ge_u $x _char-A)
+                (i32.le_u $x _char-Z))
+     (then
+      (i32.add $x (i32.const 0x20)))
+     (else
+      $x)))
+
+ (func $char-eq/ascii-ci (export "char-eq/ascii-ci")
+   (param $x i32)
+   (param $y i32)
+
+   (result i32)
+
+   (if (result i32) (i32.eq $x $y)
+     (then (i32.const 1))
+     (else (i32.eq ($ascii-lower $x) ($ascii-lower $y)))))
 
  (func $get-char-code-point (export "get-char-code-point")
    (param $char i32)

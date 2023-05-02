@@ -7,7 +7,6 @@
  (import "bytevectors" "set-bytevector-i32"         (func $set-bytevector-i32            (param i32 i32 i32)))
  (import "chars" "calc-encoded-length"              (func $calc-encoded-length           (param i32)             (result i32)))
  (import "lex" "ascii-lower"                        (func $ascii-lower                   (param i32)             (result i32)))
- (import "lex" "lex-match-static-string"            (func $lex-match-static-string       (param i32 i32 i32 i32) (result i32 i32)))
  (import "lex-r7rs" "lex-match-atmosphere"          (func $lex-match-atmosphere          (param i32 i32)         (result i32 i32)))
  (import "lex-r7rs" "lex-match-complex-2"           (func $lex-match-complex-2           (param i32 i32)         (result i32 i32)))
  (import "lex-r7rs" "lex-match-complex-infnan-im-2" (func $lex-match-complex-infnan-im-2 (param i32 i32)         (result i32 i32)))
@@ -43,44 +42,45 @@
  (import "strings" "dealloc-string"                 (func $dealloc-string                (param i32)))
  (import "strings" "get-string-char"                (func $get-string-char               (param i32)             (result i32)))
  (import "strings" "make-string"                    (func $make-string                   (param i32)             (result i32)))
+ (import "strings" "match-string"            (func $match-string       (param i32 i32 i32) (result i32)))
  (import "symbols" "make-symbol"                    (func $make-symbol                   (param i32)             (result i32)))
  (import "vectors" "dealloc-vector"                 (func $dealloc-vector                (param i32)))
  (import "vectors" "get-vector-element"             (func $get-vector-element            (param i32 i32)         (result i32)))
  (import "vectors" "get-vector-length"              (func $get-vector-length             (param i32)             (result i32)))
  (import "vectors" "make-vector"                    (func $make-vector                   (param i32)             (result i32)))
 
- (import "lex" "static-string-alarm"                   (global $static-string-alarm                   i32))
- (import "lex" "static-string-begin-vector"                   (global $static-string-begin-vector                   i32))
- (import "lex" "static-string-delete"                  (global $static-string-delete                  i32))
- (import "lex" "static-string-escape"                  (global $static-string-escape                  i32))
- (import "lex" "static-string-quasiquote-symbol"       (global $static-string-quasiquote-symbol       i32))
- (import "lex" "static-string-quote-symbol"            (global $static-string-quote-symbol            i32))
- (import "lex" "static-string-unquote-splicing-symbol" (global $static-string-unquote-splicing-symbol i32))
- (import "lex" "static-string-unquote-symbol"          (global $static-string-unquote-symbol          i32))
+ (import "lex" "string-alarm"                   (global $string-alarm                   i32))
+ (import "lex" "string-begin-vector"                   (global $string-begin-vector                   i32))
+ (import "lex" "string-delete"                  (global $string-delete                  i32))
+ (import "lex" "string-escape"                  (global $string-escape                  i32))
+ (import "lex" "string-quasiquote-symbol"       (global $string-quasiquote-symbol       i32))
+ (import "lex" "string-quote-symbol"            (global $string-quote-symbol            i32))
+ (import "lex" "string-unquote-splicing-symbol" (global $string-unquote-splicing-symbol i32))
+ (import "lex" "string-unquote-symbol"          (global $string-unquote-symbol          i32))
 
- (macro %static-string-alarm
-   (global.get $static-string-alarm))
+ (macro %string-alarm
+   (global.get $string-alarm))
 
- (macro %static-string-begin-vector
-   (global.get $static-string-begin-vector))
+ (macro %string-begin-vector
+   (global.get $string-begin-vector))
 
- (macro %static-string-delete
-   (global.get $static-string-delete))
+ (macro %string-delete
+   (global.get $string-delete))
 
- (macro %static-string-escape
-   (global.get $static-string-escape))
+ (macro %string-escape
+   (global.get $string-escape))
 
- (macro %static-string-quasiquote-symbol
-   (global.get $static-string-quasiquote-symbol))
+ (macro %string-quasiquote-symbol
+   (global.get $string-quasiquote-symbol))
 
- (macro %static-string-quote-symbol
-   (global.get $static-string-quote-symbol))
+ (macro %string-quote-symbol
+   (global.get $string-quote-symbol))
 
- (macro %static-string-unquote-splicing-symbol
-   (global.get $static-string-unquote-splicing-symbol))
+ (macro %string-unquote-splicing-symbol
+   (global.get $string-unquote-splicing-symbol))
 
- (macro %static-string-unquote-symbol
-   (global.get $static-string-unquote-symbol))
+ (macro %string-unquote-symbol
+   (global.get $string-unquote-symbol))
 
  (include "./globals.wam")
  (include "./ascii.wam")
@@ -265,10 +265,10 @@
 
  (start $init-parse)
  (func $init-parse (debug (export "init-parse"))
-   (global.set $quasiquote-symbol       ($make-symbol (%static-string-quasiquote-symbol)))
-   (global.set $quote-symbol            ($make-symbol (%static-string-quote-symbol)))
-   (global.set $unquote-splicing-symbol ($make-symbol (%static-string-unquote-splicing-symbol)))
-   (global.set $unquote-symbol          ($make-symbol (%static-string-unquote-symbol))))
+   (global.set $quasiquote-symbol       ($make-symbol (%string-quasiquote-symbol)))
+   (global.set $quote-symbol            ($make-symbol (%string-quote-symbol)))
+   (global.set $unquote-splicing-symbol ($make-symbol (%string-unquote-splicing-symbol)))
+   (global.set $unquote-symbol          ($make-symbol (%string-unquote-symbol))))
 
  (func $make-parse-context (debug (export "make-parse-context"))
    (result i32)
@@ -572,14 +572,14 @@
               ($unnest)))))
         (return)))
 
-   (if (i32.eq $rule-id _lex-rule-string)
+   (if (i32.eq $rule-id _lex-rule-quoted-string)
        (then
         ($parse-string $text $end)
         (return)))
 
    (if (i32.eq $rule-id _lex-rule-delimited-token-string)
        (then
-        (if (i32.eq ($lex-match-static-string $text $end (%static-string-begin-vector))
+        (if (i32.eq ($match-string (%string-begin-vector) $text $end)
                     $end)
             (then
              ($nest)
@@ -675,7 +675,6 @@
  (func $parse-token-char (debug (export "parse-token-char"))
    (param $text i32)
    (param $end i32)
-   (result i32)
 
    (local $char i32)
    (local $symbol i32)
@@ -764,18 +763,18 @@
    (set! $char
          (if (result i32) (i32.eq $length (i32.const 5))
            (then
-            (if (result i32) ($lex-match-static-string $text $end (%static-string-alarm))
+            (if (result i32) ($match-string (%string-alarm) $text $end)
               (then _char-bell)
               (else _char-space)))
            (else
             (if (result i32) (i32.eq $length (i32.const 6))
               (then
-               (if (result i32) ($lex-match-static-string $text $end (%static-string-delete))
+               (if (result i32) ($match-string (%string-delete) $text $end)
                  (then _char-delete)
                  (else
-                  (if (result i32) ($lex-match-static-string $text $end (%static-string-escape))
+                  (if (result i32) ($match-string (%string-escape) $text $end)
                     (then _char-escape)
-                    (else _char-carriage-return)))))
+                    (else _char-carriage-return))))) ;; return
               (else
                (if (result i32) (i32.eq $length (i32.const 3)) ;; tab
                  (then _char-tab)
@@ -787,9 +786,9 @@
                        (then _char-line-feed)
                        (else
                         (debug
-                         (if (result i32) (i32.ne $length (i32.const 9)) ;; backspace
-                           (then (unreachable))))
-                        _char-backspace)))))))))))
+                         (if (result i32) (i32.eq $length (i32.const 9)) ;; backspace
+                           (then _char-backspace)
+                           (else (unreachable) _null))))))))))))))
 
    ($append-value (%make-value _tag-char $char)))
 
@@ -845,16 +844,7 @@
                               (then
                                (unreachable))))
 
-                         ($parse-hex-escape $text $end-match)
-
-                         ;; lexically correct inline escapes can overflow or specify
-                         ;; invalid code points.
-
-                         (if (%is-parse-finished)
-                             (then
-                              (drop)
-                              ($dealloc-list $char-list)
-                              (return))))))))))
+                         ($parse-hex-escape $text $end-match))))))))
 
           (set! $next ($make-pair $char _null))
           ($set-pair-cdr $tail $next)
@@ -914,14 +904,7 @@
                                    (then
                                     (unreachable))))
 
-                              ($parse-hex-escape $text $end-match)
-                              ;; lexically correct inline escapes can overflow or specify
-                              ;; invalid code points.
-                              (if (%is-parse-finished)
-                                  (then
-                                   (drop)
-                                   ($dealloc-list $char-list)
-                                   (return))))))))))
+                              ($parse-hex-escape $text $end-match))))))))
 
                (set! $next ($make-pair $char _null))
                ($set-pair-cdr $tail $next)
@@ -978,8 +961,8 @@
 
      (if (i32.and $code-point (i32.const 0xf0000000))
          (then
-          ;; inline hex overflow error
-          (return $code-point)))
+          ;; todo: inline hex overflow error
+          (return _char-null)))
 
      (set! $char ($get-string-char $text))
 
@@ -1001,8 +984,8 @@
 
    (if (i32.eq ($calc-encoded-length $code-point) (i32.const -1))
        (then
-        ;; invalid code point
-        ))
+        ;; todo: invalid code point
+        (return _char-null)))
 
    $code-point)
 
@@ -1116,8 +1099,8 @@
    (set! $arg ($coerce-f64 ($parse-real-2-value (i32.add $text (i32.const 1)) $end)))
 
    ($append-value ($make-complex
-                   ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))
-                                    (f64.mul $magnitude ($sin $arg))))))
+                   ($make-boxed-f64 (f64.mul $magnitude ($cos $arg)))
+                   ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
 
  (func $parse-complex-unit-im-2 (debug (export "parse-complex-unit-im-2"))
    (param $text i32)
@@ -1249,12 +1232,12 @@
    (if (i32.lt_u $length (i32.const 29))
        (then
         ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
-        (return ($parse-small-uinteger-2-value) $text $end)))
+        (return ($parse-small-uinteger-2-value $text $end))))
 
    (if (i32.lt_u $length (i32.const 64))
        (then
         ;; 29-63 bits will fit in an i64
-        (return ($parse-i64-uinteger-2-value) $text $end)))
+        (return ($parse-i64-uinteger-2-value $text $end))))
 
    ;; >= 64 bits
    ($parse-integer-uintger-2-value $text $end))
@@ -1342,6 +1325,7 @@
  (func $parse-infnan-value (debug (export "parse-infnan-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $initial i32)
 
@@ -1360,7 +1344,6 @@
  (func $parse-unit-im (debug (export "parse-unit-im"))
    (param $text i32)
    (param $end i32)
-   (result i32)
 
    ($append-value ($make-complex ($make-small-integer (i32.const 0))
                                  ($make-small-integer
