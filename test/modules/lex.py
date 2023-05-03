@@ -1,4 +1,4 @@
 from ._loader import init_module
-from . import strings
+from . import chars, strings
 
-init_module(globals(), 'lex', strings)
+init_module(globals(), 'lex', chars, strings)

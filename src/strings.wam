@@ -681,9 +681,10 @@
 
    (local $addr i32)
    (local $c i32)
-   (local $length i32)
    (local $chars i32)
    (local $chars-end i32)
+   (local $length i32)
+   (local $type i32)
 
    (if (i32.eq $text $end)
        (then
@@ -691,7 +692,10 @@
 
    (set! $c (i32.load8_u $text))
 
-   (set! $length (%get-string-length $charset))
+   (set! $type (%get-string-type $charset))
+   (set! $addr (%get-string-block-addr $charset))
+
+   (set! $length (%get-string-length $type $addr))
    (set! $chars ($get-string-addr $charset))
    (set! $chars-end (i32.add $chars $length))
 
@@ -715,18 +719,23 @@
 
    (result i32)
 
+   (local $addr i32)
    (local $length i32)
    (local $s i32)
    (local $s-end i32)
    (local $t i32)
+   (local $type i32)
 
-   (set! $length (%get-string-length $str))
+   (set! $type (%get-string-type $str))
+   (set! $addr (%get-string-block-addr $str))
+
+   (set! $length (%get-string-length $type $addr))
 
    (if (i32.gt_u $length (i32.sub $end $text))
        (then
         (return _null)))
 
-   (set! $s (%get-string-addr $str))
+   (set! $s ($get-string-addr $str))
    (set! $s-end (i32.add $s $length))
 
    (set! $t $text)
@@ -774,18 +783,23 @@
 
    (result i32)
 
+   (local $addr i32)
    (local $length i32)
    (local $s i32)
    (local $s-end i32)
    (local $t i32)
+   (local $type i32)
 
-   (set! $length (%get-string-length $str))
+   (set! $type (%get-string-type $str))
+   (set! $addr (%get-string-block-addr $str))
+
+   (set! $length (%get-string-length $type $addr))
 
    (if (i32.gt_u $length (i32.sub $end $text))
        (then
         (return _null)))
 
-   (set! $s (%get-string-addr $str))
+   (set! $s ($get-string-addr $str))
    (set! $s-end (i32.add $s $length))
 
    (set! $t $text)

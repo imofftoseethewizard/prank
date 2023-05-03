@@ -135,7 +135,7 @@
  ;;
  ;;
 
- (func $make-symbol (export ("export-symbol"))
+ (func $make-symbol (export "export-symbol")
    (param $name i32)
    (result i32)
 
