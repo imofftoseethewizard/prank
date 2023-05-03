@@ -2,12 +2,12 @@
 
  (const #max-lexical-rules 178)
 
- (import "lex" "lex-match-any-char"                       (func $lex-match-any-char                       (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-any-char"                       (func $lex-match-any-char                       (param i32 i32 i32)                 (result i32 i32)))
  (import "lex" "lex-match-char-complement/ascii/set-of-2" (func $lex-match-char-complement/ascii/set-of-2 (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-char-range/ascii"               (func $lex-match-char-range/ascii               (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-char/ascii"                     (func $lex-match-char/ascii                     (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-char/ascii-ci"                  (func $lex-match-char/ascii-ci                  (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-charset"                        (func $lex-match-charset                        (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-charset/ascii"                  (func $lex-match-charset/ascii                  (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-rule/one-or-more"               (func $lex-match-rule/one-or-more               (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-rule/zero-or-more"              (func $lex-match-rule/zero-or-more              (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-rule?"                          (func $lex-match-rule?                          (param i32 i32 i32 i32)             (result i32 i32)))
@@ -242,7 +242,7 @@
    (table.set $lexical-rules _lex-rule-boolean                         (ref.func $lex-match-boolean))
    (table.set $lexical-rules _lex-rule-character                       (ref.func $lex-match-character))
    (table.set $lexical-rules _lex-rule-escaped-character               (ref.func $lex-match-escaped-character))
-   (table.set $lexical-rules _lex-rule-any-char                        (ref.func $lex-match-any-char))
+   (table.set $lexical-rules _lex-rule-single-character                (ref.func $lex-match-single-character))
    (table.set $lexical-rules _lex-rule-character-prefix                (ref.func $lex-match-character-prefix))
    (table.set $lexical-rules _lex-rule-named-character                 (ref.func $lex-match-named-character))
    (table.set $lexical-rules _lex-rule-escaped-character-hex           (ref.func $lex-match-escaped-character-hex))
@@ -397,10 +397,10 @@
 
    (result i32 i32)
 
-   ($lex-match-charset _lex-rule-paren-char
-                       _string-paren-charset
-                       $text
-                       $end))
+   ($lex-match-charset/ascii _lex-rule-paren-char
+                             _string-paren-charset
+                             $text
+                             $end))
 
  (elem funcref (ref.func $lex-match-paren-char))
 
@@ -458,10 +458,10 @@
 
    (result i32 i32)
 
-   ($lex-match-charset _lex-rule-token-char
-                       _string-token-charset
-                       $text
-                       $end))
+   ($lex-match-charset/ascii _lex-rule-token-char
+                             _string-token-charset
+                             $text
+                             $end))
 
  (elem funcref (ref.func $lex-match-token-char))
 
@@ -517,10 +517,10 @@
 
    (result i32 i32)
 
-   ($lex-match-charset _lex-rule-delimiter-char
-                       _string-delimiter-charset
-                       $text
-                       $end))
+   ($lex-match-charset/ascii _lex-rule-delimiter-char
+                             _string-delimiter-charset
+                             $text
+                             $end))
 
  (elem funcref (ref.func $lex-match-delimiter-char))
 
@@ -533,10 +533,10 @@
 
    (result i32 i32)
 
-   ($lex-match-charset _lex-rule-intraline-whitespace
-                       _string-intraline-whitespace
-                       $text
-                       $end))
+   ($lex-match-charset/ascii _lex-rule-intraline-whitespace
+                             _string-intraline-whitespace
+                             $text
+                             $end))
 
  (elem funcref (ref.func $lex-match-intraline-whitespace))
 
@@ -594,10 +594,10 @@
 
    (result i32 i32)
 
-   ($lex-match-charset _lex-rule-line-ending-char
-                       _string-line-ending-charset
-                       $text
-                       $end))
+   ($lex-match-charset/ascii _lex-rule-line-ending-char
+                             _string-line-ending-charset
+                             $text
+                             $end))
 
  (elem funcref (ref.func $lex-match-line-ending-char))
 
@@ -999,10 +999,10 @@
 
    (result i32 i32)
 
-   ($lex-match-charset _lex-rule-special-initial
-                       _string-special-initials
-                       $text
-                       $end))
+   ($lex-match-charset/ascii _lex-rule-special-initial
+                             _string-special-initials
+                             $text
+                             $end))
 
  (elem funcref (ref.func $lex-match-special-initial))
 
@@ -1078,10 +1078,10 @@
 
    (result i32 i32)
 
-   ($lex-match-charset _lex-rule-explicit-sign
-                       _string-explicit-sign-charset
-                       $text
-                       $end))
+   ($lex-match-charset/ascii _lex-rule-explicit-sign
+                             _string-explicit-sign-charset
+                             $text
+                             $end))
 
  (elem funcref (ref.func $lex-match-explicit-sign))
 
@@ -1108,10 +1108,10 @@
 
    (result i32 i32)
 
-   ($lex-match-charset _lex-rule-special-subsequent/dot-or-at
-                       _string-dot-and-at
-                       $text
-                       $end))
+   ($lex-match-charset/ascii _lex-rule-special-subsequent/dot-or-at
+                             _string-dot-and-at
+                             $text
+                             $end))
 
  (elem funcref (ref.func $lex-match-special-subsequent/dot-or-at))
 
@@ -1197,10 +1197,10 @@
 
    (result i32 i32)
 
-   ($lex-match-charset _lex-rule-mnemonic-escape-character
-                       _string-mnemonic-escapes
-                       $text
-                       $end))
+   ($lex-match-charset/ascii _lex-rule-mnemonic-escape-character
+                             _string-mnemonic-escapes
+                             $text
+                             $end))
 
  (elem funcref (ref.func $lex-match-mnemonic-escape-character))
 
@@ -1427,13 +1427,23 @@
 
    ($lex-match-rules/sequence-of-2 _lex-rule-escaped-character
                                    _lex-rule-character-prefix
-                                   _lex-rule-any-char
+                                   _lex-rule-single-character
                                    $text
                                    $end))
 
  (elem funcref (ref.func $lex-match-escaped-character))
 
- (elem funcref (ref.func $lex-match-any-char))
+ (func $lex-match-single-character (export "lex-match-single-character")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-any-char _lex-rule-single-character
+                        $text
+                        $end))
+
+ (elem funcref (ref.func $lex-match-single-character))
 
  (func $lex-match-character-prefix (export "lex-match-character-prefix")
    (param $text i32)

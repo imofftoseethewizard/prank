@@ -4,7 +4,7 @@
  (import "block-mgr" "dealloc-block"  (func $dealloc-block   (param i32 i32)))
  (import "block-mgr" "get-block-addr" (func $get-block-addr  (param i32)     (result i32)))
  (import "block-mgr" "get-block-size" (func $get-block-size  (param i32)     (result i32)))
- (import "block-mgr" "init-blockset"  (func $init-blockset   (param i32 i32 i32)))
+ (import "block-mgr" "init-blockset"  (func $init-blockset   (param i32 i32)))
  (import "lists" "get-list-length"    (func $get-list-length (param i32)     (result i32)))
  (import "pairs" "dealloc-pair"       (func $dealloc-pair    (param i32)))
  (import "pairs" "get-pair-car"       (func $get-pair-car    (param i32)     (result i32)))
@@ -19,13 +19,12 @@
  (include "./gc-client.wam")
  (include "./block-mgr-memory-proxies.wam")
 
- (memory $memory (export "memory") 1)
+ (memory $memory (debug (export "memory")) 1)
 
  (start $init-vectors)
- (func $init-vectors (export "init-vectors")
-   ($init-blockset _vectors-blockset
-                   (i32.const 0x800)   ;; relocate blocks in groups of up to 2KB
-                   (i32.const 0x4000)) ;; relocate single blocks of up to 16KB
+ (func $init-vectors (debug (export "init-vectors"))
+   ;; relocate blocks in groups of up to 2KB
+   ($init-blockset _vectors-blockset (i32.const 0x800))
 
    ;; defined in block-mgr-memory-proxies.wam
    ($init-blockset-memory-proxies _vectors-blockset))

@@ -1,7 +1,7 @@
 import re
 
 from pathlib import Path
-from wasmer import engine, Store, Module, Instance
+from wasmer import engine, Function, Instance, Module, Store
 from wasmer_compiler_cranelift import Compiler
 
 engine = engine.Universal(Compiler)
@@ -40,6 +40,9 @@ def export_name_to_identifier(export_name):
 
 def exports_dict(instance):
     return dict(iter(instance.exports))
+
+def function(fn):
+    return Function(store, fn)
 
 def init_module(globals, name, *dependencies, debug=False):
 

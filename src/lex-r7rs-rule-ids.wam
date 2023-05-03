@@ -111,7 +111,7 @@
 (define _lex-rule-boolean                         (+rule-id))
 (define _lex-rule-character                       (+rule-id))
 (define _lex-rule-escaped-character               (+rule-id))
-(define _lex-rule-any-char                        (+rule-id))
+(define _lex-rule-single-character                (+rule-id))
 (define _lex-rule-character-prefix                (+rule-id))
 (define _lex-rule-named-character                 (+rule-id))
 (define _lex-rule-escaped-character-hex           (+rule-id))

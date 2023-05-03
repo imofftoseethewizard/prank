@@ -9,7 +9,7 @@
  (include "./globals.wam")
 
  (type $lexical-rule-func (func (param i32 i32) (result i32 i32)))
- (table $lexical-rules 200 funcref) ;; todo export, parameterize size
+ (table $lexical-rules (export "lexical-rules") 200 funcref) ;; todo: parameterize size
 
  (macro %get-char
    (expr ,addr)
