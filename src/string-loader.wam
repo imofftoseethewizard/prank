@@ -1,0 +1,23 @@
+ (func $load-string (debug (export "load-string"))
+   (param $data i32)
+   (result i32)
+
+   (local $addr i32)
+   (local $end i32)
+   (local $length i32)
+   (local $s i32)
+
+   (set! $length (i32.load8_u $data))
+   (set! $s ($alloc-string $length $length))
+   (set! $addr ($get-string-addr $s))
+
+   (%incr i32 $data)
+   (loop $again
+     ($set-string-bytes $addr (i32.load8_u $data) (i32.const 1))
+     (if (i32.lt_u $data $end)
+         (then
+          (%incr i32 $addr)
+          (%incr i32 $data)
+          (br $again))))
+
+   $s)

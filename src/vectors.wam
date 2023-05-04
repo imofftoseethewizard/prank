@@ -97,5 +97,31 @@
    (param $x i32)
    (i32.store (%get-vector-element-addr $v $idx) $x))
 
+ (func $build-vector (export "build-vector")
+   (param $list i32)
+   (result i32)
+
+   (local $addr i32)
+   (local $head i32)
+   (local $v i32)
+   (local $value i32)
+
+   (local.set $v (call $alloc-vector (call $get-list-length (local.get $list))))
+
+   (local.set $addr (call $get-vector-addr (local.get $v)))
+   (local.set $head (local.get $list))
+
+   (loop $again
+     (if (i32.ne (local.get $head) (global.get $null))
+         (then
+          (local.set $value (call $get-pair-car (local.get $list)))
+          (i32.store (local.get $addr) (local.get $value))
+          (call $add-ref (local.get $v) (local.get $value))
+          (%incr-n i32 $addr 4)
+          (%next-cdr $head)
+          (br $again))))
+
+   (local.get $v))
+
  ;; end of module
  )

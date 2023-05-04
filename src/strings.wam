@@ -300,6 +300,48 @@
            (else
             _string-type-large)))))))
 
+  (func $build-string (export "build-string")
+   (param $elements i32)
+   (result i32)
+
+   (local $addr i32)
+   (local $c i32)
+   (local $head i32)
+   (local $length i32)
+   (local $s i32)
+   (local $size i32)
+   (local $width i32)
+
+   (set! $head $elements)
+   (set! $length (i32.const 0))
+   (set! $size (i32.const 0))
+
+   (loop $count
+     (if (i32.ne $head _null)
+         (then
+          (set! $size (i32.add $size ($calc-char-width (%get-character ($get-pair-car $head)))))
+          (%incr i32 $length)
+          (set! $head ($get-pair-cdr $head))
+          (br $count))))
+
+   (set! $s ($alloc-string $length $size))
+
+   (set! $head $elements)
+   (set! $addr ($get-string-addr $s))
+
+   (loop $fill
+     (if (i32.ne $head _null)
+         (then
+          (set! $c (%get-character ($get-pair-car $head)))
+          (set! $width ($calc-char-width $c))
+          ($set-string-bytes $addr $c $width)
+          (set! $addr (i32.add $addr $width))
+          (set! $head ($get-pair-cdr $head))
+          (br $fill))))
+
+   $s)
+
+
  ;;-----------------------------------------------------------------------------
  ;;
  ;; Deallocation

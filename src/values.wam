@@ -82,3 +82,15 @@
 (macro %is-pair-value
   (expr ,value)
   (i32.eq (expand %get-value-tag ,value) _tag-pair))
+
+(macro %get-value
+  (expr ,value)
+  (i32.shr_u (%get-value-data ,value) _tag-size-bits))
+
+(macro %get-small-integer
+  (expr ,value)
+  (%get-value ,value))
+
+(macro %get-character
+  (expr ,value)
+  (%get-value ,value))

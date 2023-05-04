@@ -26,15 +26,16 @@
  (import "lex" "lex-match-strings/longest-of-3"           (func $lex-match-strings/longest-of-3           (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
  (import "lex" "lex-match-strings/longest-of-4"           (func $lex-match-strings/longest-of-4           (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
  (import "lex" "lex-match-until-rule"                     (func $lex-match-until-rule                     (param i32 i32 i32 i32)             (result i32 i32)))
- (import "strings" "get-string-addr"  (func $get-string-addr  (param i32)     (result i32)))
- (import "strings" "set-string-bytes" (func $set-string-bytes (param i32 i32 i32)))
- (import "strings" "alloc-string"     (func $alloc-string     (param i32 i32) (result i32)))
+ (import "strings" "get-string-addr"                      (func $get-string-addr                          (param i32)                         (result i32)))
+ (import "strings" "set-string-bytes"                     (func $set-string-bytes                         (param i32 i32 i32)))
+ (import "strings" "alloc-string"                         (func $alloc-string                             (param i32 i32)                     (result i32)))
 
  (import "lex" "lexical-rules"  (table $lexical-rules #max-lexical-rules funcref))
 
  (include "./globals.wam")
  (include "./ascii.wam")
  (include "./lex-r7rs-rule-ids.wam")
+ (include "./string-loader.wam")
 
  (memory (debug (export "memory")) 1)
 
@@ -350,30 +351,6 @@
    (table.set $lexical-rules _lex-rule-digit-16                        (ref.func $lex-match-digit-16))
    (table.set $lexical-rules _lex-rule-digit-16/A-F                    (ref.func $lex-match-digit-16/A-F))
    (table.set $lexical-rules _lex-rule-digit-16/a-f                    (ref.func $lex-match-digit-16/a-f)))
-
- (func $load-string (debug (export "load-string"))
-   (param $data i32)
-   (result i32)
-
-   (local $addr i32)
-   (local $end i32)
-   (local $length i32)
-   (local $s i32)
-
-   (set! $length (i32.load8_u $data))
-   (set! $s ($alloc-string $length $length))
-   (set! $addr ($get-string-addr $s))
-
-   (%incr i32 $data)
-   (loop $again
-     ($set-string-bytes $addr (i32.load8_u $data) (i32.const 1))
-     (if (i32.lt_u $data $end)
-         (then
-          (%incr i32 $addr)
-          (%incr i32 $data)
-          (br $again))))
-
-   $s)
 
  (func $lex-match-delimited-token (export "lex-match-delimited-token")
    (param $text i32)

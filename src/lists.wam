@@ -1,4 +1,5 @@
 (module
+ (import "pairs" "dealloc-pair" (func $dealloc-pair (param i32)))
  (import "pairs" "get-pair-cdr" (func $get-pair-cdr (param i32) (result i32)))
 
  (include "./globals.wam")
@@ -18,5 +19,18 @@
           (br $again))))
 
    $idx)
+
+ (func $dealloc-list (export "dealloc-list")
+   (param $head i32)
+
+   (local $next i32)
+
+   (loop $again
+     (if (i32.ne $head _null)
+         (then
+          (set! $next ($get-pair-cdr $head))
+          ($dealloc-pair $head)
+          (set! $head $next)
+          (br $again)))))
 
  )

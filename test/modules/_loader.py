@@ -41,8 +41,8 @@ def export_name_to_identifier(export_name):
 def exports_dict(instance):
     return dict(iter(instance.exports))
 
-def function(fn):
-    return Function(store, fn)
+def function(fn, sig):
+    return Function(store, fn, sig)
 
 def init_module(globals, name, *dependencies, debug=False):
 
