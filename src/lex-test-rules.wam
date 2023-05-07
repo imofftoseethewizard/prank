@@ -1,0 +1,97 @@
+(module
+
+
+ (import "lex" "lex-match-any-char"                       (func $lex-match-any-char                       (param i32 i32 i32)                 (result i32 i32)))
+ (import "lex" "lex-match-char-complement/ascii/set-of-2" (func $lex-match-char-complement/ascii/set-of-2 (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-char-range/ascii"               (func $lex-match-char-range/ascii               (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-char"                           (func $lex-match-char                           (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-char/ascii-ci"                  (func $lex-match-char/ascii-ci                  (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-charset/ascii"                  (func $lex-match-charset/ascii                  (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rule/one-or-more"               (func $lex-match-rule/one-or-more               (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rule/zero-or-more"              (func $lex-match-rule/zero-or-more              (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rule?"                          (func $lex-match-rule?                          (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rules/longest-of-2"             (func $lex-match-rules/longest-of-2             (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-rules/longest-of-3"             (func $lex-match-rules/longest-of-3             (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-rules/longest-of-4"             (func $lex-match-rules/longest-of-4             (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-rules/sequence-of-2"            (func $lex-match-rules/sequence-of-2            (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-rules/sequence-of-3"            (func $lex-match-rules/sequence-of-3            (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-rules/sequence-of-4"            (func $lex-match-rules/sequence-of-4            (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-rules/set-of-2"                 (func $lex-match-rules/set-of-2                 (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-string"                         (func $lex-match-string                         (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-string/ascii-ci"                (func $lex-match-string/ascii-ci                (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-strings/ascii-ci/longest-of-2"  (func $lex-match-strings/ascii-ci/longest-of-2  (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-strings/ascii-ci/longest-of-3"  (func $lex-match-strings/ascii-ci/longest-of-3  (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-strings/longest-of-2"           (func $lex-match-strings/longest-of-2           (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-strings/longest-of-3"           (func $lex-match-strings/longest-of-3           (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-strings/longest-of-4"           (func $lex-match-strings/longest-of-4           (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-until-rule"                     (func $lex-match-until-rule                     (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "strings" "get-string-addr"                      (func $get-string-addr                          (param i32)                         (result i32)))
+ (import "strings" "set-string-bytes"                     (func $set-string-bytes                         (param i32 i32 i32)))
+ (import "strings" "alloc-string"                         (func $alloc-string                             (param i32 i32)                     (result i32)))
+
+ (include "./constants.wam")
+
+ (import "lex" "lexical-rules" (table $lexical-rules #max-lexical-rules funcref))
+
+ (include "./globals.wam")
+ (include "./ascii.wam")
+ (include "./string-loader.wam")
+
+ (memory (debug (export "memory")) 1)
+
+ (global $charset-ab         (export "charset-ab")         (mut i32) (i32.const 0))
+ (global $charset-ba         (export "charset-ba")         (mut i32) (i32.const 0))
+ (global $charset-bc         (export "charset-bc")         (mut i32) (i32.const 0))
+ (global $empty-string       (export "empty-string")       (mut i32) (i32.const 0))
+ (global $lower-alphabet     (export "lower-alphabet")     (mut i32) (i32.const 0))
+ (global $lower-alpha23      (export "lower-alpha23")      (mut i32) (i32.const 0))
+ (global $single-char-string (export "single-char-string") (mut i32) (i32.const 0))
+ (global $upper-alphabet     (export "upper-alphabet")     (mut i32) (i32.const 0))
+
+ (define _charset-ab         (global.get $charset-ab))
+ (define _charset-ba         (global.get $charset-ba))
+ (define _charset-bc         (global.get $charset-bc))
+ (define _empty-string       (global.get $empty-string))
+ (define _lower-alphabet     (global.get $lower-alphabet))
+ (define _lower-alpha23      (global.get $lower-alpha23))
+ (define _single-char-string (global.get $single-char-string))
+ (define _upper-alphabet     (global.get $upper-alphabet))
+
+ (string _charset-ab-data         (export "charset-ab-data")         "ab")
+ (string _charset-ba-data         (export "charset-ba-data")         "ba")
+ (string _charset-bc-data         (export "charset-bc-data")         "bc")
+ (string _empty-string-data       (export "empty-string-data")       "")
+ (string _lower-alphabet-data     (export "lower-alphabet-data")     "abcdefghijklmnopqrstuvwxyz")
+ (string _lower-alpha23-data      (export "lower-alpha23-data")      "abcdefghijklmnopqrstuvw")
+ (string _single-char-string-data (export "single-char-string-data") "a")
+ (string _upper-alphabet-data     (export "upper-alphabet-data")     "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+ (define _lex-rule-charset-bc (+rule-id))
+ (global $lex-rule-charset-bc (export "lex-rule-charset-bc") i32 _lex-rule-charset-bc)
+
+ (start $init-lex-test-rules)
+ (func $init-lex-test-rules (export "init-lex-test-rules")
+   (global.set $charset-ab         ($load-string _charset-ab-data))
+   (global.set $charset-ba         ($load-string _charset-ba-data))
+   (global.set $charset-bc         ($load-string _charset-bc-data))
+   (global.set $empty-string       ($load-string _empty-string-data))
+   (global.set $lower-alphabet     ($load-string _lower-alphabet-data))
+   (global.set $lower-alpha23      ($load-string _lower-alpha23-data))
+   (global.set $single-char-string ($load-string _single-char-string-data))
+   (global.set $upper-alphabet     ($load-string _upper-alphabet-data))
+
+   (table.set $lexical-rules _lex-rule-charset-bc (ref.func $lex-match-charset-bc))
+)
+
+ (func $lex-match-charset-bc (export "lex-match-charset-bc")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-charset/ascii _lex-rule-charset-bc
+                             _charset-bc
+                             $text
+                             $end))
+
+ )

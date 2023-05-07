@@ -91,6 +91,7 @@
  (macro %string-unquote-symbol
    (global.get $string-unquote-symbol))
 
+ (include "./constants.wam")
  (include "./globals.wam")
  (include "./ascii.wam")
  (include "./values.wam")

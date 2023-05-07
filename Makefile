@@ -24,6 +24,7 @@ OBJECTS = \
 	obj/debug/chars.wasm \
 	obj/debug/lex.wasm \
 	obj/debug/lex-r7rs.wasm \
+	obj/debug/lex-test-rules.wasm \
 	obj/debug/lists.wasm \
 	obj/debug/math.wasm \
 	obj/debug/numbers.wasm \
@@ -39,6 +40,7 @@ OBJECTS = \
 	obj/chars.wasm \
 	obj/lex.wasm \
 	obj/lex-r7rs.wasm \
+	obj/lex-test-rules.wasm \
 	obj/lists.wasm \
 	obj/math.wasm \
 	obj/numbers.wasm \
@@ -48,58 +50,81 @@ OBJECTS = \
 	obj/symbols.wasm \
 	obj/vectors.wasm
 
-obj/src/block-mgr.wat obj/debug/src/block-mgr.wat: src/globals.wam
+obj/src/block-mgr.wat obj/debug/src/block-mgr.wat: \
+	src/constants.wam \
+	src/globals.wam
 
 obj/src/block-mgr-perf-test.wat: \
+	src/constants.wam \
 	src/globals.wam
 
 obj/src/block-mgr-test-client.wat obj/debug/src/block-mgr-test-client.wat: \
 	src/block-mgr-memory-proxies.wam \
 	src/block-mgr-memory-proxy-imports.wam \
+	src/constants.wam \
 	src/globals.wam
-
-obj/src/boxes.wat obj/debug/src/boxes.wat: globals.wam
 
 obj/src/bytevectors.wat obj/debug/src/bytevectors.wat: \
 	src/block-mgr-memory-proxies.wam \
 	src/block-mgr-memory-proxy-imports.wam \
 	src/boxes.wam \
+	src/constants.wam \
 	src/globals.wam \
 	src/values.wam
 
 obj/src/chars.wat obj/debug/src/chars.wat: \
 	src/ascii.wam \
+	src/constants.wam \
 	src/globals.wam \
 	src/values.wam
 
-obj/src/lex.wat obj/debug/src/lex.wat: src/globals.wam
+obj/src/lex.wat obj/debug/src/lex.wat: \
+	src/constants.wam \
+	src/globals.wam
 
 obj/src/lex-r7rs.wat obj/debug/src/lex-r7rs.wat: \
 	src/ascii.wam \
+	src/constants.wam \
 	src/globals.wam \
-	src/lex-r7rs-rule-ids.wam
+	src/lex-r7rs-rule-ids.wam \
+	src/string-loader.wam
 
-obj/src/lists.wat obj/debug/src/lists.wat: src/globals.wam
+obj/src/lex-test-rules.wat obj/debug/src/lex-test-rules.wat: \
+	src/ascii.wam \
+	src/constants.wam \
+	src/globals.wam \
+	src/string-loader.wam
+
+obj/src/lists.wat obj/debug/src/lists.wat:
+	src/constants.wam \
+	src/globals.wam
 
 obj/src/numbers.wat obj/debug/src/numbers.wat: \
 	src/block-mgr-memory-proxies.wam \
 	src/block-mgr-memory-proxy-imports.wam \
 	src/boxes.wam \
+	src/constants.wam \
 	src/globals.wam \
 	src/values.wam
 
-obj/src/pairs.wat obj/debug/src/pairs.wat: src/globals.wam src/gc-client.wam
+obj/src/pairs.wat obj/debug/src/pairs.wat: \
+	src/constants.wam \
+	src/gc-client.wam \
+	src/globals.wam
 
 obj/src/parse.wat obj/debug/src/parse.wat: \
 	src/ascii.wam \
+	src/constants.wam \
 	src/globals.wam \
 	src/lex-r7rs-rule-ids.wam \
+	src/string-loader.wam \
 	src/values.wam
 
 obj/src/strings.wat obj/debug/src/strings.wat: \
 	src/block-mgr-memory-proxies.wam \
 	src/block-mgr-memory-proxy-imports.wam \
 	src/boxes.wam \
+	src/constants.wam \
 	src/globals.wam \
 	src/values.wam
 
@@ -107,12 +132,14 @@ obj/src/symbols.wat obj/debug/src/symbols.wat: \
 	src/block-mgr-memory-proxies.wam \
 	src/block-mgr-memory-proxy-imports.wam \
 	src/boxes.wam \
+	src/constants.wam \
 	src/globals.wam \
 	src/values.wam
 
 obj/src/vectors.wat obj/debug/src/vectors.wat: \
 	src/block-mgr-memory-proxies.wam \
 	src/block-mgr-memory-proxy-imports.wam \
+	src/constants.wam \
 	src/globals.wam
 
 dirs:

@@ -1,0 +1,11 @@
+(const #null -1)
+
+(const #page-size       0x10000)
+(const #page-size-bits  16)
+(const #pair-size       8)
+(const #pair-size-bits  3)
+(const #tag-size-bits   3)
+(const #value-size      4)
+(const #value-size-bits 2)
+
+(const #max-lexical-rules 178)

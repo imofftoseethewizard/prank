@@ -1,3 +1,4 @@
+;; todo rename file since it contains rule ids and string defs
 (define _string-paren-charset          (global.get $string-paren-charset))
 (define _string-token-charset          (global.get $string-token-charset))
 (define _string-begin-vector           (global.get $string-begin-vector))

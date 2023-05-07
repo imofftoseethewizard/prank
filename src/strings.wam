@@ -25,6 +25,7 @@
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
+ (include "./constants.wam")
  (include "./globals.wam")
  (include "./boxes.wam")
  (include "./values.wam")
@@ -252,9 +253,8 @@
    (set! $header-size (%calc-data-offset $type))
    (set! $index-size (%calc-index-size $type $length))
 
-   (set! $block ($alloc-block
-                      _strings-blockset
-                      (i32.add $header-size (i32.add $size $index-size))))
+   (set! $block ($alloc-block _strings-blockset
+                              (i32.add $header-size (i32.add $size $index-size))))
 
    (set! $addr ($get-block-addr $block))
 
@@ -574,7 +574,7 @@
    (local $mask i32)
    (local $x i32)
 
-   (set! $x (i32.load $x))
+   (set! $x (i32.load $addr))
    (set! $length ($calc-encoded-length $x))
    (set! $mask (i32.sub (i32.shl (i32.const 1)
                                  (i32.shl $length (i32.const 3)))

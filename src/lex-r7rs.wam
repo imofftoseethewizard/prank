@@ -1,11 +1,9 @@
 (module
 
- (const #max-lexical-rules 178)
-
  (import "lex" "lex-match-any-char"                       (func $lex-match-any-char                       (param i32 i32 i32)                 (result i32 i32)))
+ (import "lex" "lex-match-char"                           (func $lex-match-char                           (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-char-complement/ascii/set-of-2" (func $lex-match-char-complement/ascii/set-of-2 (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-char-range/ascii"               (func $lex-match-char-range/ascii               (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-char/ascii"                     (func $lex-match-char/ascii                     (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-char/ascii-ci"                  (func $lex-match-char/ascii-ci                  (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-charset/ascii"                  (func $lex-match-charset/ascii                  (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-rule/one-or-more"               (func $lex-match-rule/one-or-more               (param i32 i32 i32 i32)             (result i32 i32)))
@@ -22,13 +20,16 @@
  (import "lex" "lex-match-string/ascii-ci"                (func $lex-match-string/ascii-ci                (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-strings/ascii-ci/longest-of-2"  (func $lex-match-strings/ascii-ci/longest-of-2  (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-strings/ascii-ci/longest-of-3"  (func $lex-match-strings/ascii-ci/longest-of-3  (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
- (import "lex" "lex-match-strings/longest-of-2"           (func $lex-match-strings/longest-of-2           (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-strings/longest-of-3"           (func $lex-match-strings/longest-of-3           (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-strings/ascii-ci/one-of-2"      (func $lex-match-strings/ascii-ci/one-of-2      (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-strings/longest-of-4"           (func $lex-match-strings/longest-of-4           (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-strings/one-of-2"               (func $lex-match-strings/one-of-2               (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-strings/one-of-3"               (func $lex-match-strings/one-of-3               (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
  (import "lex" "lex-match-until-rule"                     (func $lex-match-until-rule                     (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "strings" "alloc-string"                         (func $alloc-string                             (param i32 i32)                     (result i32)))
  (import "strings" "get-string-addr"                      (func $get-string-addr                          (param i32)                         (result i32)))
  (import "strings" "set-string-bytes"                     (func $set-string-bytes                         (param i32 i32 i32)))
- (import "strings" "alloc-string"                         (func $alloc-string                             (param i32 i32)                     (result i32)))
+
+ (include "./constants.wam")
 
  (import "lex" "lexical-rules"  (table $lexical-rules #max-lexical-rules funcref))
 
@@ -448,7 +449,7 @@
 
    (result i32 i32)
 
-   ($lex-match-strings/longest-of-2 _lex-rule-delimited-token-string
+   ($lex-match-strings/one-of-2 _lex-rule-delimited-token-string
                                     _string-begin-vector
                                     _string-begin-bytevector
                                     $text
@@ -542,10 +543,10 @@
 
    (result i32 i32)
 
-   ($lex-match-char/ascii _lex-rule-vertical-line
-                          _char-vertical-line
-                          $text
-                          $end))
+   ($lex-match-char _lex-rule-vertical-line
+                    _char-vertical-line
+                    $text
+                    $end))
 
  (elem funcref (ref.func $lex-match-vertical-line))
 
@@ -633,10 +634,10 @@
 
    (result i32 i32)
 
-   ($lex-match-char/ascii _lex-rule-semicolon
-                          _char-semicolon
-                          $text
-                          $end))
+   ($lex-match-char _lex-rule-semicolon
+                    _char-semicolon
+                    $text
+                    $end))
 
  (elem funcref (ref.func $lex-match-semicolon))
 
@@ -761,7 +762,7 @@
 
    (result i32 i32)
 
-   ($lex-match-strings/longest-of-2 _lex-rule-nested-comment-delimiters
+   ($lex-match-strings/one-of-2 _lex-rule-nested-comment-delimiters
                                     _string-begin-nested-comment
                                     _string-end-nested-comment
                                     $text
@@ -793,7 +794,7 @@
 
    (result i32 i32)
 
-   ($lex-match-strings/longest-of-2 _lex-rule-directive
+   ($lex-match-strings/one-of-2 _lex-rule-directive
                                     _string-directive-fold-case
                                     _string-directive-no-fold-case
                                     $text
@@ -1161,10 +1162,10 @@
 
    (result i32 i32)
 
-   ($lex-match-char/ascii _lex-rule-backslash
-                          _char-backslash
-                          $text
-                          $end))
+   ($lex-match-char _lex-rule-backslash
+                    _char-backslash
+                    $text
+                    $end))
 
  (elem funcref (ref.func $lex-match-backslash))
 
@@ -1240,10 +1241,10 @@
 
    (result i32 i32)
 
-   ($lex-match-char/ascii _lex-rule-dot
-                          _char-dot
-                          $text
-                          $end))
+   ($lex-match-char _lex-rule-dot
+                    _char-dot
+                    $text
+                    $end))
 
  (elem funcref (ref.func $lex-match-dot))
 
@@ -1301,10 +1302,10 @@
 
    (result i32 i32)
 
-   ($lex-match-char/ascii _lex-rule-at-sign
-                          _char-at-sign
-                          $text
-                          $end))
+   ($lex-match-char _lex-rule-at-sign
+                    _char-at-sign
+                    $text
+                    $end))
 
  (elem funcref (ref.func $lex-match-at-sign))
 
@@ -1513,7 +1514,7 @@
 
    (result i32 i32)
 
-   ($lex-match-strings/longest-of-3 _lex-rule-character-name/group-1
+   ($lex-match-strings/one-of-3 _lex-rule-character-name/group-1
                                     _string-alarm
                                     _string-backspace
                                     _string-delete
@@ -1528,7 +1529,7 @@
 
    (result i32 i32)
 
-   ($lex-match-strings/longest-of-3 _lex-rule-character-name/group-2
+   ($lex-match-strings/one-of-3 _lex-rule-character-name/group-2
                                     _string-escape
                                     _string-newline
                                     _string-null
@@ -1543,7 +1544,7 @@
 
    (result i32 i32)
 
-   ($lex-match-strings/longest-of-3 _lex-rule-character-name/group-3
+   ($lex-match-strings/one-of-3 _lex-rule-character-name/group-3
                                     _string-return
                                     _string-space
                                     _string-tab
@@ -1576,10 +1577,10 @@
 
    (result i32 i32)
 
-   ($lex-match-char/ascii _lex-rule-double-quote
-                          _char-double-quote
-                          $text
-                          $end))
+   ($lex-match-char _lex-rule-double-quote
+                    _char-double-quote
+                    $text
+                    $end))
 
  (elem funcref (ref.func $lex-match-double-quote))
 
@@ -2571,10 +2572,10 @@
 
    (result i32 i32)
 
-   ($lex-match-char/ascii _lex-rule-slash
-                          _char-slash
-                          $text
-                          $end))
+   ($lex-match-char _lex-rule-slash
+                    _char-slash
+                    $text
+                    $end))
 
  (elem funcref (ref.func $lex-match-slash))
 
@@ -2800,7 +2801,7 @@
 
    (result i32 i32)
 
-   ($lex-match-strings/ascii-ci/longest-of-2 _lex-rule-inf-or-nan
+   ($lex-match-strings/ascii-ci/one-of-2 _lex-rule-inf-or-nan
                                              _string-inf
                                              _string-nan
                                              $text

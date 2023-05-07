@@ -138,6 +138,7 @@
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
+ (include "./constants.wam")
  (include "./globals.wam")
  (include "./values.wam")
  (include "./boxes.wam")

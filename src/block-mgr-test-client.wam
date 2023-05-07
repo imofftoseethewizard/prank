@@ -6,6 +6,7 @@
  (import "block-mgr" "get-block-addr" (func $get-block-addr (param i32) (result i32)))
  (import "block-mgr" "get-block-size" (func $get-block-size (param i32) (result i32)))
 
+ (include "./constants.wam")
  (include "./globals.wam")
  (include "./block-mgr-memory-proxies.wam")
 

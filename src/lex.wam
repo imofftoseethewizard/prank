@@ -6,10 +6,11 @@
  (import "strings" "match-string"          (func $match-string          (param i32 i32 i32) (result i32)))
  (import "strings" "match-string/ascii-ci" (func $match-string/ascii-ci (param i32 i32 i32) (result i32)))
 
+ (include "./constants.wam")
  (include "./globals.wam")
 
  (type $lexical-rule-func (func (param i32 i32) (result i32 i32)))
- (table $lexical-rules (export "lexical-rules") 200 funcref) ;; todo: parameterize size
+ (table $lexical-rules (export "lexical-rules") #max-lexical-rules funcref)
 
  (macro %get-char
    (expr ,addr)
@@ -39,7 +40,7 @@
      (else
       (i32.add (i32.const 1) $text)))) ;; todo unicode
 
- (func $lex-match-char/ascii (export "lex-match-char/ascii")
+ (func $lex-match-char (export "lex-match-char")
    (param $rule-id i32)
    (param $char i32)
    (param $text i32)
@@ -175,6 +176,70 @@
 
    $rule-id
    ($match-string/ascii-ci $str $text $end))
+
+ (func $lex-match-strings/one-of-2 (export "lex-match-strings/one-of-2")
+   (param $rule-id i32)
+   (param $first-str i32)
+   (param $second-str i32)
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (local $end-match i32)
+
+   (set! $end-match ($match-string $first-str $text $end))
+
+   $rule-id
+
+   (if (result i32) (i32.ne $end-match _null)
+     (then $end-match)
+     (else ($match-string $second-str $text $end))))
+
+ (func $lex-match-strings/ascii-ci/one-of-2 (export "lex-match-strings/ascii-ci/one-of-2")
+   (param $rule-id i32)
+   (param $first-str i32)
+   (param $second-str i32)
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (local $end-match i32)
+
+   (set! $end-match ($match-string/ascii-ci $first-str $text $end))
+
+   $rule-id
+
+   (if (result i32) (i32.ne $end-match _null)
+     (then $end-match)
+     (else ($match-string/ascii-ci $second-str $text $end))))
+
+ (func $lex-match-strings/one-of-3 (export "lex-match-strings/one-of-3")
+   (param $rule-id i32)
+   (param $first-str i32)
+   (param $second-str i32)
+   (param $third-str i32)
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (local $end-match i32)
+
+   (set! $end-match ($match-string $first-str $text $end))
+
+   $rule-id
+
+   (if (result i32) (i32.ne $end-match _null)
+     (then $end-match)
+
+     (else
+      (set! $end-match ($match-string $second-str $text $end))
+
+      (if (result i32) (i32.ne $end-match _null)
+        (then $end-match)
+        (else ($match-string $third-str $text $end))))))
 
  (func $lex-match-strings/longest-of-2 (export "lex-match-strings/longest-of-2")
    (param $rule-id i32)
@@ -373,7 +438,7 @@
 
    (local $end-match i32)
 
-   (drop  ;; matching rule id
+   (drop ;; matching rule id
     (set! $end-match
           (call_indirect $lexical-rules (type $lexical-rule-func) $text $end $target-rule-id)))
 
@@ -399,7 +464,7 @@
 
    (loop $again
 
-     (drop  ;; matching rule id
+     (drop ;; matching rule id
       (set! $next-end
             (call_indirect $lexical-rules (type $lexical-rule-func)
                            $end-match $end
@@ -447,42 +512,6 @@
      (if (i32.ne $next-end _null)
          (then
           (set! $end-match $next-end)
-          (br $again))))
-
-   $rule-id
-   $end-match)
-
- (func $lex-match-rules/sequence (export "lex-match-rules/sequence")
-   (param $rule-id i32)
-   (param $first-rule-id i32)
-   (param $last-rule-id i32)
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   (local $current-rule-id i32)
-   (local $end-match i32)
-
-   (set! $current-rule-id $first-rule-id)
-   (set! $end-match $text)
-
-   (loop $again
-
-
-
-
-     (drop ;; matching rule id
-      (set! $end-match
-            (call_indirect $lexical-rules (type $lexical-rule-func)
-                           $end-match $end
-                           $current-rule-id)))
-
-     (if (i32.and
-          (i32.gt_s $end-match _null)
-          (i32.lt_u $current-rule-id $last-rule-id))
-         (then
-          (set! $current-rule-id (i32.add (i32.const 1) $current-rule-id))
           (br $again))))
 
    $rule-id

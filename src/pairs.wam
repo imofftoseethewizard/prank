@@ -17,6 +17,7 @@
 
  (memory (debug (export "memory")) 1)
 
+ (include "./constants.wam")
  (include "./globals.wam")
  (include "./gc-client.wam")
 

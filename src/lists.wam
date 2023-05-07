@@ -2,6 +2,7 @@
  (import "pairs" "dealloc-pair" (func $dealloc-pair (param i32)))
  (import "pairs" "get-pair-cdr" (func $get-pair-cdr (param i32) (result i32)))
 
+ (include "./constants.wam")
  (include "./globals.wam")
 
  (func $get-list-length (export "get-list-length")

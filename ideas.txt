@@ -371,7 +371,6 @@ values release punchlist
     vectors
       general comments
 
-
   rough in parser to verify interface
   move to extras all non-required functions (and supporting globals, etc)
   reorder code to standard order:
@@ -422,20 +421,6 @@ block-mgr
 
 lex/parse
   translate js lex tests to python
-  remove rule-id param
-  split lex into lex (general routines) and lex-r7rs
-    lex-racket, lex-cl?
-  split lex-match-token into delimited (strings, vertical bar-quoted symbols, comments, parens)
-    and undelimited (everything else)
-  define constants in globals for parse errors
-  define parse state struct
-    error
-    is complete
-    value
-    nesting/stack
-    in vector
-    in bytevector
-
   parse-r7rs
 
 transcendental functions/math
