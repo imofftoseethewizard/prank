@@ -42,46 +42,75 @@
  (global $charset-ab         (export "charset-ab")         (mut i32) (i32.const 0))
  (global $charset-ba         (export "charset-ba")         (mut i32) (i32.const 0))
  (global $charset-bc         (export "charset-bc")         (mut i32) (i32.const 0))
+ (global $charset-defg       (export "charset-defg")         (mut i32) (i32.const 0))
  (global $empty-string       (export "empty-string")       (mut i32) (i32.const 0))
- (global $lower-alphabet     (export "lower-alphabet")     (mut i32) (i32.const 0))
  (global $lower-alpha23      (export "lower-alpha23")      (mut i32) (i32.const 0))
+ (global $lower-alphabet     (export "lower-alphabet")     (mut i32) (i32.const 0))
  (global $single-char-string (export "single-char-string") (mut i32) (i32.const 0))
+ (global $string-def         (export "string-def")         (mut i32) (i32.const 0))
  (global $upper-alphabet     (export "upper-alphabet")     (mut i32) (i32.const 0))
 
  (define _charset-ab         (global.get $charset-ab))
  (define _charset-ba         (global.get $charset-ba))
  (define _charset-bc         (global.get $charset-bc))
+ (define _charset-defg       (global.get $charset-defg))
  (define _empty-string       (global.get $empty-string))
- (define _lower-alphabet     (global.get $lower-alphabet))
  (define _lower-alpha23      (global.get $lower-alpha23))
+ (define _lower-alphabet     (global.get $lower-alphabet))
  (define _single-char-string (global.get $single-char-string))
+ (define _string-def         (global.get $string-def))
  (define _upper-alphabet     (global.get $upper-alphabet))
 
  (string _charset-ab-data         (export "charset-ab-data")         "ab")
  (string _charset-ba-data         (export "charset-ba-data")         "ba")
  (string _charset-bc-data         (export "charset-bc-data")         "bc")
+ (string _charset-defg-data       (export "charset-defg-data")       "defg")
  (string _empty-string-data       (export "empty-string-data")       "")
- (string _lower-alphabet-data     (export "lower-alphabet-data")     "abcdefghijklmnopqrstuvwxyz")
  (string _lower-alpha23-data      (export "lower-alpha23-data")      "abcdefghijklmnopqrstuvw")
+ (string _lower-alphabet-data     (export "lower-alphabet-data")     "abcdefghijklmnopqrstuvwxyz")
  (string _single-char-string-data (export "single-char-string-data") "a")
+ (string _string-def-data         (export "string-def-data")         "def")
  (string _upper-alphabet-data     (export "upper-alphabet-data")     "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
- (define _lex-rule-charset-bc (+rule-id))
- (global $lex-rule-charset-bc (export "lex-rule-charset-bc") i32 _lex-rule-charset-bc)
+ (define _lex-rule-charset-ab   (+rule-id))
+ (define _lex-rule-charset-bc   (+rule-id))
+ (define _lex-rule-charset-defg (+rule-id))
+ (define _lex-rule-string-def   (+rule-id))
+
+ (global $lex-rule-charset-ab   (export "lex-rule-charset-ab")   i32 _lex-rule-charset-ab)
+ (global $lex-rule-charset-bc   (export "lex-rule-charset-bc")   i32 _lex-rule-charset-bc)
+ (global $lex-rule-charset-defg (export "lex-rule-charset-defg") i32 _lex-rule-charset-defg)
+ (global $lex-rule-string-def   (export "lex-rule-string-def")   i32 _lex-rule-string-def)
 
  (start $init-lex-test-rules)
  (func $init-lex-test-rules (export "init-lex-test-rules")
    (global.set $charset-ab         ($load-string _charset-ab-data))
    (global.set $charset-ba         ($load-string _charset-ba-data))
    (global.set $charset-bc         ($load-string _charset-bc-data))
+   (global.set $charset-defg       ($load-string _charset-defg-data))
    (global.set $empty-string       ($load-string _empty-string-data))
-   (global.set $lower-alphabet     ($load-string _lower-alphabet-data))
    (global.set $lower-alpha23      ($load-string _lower-alpha23-data))
+   (global.set $lower-alphabet     ($load-string _lower-alphabet-data))
    (global.set $single-char-string ($load-string _single-char-string-data))
+   (global.set $string-def         ($load-string _string-def-data))
    (global.set $upper-alphabet     ($load-string _upper-alphabet-data))
 
-   (table.set $lexical-rules _lex-rule-charset-bc (ref.func $lex-match-charset-bc))
+   (table.set $lexical-rules _lex-rule-charset-ab   (ref.func $lex-match-charset-ab))
+   (table.set $lexical-rules _lex-rule-charset-bc   (ref.func $lex-match-charset-bc))
+   (table.set $lexical-rules _lex-rule-charset-defg (ref.func $lex-match-charset-defg))
+   (table.set $lexical-rules _lex-rule-string-def   (ref.func $lex-match-string-def))
 )
+
+ (func $lex-match-charset-ab (export "lex-match-charset-ab")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-charset/ascii _lex-rule-charset-ab
+                             _charset-ab
+                             $text
+                             $end))
 
  (func $lex-match-charset-bc (export "lex-match-charset-bc")
    (param $text i32)
@@ -93,5 +122,27 @@
                              _charset-bc
                              $text
                              $end))
+
+ (func $lex-match-charset-defg (export "lex-match-charset-defg")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-charset/ascii _lex-rule-charset-defg
+                             _charset-defg
+                             $text
+                             $end))
+
+ (func $lex-match-string-def (export "lex-match-string-def")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-string _lex-rule-string-def
+                      _string-def
+                      $text
+                      $end))
 
  )

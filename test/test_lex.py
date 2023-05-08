@@ -894,3 +894,347 @@ def test_match_rule_one_or_more():
     matched_rule_id, match_end = lex_match_rule_one_or_more(rule_id, lex_rule_charset_bc.value, text, end)
     assert matched_rule_id == rule_id
     assert match_end == -1
+
+def test_match_rules_sequence_of_2():
+    init_test()
+
+    rule_id = 200
+    text = end = get_string_addr(empty_string.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == text+2
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == text+2
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+2
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+def test_match_rules_sequence_of_3():
+    init_test()
+
+    rule_id = 200
+    text = end = get_string_addr(empty_string.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_3(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_string_def.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_3(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_string_def.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_3(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_string_def.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == text+5
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+2
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_3(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_string_def.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+def test_match_rules_sequence_of_4():
+    init_test()
+
+    rule_id = 200
+    text = end = get_string_addr(empty_string.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_4(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_string_def.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_4(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_string_def.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_4(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_string_def.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == text+6
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+2
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_sequence_of_4(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_string_def.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+def test_match_rules_longest_of_2():
+    init_test()
+
+    rule_id = 200
+    text = end = get_string_addr(empty_string.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == lex_rule_charset_ab.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == lex_rule_charset_ab.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_2(rule_id, lex_rule_charset_bc.value, lex_rule_charset_ab.value, text, end)
+    assert matched_rule_id == lex_rule_charset_bc.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+2
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == lex_rule_charset_bc.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_2(rule_id, lex_rule_string_def.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_string_def.value
+    assert match_end == text+3
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_2(rule_id, lex_rule_charset_defg.value, lex_rule_string_def.value, text, end)
+    assert matched_rule_id == lex_rule_string_def.value
+    assert match_end == text+3
+
+def test_match_rules_longest_of_3():
+    init_test()
+
+    rule_id = 200
+    text = end = get_string_addr(empty_string.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_3(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_3(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_charset_ab.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_3(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_charset_ab.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_3(rule_id, lex_rule_charset_bc.value, lex_rule_charset_ab.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_charset_bc.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_3(rule_id, lex_rule_charset_bc.value, lex_rule_charset_defg.value, lex_rule_charset_ab.value, text, end)
+    assert matched_rule_id == lex_rule_charset_bc.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+2
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_3(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_charset_bc.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_3(rule_id, lex_rule_string_def.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_string_def.value
+    assert match_end == text+3
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_3(rule_id, lex_rule_charset_defg.value, lex_rule_string_def.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_string_def.value
+    assert match_end == text+3
+    rule_id = 200
+
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_3(rule_id, lex_rule_charset_defg.value, lex_rule_charset_defg.value, lex_rule_string_def.value, text, end)
+    assert matched_rule_id == lex_rule_string_def.value
+    assert match_end == text+3
+
+def test_match_rules_longest_of_4():
+    init_test()
+
+    rule_id = 200
+    text = end = get_string_addr(empty_string.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_charset_ab.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_charset_ab.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_charset_bc.value, lex_rule_charset_ab.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_charset_bc.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_charset_bc.value, lex_rule_charset_defg.value, lex_rule_charset_ab.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_charset_bc.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+2
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_charset_bc.value
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_string_def.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_string_def.value
+    assert match_end == text+3
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_charset_defg.value, lex_rule_string_def.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_string_def.value
+    assert match_end == text+3
+    rule_id = 200
+
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_charset_defg.value, lex_rule_charset_defg.value, lex_rule_string_def.value, lex_rule_charset_defg.value, text, end)
+    assert matched_rule_id == lex_rule_string_def.value
+    assert match_end == text+3
+
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_longest_of_4(rule_id, lex_rule_charset_defg.value, lex_rule_charset_defg.value, lex_rule_charset_defg.value, lex_rule_string_def.value, text, end)
+    assert matched_rule_id == lex_rule_string_def.value
+    assert match_end == text+3
+
+def test_match_rules_set_of_2():
+    init_test()
+
+    rule_id = 200
+    text = end = get_string_addr(empty_string.value)
+    matched_rule_id, match_end = lex_match_rules_set_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_set_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == text+2
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_set_of_2(rule_id, lex_rule_charset_bc.value, lex_rule_charset_ab.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == text+2
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+2
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_rules_set_of_2(rule_id, lex_rule_charset_ab.value, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+def test_lex_match_until_rule():
+    init_test()
+
+    rule_id = 200
+    text = end = get_string_addr(empty_string.value)
+    matched_rule_id, match_end = lex_match_until_rule(rule_id, lex_rule_charset_ab.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_until_rule(rule_id, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == text+1
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+1
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_until_rule(rule_id, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == text
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+2
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_until_rule(rule_id, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == text
+
+    rule_id = 200
+    text = get_string_addr(lower_alphabet.value)+3
+    end = text + get_string_size(lower_alphabet.value)
+    matched_rule_id, match_end = lex_match_until_rule(rule_id, lex_rule_charset_bc.value, text, end)
+    assert matched_rule_id == rule_id
+    assert match_end == -1

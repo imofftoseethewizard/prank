@@ -668,47 +668,6 @@
    $rule-id
    $end-match)
 
- (func $lex-match-rules/longest (export "lex-match-rules/longest")
-   (param $rule-id i32)
-   (param $first-rule-id i32)
-   (param $last-rule-id i32)
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   (local $current-rule-id i32)
-   (local $matching-rule-id i32)
-   (local $end-match i32)
-
-   (local $longest-matching-rule-id i32)
-   (local $max-end i32)
-
-   (set! $current-rule-id $first-rule-id)
-   (set! $matching-rule-id $rule-id)
-   (set! $end-match _null)
-
-   (loop $again
-
-     (set! $matching-rule-id
-           (set! $end-match
-                 (call_indirect $lexical-rules (type $lexical-rule-func)
-                                $text $end
-                                $current-rule-id)))
-
-     (if (i32.gt_s $end-match $max-end)
-         (then
-          (set! $longest-matching-rule-id $matching-rule-id)
-          (set! $max-end $end-match)))
-
-     (if (i32.lt_u $current-rule-id $last-rule-id)
-         (then
-          (set! $current-rule-id (i32.add (i32.const 1) $current-rule-id))
-          (br $again))))
-
-   $longest-matching-rule-id
-   $max-end)
-
  (func $lex-match-rules/longest-of-2 (export "lex-match-rules/longest-of-2")
    (param $rule-id i32)
    (param $first-rule-id i32)
@@ -932,9 +891,9 @@
 
    (result i32 i32)
 
+   (local $current i32)
    (local $end-match i32)
 
-   (local $current i32)
    (set! $current $text)
 
    (loop $again
@@ -944,27 +903,14 @@
                            $current $end
                            $end-rule-id)))
 
-     (if (i32.and (i32.lt_u $current $end) (i32.eq _null $end-match))
+     (if (i32.lt_u $current $end)
          (then
-          (set! $current (i32.add (i32.const 1) $current))
-          (br $again))))
+          (if (i32.eq _null $end-match)
+              (then
+               (set! $current (i32.add (i32.const 1) $current))
+               (br $again))))
+       (else
+        (set! $current _null))))
 
    $rule-id
-   $current)
-
- (func $lex-token-relabel (export "lex-token-relabel")
-   (param $new-rule-id i32)
-   (param $rule-id i32)
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   (local $end-match i32)
-
-   (drop ;; matching rule id
-    (set! $end-match
-          (call_indirect $lexical-rules (type $lexical-rule-func) $text $end $rule-id)))
-
-   $new-rule-id
-   $end-match))
+   $current))
