@@ -132,8 +132,8 @@
  (string _string-radix-10-data               (export "string-radix-10-data")                "#d")
  (string _string-radix-16-data               (export "string-radix-16-data")                "#x")
 
- (start $init)
- (func $init
+ (start $init-lex-r7rs)
+ (func $init-lex-r7rs (debug (export "init-lex-r7rs"))
 
    (global.set $string-paren-charset          ($load-string _string-paren-charset-data))
    (global.set $string-token-charset          ($load-string _string-token-charset-data))
@@ -450,10 +450,10 @@
    (result i32 i32)
 
    ($lex-match-strings/one-of-2 _lex-rule-delimited-token-string
-                                    _string-begin-vector
-                                    _string-begin-bytevector
-                                    $text
-                                    $end))
+                                _string-begin-vector
+                                _string-begin-bytevector
+                                $text
+                                $end))
 
  (elem funcref (ref.func $lex-match-delimited-token-string))
 
@@ -763,10 +763,10 @@
    (result i32 i32)
 
    ($lex-match-strings/one-of-2 _lex-rule-nested-comment-delimiters
-                                    _string-begin-nested-comment
-                                    _string-end-nested-comment
-                                    $text
-                                    $end))
+                                _string-begin-nested-comment
+                                _string-end-nested-comment
+                                $text
+                                $end))
 
  (elem funcref (ref.func $lex-match-nested-comment-delimiters))
 
@@ -795,10 +795,10 @@
    (result i32 i32)
 
    ($lex-match-strings/one-of-2 _lex-rule-directive
-                                    _string-directive-fold-case
-                                    _string-directive-no-fold-case
-                                    $text
-                                    $end))
+                                _string-directive-fold-case
+                                _string-directive-no-fold-case
+                                $text
+                                $end))
 
  (elem funcref (ref.func $lex-match-directive))
 
@@ -1515,11 +1515,11 @@
    (result i32 i32)
 
    ($lex-match-strings/one-of-3 _lex-rule-character-name/group-1
-                                    _string-alarm
-                                    _string-backspace
-                                    _string-delete
-                                    $text
-                                    $end))
+                                _string-alarm
+                                _string-backspace
+                                _string-delete
+                                $text
+                                $end))
 
  (elem funcref (ref.func $lex-match-character-name/group-1))
 
@@ -1530,11 +1530,11 @@
    (result i32 i32)
 
    ($lex-match-strings/one-of-3 _lex-rule-character-name/group-2
-                                    _string-escape
-                                    _string-newline
-                                    _string-null
-                                    $text
-                                    $end))
+                                _string-escape
+                                _string-newline
+                                _string-null
+                                $text
+                                $end))
 
  (elem funcref (ref.func $lex-match-character-name/group-2))
 
@@ -1545,11 +1545,11 @@
    (result i32 i32)
 
    ($lex-match-strings/one-of-3 _lex-rule-character-name/group-3
-                                    _string-return
-                                    _string-space
-                                    _string-tab
-                                    $text
-                                    $end))
+                                _string-return
+                                _string-space
+                                _string-tab
+                                $text
+                                $end))
 
  (elem funcref (ref.func $lex-match-character-name/group-3))
 
@@ -2802,10 +2802,10 @@
    (result i32 i32)
 
    ($lex-match-strings/ascii-ci/one-of-2 _lex-rule-inf-or-nan
-                                             _string-inf
-                                             _string-nan
-                                             $text
-                                             $end))
+                                         _string-inf
+                                         _string-nan
+                                         $text
+                                         $end))
 
  (elem funcref (ref.func $lex-match-inf-or-nan))
 

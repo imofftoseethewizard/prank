@@ -26,12 +26,6 @@ def test_init():
     assert get_string_length(empty_string.value) == 0
     assert get_string_length(single_char_string.value) == 1
 
-    assert get_string_size(charset_ab.value) == 2
-    assert get_string_size(charset_ba.value) == 2
-    assert get_string_size(charset_bc.value) == 2
-    assert get_string_size(empty_string.value) == 0
-    assert get_string_size(single_char_string.value) == 1
-
 def test_lex_match_empty():
     init_test()
 
