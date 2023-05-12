@@ -95,7 +95,7 @@ obj/src/lex-test-rules.wat obj/debug/src/lex-test-rules.wat: \
 	src/globals.wam \
 	src/string-loader.wam
 
-obj/src/lists.wat obj/debug/src/lists.wat:
+obj/src/lists.wat obj/debug/src/lists.wat: \
 	src/constants.wam \
 	src/globals.wam
 

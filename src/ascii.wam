@@ -38,6 +38,6 @@
 (define _char-r               (i32.const 114))
 (define _char-t               (i32.const 116))
 (define _char-x               (i32.const 120))
-(define _char-z               (i32.const 123))
+(define _char-z               (i32.const 122))
 (define _char-vertical-line   (i32.const 124))
 (define _char-delete          (i32.const 127))

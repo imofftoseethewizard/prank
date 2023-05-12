@@ -44,147 +44,150 @@
  ;;            | <character> | <string>
  ;;            | ( | ) | # ( | #u8( | ’ | ` | , | ,@ | .
 
- (global $string-paren-charset          (export "string-paren-charset")          (mut i32) (i32.const 0))
- (global $string-token-charset          (export "string-token-charset")          (mut i32) (i32.const 0))
- (global $string-begin-vector           (export "string-begin-vector")           (mut i32) (i32.const 0))
- (global $string-begin-bytevector       (export "string-begin-bytevector")       (mut i32) (i32.const 0))
- (global $string-unquote-splicing       (export "string-unquote-splicing")       (mut i32) (i32.const 0))
- (global $string-delimiter-charset      (export "string-delimiter-charset")      (mut i32) (i32.const 0))
- (global $string-intraline-whitespace   (export "string-intraline-whitespace")   (mut i32) (i32.const 0))
- (global $string-line-ending-charset    (export "string-line-ending-charset")    (mut i32) (i32.const 0))
- (global $string-dos-line-ending        (export "string-dos-line-ending")        (mut i32) (i32.const 0))
- (global $string-begin-datum-comment    (export "string-begin-datum-comment")    (mut i32) (i32.const 0))
- (global $string-begin-nested-comment   (export "string-begin-nested-comment")   (mut i32) (i32.const 0))
- (global $string-end-nested-comment     (export "string-end-nested-comment")     (mut i32) (i32.const 0))
- (global $string-directive-fold-case    (export "string-directive-fold-case")    (mut i32) (i32.const 0))
- (global $string-directive-no-fold-case (export "string-directive-no-fold-case") (mut i32) (i32.const 0))
- (global $string-special-initials       (export "string-special-initials")       (mut i32) (i32.const 0))
- (global $string-explicit-sign-charset  (export "string-explicit-sign-charset")  (mut i32) (i32.const 0))
- (global $string-dot-and-at             (export "string-dot-and-at")             (mut i32) (i32.const 0))
- (global $string-inline-escape-prefix   (export "string-inline-escape-prefix")   (mut i32) (i32.const 0))
- (global $string-mnemonic-escapes       (export "string-mnemonic-escapes")       (mut i32) (i32.const 0))
- (global $string-boolean-t              (export "string-boolean-t")              (mut i32) (i32.const 0))
- (global $string-boolean-f              (export "string-boolean-f")              (mut i32) (i32.const 0))
- (global $string-boolean-true           (export "string-boolean-true")           (mut i32) (i32.const 0))
- (global $string-boolean-false          (export "string-boolean-false")          (mut i32) (i32.const 0))
- (global $string-character-prefix       (export "string-character-prefix")       (mut i32) (i32.const 0))
- (global $string-character-hex-prefix   (export "string-character-hex-prefix")   (mut i32) (i32.const 0))
- (global $string-alarm                  (export "string-alarm")                  (mut i32) (i32.const 0))
- (global $string-backspace              (export "string-backspace")              (mut i32) (i32.const 0))
- (global $string-delete                 (export "string-delete")                 (mut i32) (i32.const 0))
- (global $string-escape                 (export "string-escape")                 (mut i32) (i32.const 0))
- (global $string-newline                (export "string-newline")                (mut i32) (i32.const 0))
- (global $string-null                   (export "string-null")                   (mut i32) (i32.const 0))
- (global $string-return                 (export "string-return")                 (mut i32) (i32.const 0))
- (global $string-space                  (export "string-space")                  (mut i32) (i32.const 0))
- (global $string-tab                    (export "string-tab")                    (mut i32) (i32.const 0))
- (global $string-inf                    (export "string-inf")                    (mut i32) (i32.const 0))
- (global $string-nan                    (export "string-nan")                    (mut i32) (i32.const 0))
- (global $string-empty                  (export "string-empty")                  (mut i32) (i32.const 0))
- (global $string-exact-prefix           (export "string-exact-prefix")           (mut i32) (i32.const 0))
- (global $string-inexact-prefix         (export "string-inexact-prefix")         (mut i32) (i32.const 0))
- (global $string-radix-2                (export "string-radix-2")                (mut i32) (i32.const 0))
- (global $string-radix-8                (export "string-radix-8")                (mut i32) (i32.const 0))
- (global $string-radix-10               (export "string-radix-10")               (mut i32) (i32.const 0))
- (global $string-radix-16               (export "string-radix-16")               (mut i32) (i32.const 0))
+ (global $string-paren-charset              (export "string-paren-charset")              (mut i32) (i32.const 0))
+ (global $string-token-charset              (export "string-token-charset")              (mut i32) (i32.const 0))
+ (global $string-begin-vector               (export "string-begin-vector")               (mut i32) (i32.const 0))
+ (global $string-begin-bytevector           (export "string-begin-bytevector")           (mut i32) (i32.const 0))
+ (global $string-unquote-splicing           (export "string-unquote-splicing")           (mut i32) (i32.const 0))
+ (global $string-delimiter-charset          (export "string-delimiter-charset")          (mut i32) (i32.const 0))
+ (global $string-intraline-whitespace       (export "string-intraline-whitespace")       (mut i32) (i32.const 0))
+ (global $string-line-ending-charset        (export "string-line-ending-charset")        (mut i32) (i32.const 0))
+ (global $string-dos-line-ending            (export "string-dos-line-ending")            (mut i32) (i32.const 0))
+ (global $string-begin-datum-comment        (export "string-begin-datum-comment")        (mut i32) (i32.const 0))
+ (global $string-begin-nested-comment       (export "string-begin-nested-comment")       (mut i32) (i32.const 0))
+ (global $string-end-nested-comment         (export "string-end-nested-comment")         (mut i32) (i32.const 0))
+ (global $string-directive-fold-case        (export "string-directive-fold-case")        (mut i32) (i32.const 0))
+ (global $string-directive-no-fold-case     (export "string-directive-no-fold-case")     (mut i32) (i32.const 0))
+ (global $string-special-initials           (export "string-special-initials")           (mut i32) (i32.const 0))
+ (global $string-explicit-sign-charset      (export "string-explicit-sign-charset")      (mut i32) (i32.const 0))
+ (global $string-special-subsequent-charset (export "string-special-subsequent-charset") (mut i32) (i32.const 0))
+ (global $string-inline-escape-prefix       (export "string-inline-escape-prefix")       (mut i32) (i32.const 0))
+ (global $string-mnemonic-escapes           (export "string-mnemonic-escapes")           (mut i32) (i32.const 0))
+ (global $string-boolean-t                  (export "string-boolean-t")                  (mut i32) (i32.const 0))
+ (global $string-boolean-f                  (export "string-boolean-f")                  (mut i32) (i32.const 0))
+ (global $string-boolean-true               (export "string-boolean-true")               (mut i32) (i32.const 0))
+ (global $string-boolean-false              (export "string-boolean-false")              (mut i32) (i32.const 0))
+ (global $string-character-prefix           (export "string-character-prefix")           (mut i32) (i32.const 0))
+ (global $string-character-hex-prefix       (export "string-character-hex-prefix")       (mut i32) (i32.const 0))
+ (global $string-alarm                      (export "string-alarm")                      (mut i32) (i32.const 0))
+ (global $string-backspace                  (export "string-backspace")                  (mut i32) (i32.const 0))
+ (global $string-delete                     (export "string-delete")                     (mut i32) (i32.const 0))
+ (global $string-escape                     (export "string-escape")                     (mut i32) (i32.const 0))
+ (global $string-newline                    (export "string-newline")                    (mut i32) (i32.const 0))
+ (global $string-null                       (export "string-null")                       (mut i32) (i32.const 0))
+ (global $string-return                     (export "string-return")                     (mut i32) (i32.const 0))
+ (global $string-space                      (export "string-space")                      (mut i32) (i32.const 0))
+ (global $string-tab                        (export "string-tab")                        (mut i32) (i32.const 0))
+ (global $string-inf                        (export "string-inf")                        (mut i32) (i32.const 0))
+ (global $string-nan                        (export "string-nan")                        (mut i32) (i32.const 0))
+ (global $string-empty                      (export "string-empty")                      (mut i32) (i32.const 0))
+ (global $string-exact-prefix               (export "string-exact-prefix")               (mut i32) (i32.const 0))
+ (global $string-inexact-prefix             (export "string-inexact-prefix")             (mut i32) (i32.const 0))
+ (global $string-radix-2                    (export "string-radix-2")                    (mut i32) (i32.const 0))
+ (global $string-radix-8                    (export "string-radix-8")                    (mut i32) (i32.const 0))
+ (global $string-radix-10                   (export "string-radix-10")                   (mut i32) (i32.const 0))
+ (global $string-radix-16                   (export "string-radix-16")                   (mut i32) (i32.const 0))
 
- (string _string-paren-charset-data          (export "string-paren-charset-data")           "()")
- (string _string-token-charset-data          (export "string-token-charset-data")           "'`,.")
- (string _string-begin-vector-data           (export "string-begin-vector-data")            "#(")
- (string _string-begin-bytevector-data       (export "string-begin-bytevector-data")        "#u8(")
- (string _string-unquote-splicing-data       (export "string-unquote-splicing-data")        ",@")
- (string _string-delimiter-charset-data      (export "string-delimiter-charset-data")       "|()\22\3b")
- (string _string-intraline-whitespace-data   (export "string-intraline-whitespace-data")    " \09")
- (string _string-line-ending-charset-data    (export "string-line-ending-charset-data")     "\0d\0a")
- (string _string-dos-line-ending-data        (export "string-dos-line-ending-data")         "\0d\0a")
- (string _string-begin-datum-comment-data    (export "string-begin-datum-comment-data")     "#;")
- (string _string-begin-nested-comment-data   (export "string-begin-nested-comment-data")    "#|")
- (string _string-end-nested-comment-data     (export "string-end-nested-comment-data")      "|#")
- (string _string-directive-fold-case-data    (export "string-directive-fold-case-data")     "#!fold-case")
- (string _string-directive-no-fold-case-data (export "string-directive-no-fold-case-data")  "#!no-fold-case")
- (string _string-special-initials-data       (export "string-special-initials-data")        "!$%&*/:<=>?^_~")
- (string _string-explicit-sign-charset-data  (export "string-explicit-sign-charset-data")   "+-")
- (string _string-dot-and-at-data             (export "string-dot-and-at-data")              ".@")
- (string _string-inline-escape-prefix-data   (export "string-inline-escape-prefix-data")    "\\x")
- (string _string-mnemonic-escapes-data       (export "string-mnemonic-escapes-data")        "abnrt")
- (string _string-boolean-t-data              (export "string-boolean-t-data")               "#t")
- (string _string-boolean-f-data              (export "string-boolean-f-data")               "#f")
- (string _string-boolean-true-data           (export "string-boolean-true-data")            "#true")
- (string _string-boolean-false-data          (export "string-boolean-false-data")           "#false")
- (string _string-character-prefix-data       (export "string-character-prefix-data")        "#\\")
- (string _string-character-hex-prefix-data   (export "string-character-hex-prefix-data")    "#\\x")
- (string _string-alarm-data                  (export "string-alarm-data")                   "alarm")
- (string _string-backspace-data              (export "string-backspace-data")               "backspace")
- (string _string-delete-data                 (export "string-delete-data")                  "delete")
- (string _string-escape-data                 (export "string-escape-data")                  "escape")
- (string _string-newline-data                (export "string-newline-data")                 "newline")
- (string _string-null-data                   (export "string-null-data")                    "null")
- (string _string-return-data                 (export "string-return-data")                  "return")
- (string _string-space-data                  (export "string-space-data")                   "space")
- (string _string-tab-data                    (export "string-tab-data")                     "tab")
- (string _string-inf-data                    (export "string-inf-data")                     "inf.0")
- (string _string-nan-data                    (export "string-nan-data")                     "nan.0")
- (string _string-empty-data                  (export "string-empty-data")                   "")
- (string _string-exact-prefix-data           (export "string-exact-prefix-data")            "#e")
- (string _string-inexact-prefix-data         (export "string-inexact-prefix-data")          "#i")
- (string _string-radix-2-data                (export "string-radix-2-data")                 "#b")
- (string _string-radix-8-data                (export "string-radix-8-data")                 "#o")
- (string _string-radix-10-data               (export "string-radix-10-data")                "#d")
- (string _string-radix-16-data               (export "string-radix-16-data")                "#x")
+ (string _string-paren-charset-data              (export "string-paren-charset-data")               "()")
+ (string _string-token-charset-data              (export "string-token-charset-data")               "'`,.")
+ (string _string-begin-vector-data               (export "string-begin-vector-data")                "#(")
+ (string _string-begin-bytevector-data           (export "string-begin-bytevector-data")            "#u8(")
+ (string _string-unquote-splicing-data           (export "string-unquote-splicing-data")            ",@")
+ (string _string-delimiter-charset-data          (export "string-delimiter-charset-data")           "\n\t\r |()\";")
+ (string _string-intraline-whitespace-data       (export "string-intraline-whitespace-data")        " \t")
+ (string _string-line-ending-charset-data        (export "string-line-ending-charset-data")         "\r\n")
+ (string _string-dos-line-ending-data            (export "string-dos-line-ending-data")             "\r\n")
+ (string _string-begin-datum-comment-data        (export "string-begin-datum-comment-data")         "#;")
+ (string _string-begin-nested-comment-data       (export "string-begin-nested-comment-data")        "#|")
+ (string _string-end-nested-comment-data         (export "string-end-nested-comment-data")          "|#")
+ (string _string-directive-fold-case-data        (export "string-directive-fold-case-data")         "#!fold-case")
+ (string _string-directive-no-fold-case-data     (export "string-directive-no-fold-case-data")      "#!no-fold-case")
+ (string _string-special-initials-data           (export "string-special-initials-data")            "!$%&*/:<=>?^_~")
+ (string _string-explicit-sign-charset-data      (export "string-explicit-sign-charset-data")       "+-")
+ (string _string-special-subsequent-charset-data (export "string-special-subsequent-charset-data")  "+-.@")
+ (string _string-inline-escape-prefix-data       (export "string-inline-escape-prefix-data")        "\\x")
+ (string _string-mnemonic-escapes-data           (export "string-mnemonic-escapes-data")            "abnrt")
+ (string _string-boolean-t-data                  (export "string-boolean-t-data")                   "#t")
+ (string _string-boolean-f-data                  (export "string-boolean-f-data")                   "#f")
+ (string _string-boolean-true-data               (export "string-boolean-true-data")                "#true")
+ (string _string-boolean-false-data              (export "string-boolean-false-data")               "#false")
+ (string _string-character-prefix-data           (export "string-character-prefix-data")            "#\\")
+ (string _string-character-hex-prefix-data       (export "string-character-hex-prefix-data")        "#\\x")
+ (string _string-alarm-data                      (export "string-alarm-data")                       "alarm")
+ (string _string-backspace-data                  (export "string-backspace-data")                   "backspace")
+ (string _string-delete-data                     (export "string-delete-data")                      "delete")
+ (string _string-escape-data                     (export "string-escape-data")                      "escape")
+ (string _string-newline-data                    (export "string-newline-data")                     "newline")
+ (string _string-null-data                       (export "string-null-data")                        "null")
+ (string _string-return-data                     (export "string-return-data")                      "return")
+ (string _string-space-data                      (export "string-space-data")                       "space")
+ (string _string-tab-data                        (export "string-tab-data")                         "tab")
+ (string _string-inf-data                        (export "string-inf-data")                         "inf.0")
+ (string _string-nan-data                        (export "string-nan-data")                         "nan.0")
+ (string _string-empty-data                      (export "string-empty-data")                       "")
+ (string _string-exact-prefix-data               (export "string-exact-prefix-data")                "#e")
+ (string _string-inexact-prefix-data             (export "string-inexact-prefix-data")              "#i")
+ (string _string-radix-2-data                    (export "string-radix-2-data")                     "#b")
+ (string _string-radix-8-data                    (export "string-radix-8-data")                     "#o")
+ (string _string-radix-10-data                   (export "string-radix-10-data")                    "#d")
+ (string _string-radix-16-data                   (export "string-radix-16-data")                    "#x")
 
  (start $init-lex-r7rs)
  (func $init-lex-r7rs (debug (export "init-lex-r7rs"))
 
-   (global.set $string-paren-charset          ($load-string _string-paren-charset-data))
-   (global.set $string-token-charset          ($load-string _string-token-charset-data))
-   (global.set $string-begin-vector           ($load-string _string-begin-vector-data))
-   (global.set $string-begin-bytevector       ($load-string _string-begin-bytevector-data))
-   (global.set $string-unquote-splicing       ($load-string _string-unquote-splicing-data))
-   (global.set $string-delimiter-charset      ($load-string _string-delimiter-charset-data))
-   (global.set $string-intraline-whitespace   ($load-string _string-intraline-whitespace-data))
-   (global.set $string-line-ending-charset    ($load-string _string-line-ending-charset-data))
-   (global.set $string-dos-line-ending        ($load-string _string-dos-line-ending-data))
-   (global.set $string-begin-datum-comment    ($load-string _string-begin-datum-comment-data))
-   (global.set $string-begin-nested-comment   ($load-string _string-begin-nested-comment-data))
-   (global.set $string-end-nested-comment     ($load-string _string-end-nested-comment-data))
-   (global.set $string-directive-fold-case    ($load-string _string-directive-fold-case-data))
-   (global.set $string-directive-no-fold-case ($load-string _string-directive-no-fold-case-data))
-   (global.set $string-special-initials       ($load-string _string-special-initials-data))
-   (global.set $string-explicit-sign-charset  ($load-string _string-explicit-sign-charset-data))
-   (global.set $string-dot-and-at             ($load-string _string-dot-and-at-data))
-   (global.set $string-inline-escape-prefix   ($load-string _string-inline-escape-prefix-data))
-   (global.set $string-mnemonic-escapes       ($load-string _string-mnemonic-escapes-data))
-   (global.set $string-boolean-t              ($load-string _string-boolean-t-data))
-   (global.set $string-boolean-f              ($load-string _string-boolean-f-data))
-   (global.set $string-boolean-true           ($load-string _string-boolean-true-data))
-   (global.set $string-boolean-false          ($load-string _string-boolean-false-data))
-   (global.set $string-character-prefix       ($load-string _string-character-prefix-data))
-   (global.set $string-character-hex-prefix   ($load-string _string-character-hex-prefix-data))
-   (global.set $string-alarm                  ($load-string _string-alarm-data))
-   (global.set $string-backspace              ($load-string _string-backspace-data))
-   (global.set $string-delete                 ($load-string _string-delete-data))
-   (global.set $string-escape                 ($load-string _string-escape-data))
-   (global.set $string-newline                ($load-string _string-newline-data))
-   (global.set $string-null                   ($load-string _string-null-data))
-   (global.set $string-return                 ($load-string _string-return-data))
-   (global.set $string-space                  ($load-string _string-space-data))
-   (global.set $string-tab                    ($load-string _string-tab-data))
-   (global.set $string-inf                    ($load-string _string-inf-data))
-   (global.set $string-nan                    ($load-string _string-nan-data))
-   (global.set $string-empty                  ($load-string _string-empty-data))
-   (global.set $string-exact-prefix           ($load-string _string-exact-prefix-data))
-   (global.set $string-inexact-prefix         ($load-string _string-inexact-prefix-data))
-   (global.set $string-radix-2                ($load-string _string-radix-2-data))
-   (global.set $string-radix-8                ($load-string _string-radix-8-data))
-   (global.set $string-radix-10               ($load-string _string-radix-10-data))
-   (global.set $string-radix-16               ($load-string _string-radix-16-data))
+   (global.set $string-paren-charset              ($load-string _string-paren-charset-data))
+   (global.set $string-token-charset              ($load-string _string-token-charset-data))
+   (global.set $string-begin-vector               ($load-string _string-begin-vector-data))
+   (global.set $string-begin-bytevector           ($load-string _string-begin-bytevector-data))
+   (global.set $string-unquote-splicing           ($load-string _string-unquote-splicing-data))
+   (global.set $string-delimiter-charset          ($load-string _string-delimiter-charset-data))
+   (global.set $string-intraline-whitespace       ($load-string _string-intraline-whitespace-data))
+   (global.set $string-line-ending-charset        ($load-string _string-line-ending-charset-data))
+   (global.set $string-dos-line-ending            ($load-string _string-dos-line-ending-data))
+   (global.set $string-begin-datum-comment        ($load-string _string-begin-datum-comment-data))
+   (global.set $string-begin-nested-comment       ($load-string _string-begin-nested-comment-data))
+   (global.set $string-end-nested-comment         ($load-string _string-end-nested-comment-data))
+   (global.set $string-directive-fold-case        ($load-string _string-directive-fold-case-data))
+   (global.set $string-directive-no-fold-case     ($load-string _string-directive-no-fold-case-data))
+   (global.set $string-special-initials           ($load-string _string-special-initials-data))
+   (global.set $string-explicit-sign-charset      ($load-string _string-explicit-sign-charset-data))
+   (global.set $string-special-subsequent-charset ($load-string _string-special-subsequent-charset-data))
+   (global.set $string-inline-escape-prefix       ($load-string _string-inline-escape-prefix-data))
+   (global.set $string-mnemonic-escapes           ($load-string _string-mnemonic-escapes-data))
+   (global.set $string-boolean-t                  ($load-string _string-boolean-t-data))
+   (global.set $string-boolean-f                  ($load-string _string-boolean-f-data))
+   (global.set $string-boolean-true               ($load-string _string-boolean-true-data))
+   (global.set $string-boolean-false              ($load-string _string-boolean-false-data))
+   (global.set $string-character-prefix           ($load-string _string-character-prefix-data))
+   (global.set $string-character-hex-prefix       ($load-string _string-character-hex-prefix-data))
+   (global.set $string-alarm                      ($load-string _string-alarm-data))
+   (global.set $string-backspace                  ($load-string _string-backspace-data))
+   (global.set $string-delete                     ($load-string _string-delete-data))
+   (global.set $string-escape                     ($load-string _string-escape-data))
+   (global.set $string-newline                    ($load-string _string-newline-data))
+   (global.set $string-null                       ($load-string _string-null-data))
+   (global.set $string-return                     ($load-string _string-return-data))
+   (global.set $string-space                      ($load-string _string-space-data))
+   (global.set $string-tab                        ($load-string _string-tab-data))
+   (global.set $string-inf                        ($load-string _string-inf-data))
+   (global.set $string-nan                        ($load-string _string-nan-data))
+   (global.set $string-empty                      ($load-string _string-empty-data))
+   (global.set $string-exact-prefix               ($load-string _string-exact-prefix-data))
+   (global.set $string-inexact-prefix             ($load-string _string-inexact-prefix-data))
+   (global.set $string-radix-2                    ($load-string _string-radix-2-data))
+   (global.set $string-radix-8                    ($load-string _string-radix-8-data))
+   (global.set $string-radix-10                   ($load-string _string-radix-10-data))
+   (global.set $string-radix-16                   ($load-string _string-radix-16-data))
 
+   (table.set $lexical-rules _lex-rule-delimited-token                 (ref.func $lex-match-delimited-token))
+   (table.set $lexical-rules _lex-rule-delimited-token-string          (ref.func $lex-match-delimited-token-string))
+   (table.set $lexical-rules _lex-rule-unquote-splicing                (ref.func $lex-match-unquote-splicing))
+   (table.set $lexical-rules _lex-rule-paren-char                      (ref.func $lex-match-paren-char))
    (table.set $lexical-rules _lex-rule-undelimited-token               (ref.func $lex-match-undelimited-token))
    (table.set $lexical-rules _lex-rule-token/group-1                   (ref.func $lex-match-token/group-1))
    (table.set $lexical-rules _lex-rule-token/group-2                   (ref.func $lex-match-token/group-2))
    (table.set $lexical-rules _lex-rule-token-char                      (ref.func $lex-match-token-char))
    (table.set $lexical-rules _lex-rule-delimiter                       (ref.func $lex-match-delimiter))
-   (table.set $lexical-rules _lex-rule-delimiter-char                  (ref.func $lex-match-delimiter-char))
    (table.set $lexical-rules _lex-rule-intraline-whitespace            (ref.func $lex-match-intraline-whitespace))
    (table.set $lexical-rules _lex-rule-whitespace                      (ref.func $lex-match-whitespace))
    (table.set $lexical-rules _lex-rule-vertical-line                   (ref.func $lex-match-vertical-line))
@@ -219,11 +222,8 @@
    (table.set $lexical-rules _lex-rule-special-initial                 (ref.func $lex-match-special-initial))
    (table.set $lexical-rules _lex-rule-subsequent                      (ref.func $lex-match-subsequent))
    (table.set $lexical-rules _lex-rule-digit                           (ref.func $lex-match-digit))
-   (table.set $lexical-rules _lex-rule-hex-digit                       (ref.func $lex-match-hex-digit))
-   (table.set $lexical-rules _lex-rule-hex-digit/alphabetic            (ref.func $lex-match-hex-digit/alphabetic))
    (table.set $lexical-rules _lex-rule-explicit-sign                   (ref.func $lex-match-explicit-sign))
    (table.set $lexical-rules _lex-rule-special-subsequent              (ref.func $lex-match-special-subsequent))
-   (table.set $lexical-rules _lex-rule-special-subsequent/dot-or-at    (ref.func $lex-match-special-subsequent/dot-or-at))
    (table.set $lexical-rules _lex-rule-inline-hex-escape               (ref.func $lex-match-inline-hex-escape))
    (table.set $lexical-rules _lex-rule-inline-hex-escape-prefix        (ref.func $lex-match-inline-hex-escape-prefix))
    (table.set $lexical-rules _lex-rule-hex-scalar-value                (ref.func $lex-match-hex-scalar-value))
@@ -402,13 +402,14 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-of-3 _lex-rule-token/group-1
+   ($lex-match-rules/longest-of-4 _lex-rule-token/group-1
                                   ;; $lex-rule-number appears before $lex-rule-identifier
                                   ;; so that +i, -1, and <infnan> are categorized as numbers
                                   ;; in the lexer, rather than needing special handling further
                                   ;; downstream in the reader
                                   _lex-rule-number
-                                  _lex-rule-identifier
+                                  _lex-rule-ordinary-identifier
+                                  _lex-rule-peculiar-identifier
                                   _lex-rule-boolean
                                   $text
                                   $end))
@@ -457,7 +458,6 @@
 
  (elem funcref (ref.func $lex-match-delimited-token-string))
 
-
  (func $lex-match-unquote-splicing (export "lex-match-unquote-splicing")
    (param $text i32)
    (param $end i32)
@@ -480,27 +480,12 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-of-3 _lex-rule-delimiter
-                                  _lex-rule-whitespace
-                                  _lex-rule-vertical-line
-                                  _lex-rule-delimiter-char
-                                  $text
-                                  $end))
-
- (elem funcref (ref.func $lex-match-delimiter))
-
- (func $lex-match-delimiter-char (export "lex-match-delimiter-char")
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   ($lex-match-charset/ascii _lex-rule-delimiter-char
+   ($lex-match-charset/ascii _lex-rule-delimiter
                              _string-delimiter-charset
                              $text
                              $end))
 
- (elem funcref (ref.func $lex-match-delimiter-char))
+ (elem funcref (ref.func $lex-match-delimiter))
 
 
  ;; <intraline whitespace> -> <space or tab>
@@ -845,8 +830,9 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-of-2 _lex-rule-identifier
+   ($lex-match-rules/longest-of-3 _lex-rule-identifier
                                   _lex-rule-ordinary-identifier
+                                  _lex-rule-vertical-line-quoted-symbol
                                   _lex-rule-peculiar-identifier
                                   $text
                                   $end))
@@ -1018,36 +1004,6 @@
 
  (elem funcref (ref.func $lex-match-digit))
 
- ;; <hex digit> -> <digit> | a | b | c | d | e | f
-
- (func $lex-match-hex-digit (export "lex-match-hex-digit")
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   ($lex-match-rules/longest-of-2 _lex-rule-hex-digit
-                                  _lex-rule-digit
-                                  _lex-rule-hex-digit/alphabetic
-                                  $text
-                                  $end))
-
- (elem funcref (ref.func $lex-match-hex-digit))
-
- (func $lex-match-hex-digit/alphabetic (export "lex-match-hex-digit/alphabetic")
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   ($lex-match-char-range/ascii _lex-rule-hex-digit/alphabetic
-                                _char-a
-                                _char-f
-                                $text
-                                $end))
-
- (elem funcref (ref.func $lex-match-hex-digit/alphabetic))
-
  ;; <explicit sign> -> + | -
 
  (func $lex-match-explicit-sign (export "lex-match-explicit-sign")
@@ -1072,27 +1028,12 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-of-2 _lex-rule-special-subsequent
-                                  _lex-rule-explicit-sign
-                                  _lex-rule-special-subsequent/dot-or-at
-                                  $text
-                                  $end))
-
- (elem funcref (ref.func $lex-match-special-subsequent))
-
- (func $lex-match-special-subsequent/dot-or-at (export "lex-match-special-subsequent/dot-or-at")
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   ($lex-match-charset/ascii _lex-rule-special-subsequent/dot-or-at
-                             _string-dot-and-at
+   ($lex-match-charset/ascii _lex-rule-special-subsequent
+                             _string-special-subsequent-charset
                              $text
                              $end))
 
- (elem funcref (ref.func $lex-match-special-subsequent/dot-or-at))
-
+ (elem funcref (ref.func $lex-match-special-subsequent))
 
  ;; <inline hex escape> -> \x<hex scalar value>;
 
@@ -1194,13 +1135,21 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-of-4 _lex-rule-peculiar-identifier
-                                  _lex-rule-explicit-sign
-                                  _lex-rule-peculiar-identifier/form-1
-                                  _lex-rule-peculiar-identifier/form-2
-                                  _lex-rule-peculiar-identifier/form-3
-                                  $text
-                                  $end))
+   (local $match-end i32)
+
+   _lex-rule-peculiar-identifier
+
+   (drop  ;; rule-id
+    (set! $match-end
+          ($lex-match-rules/longest-of-4 _lex-rule-peculiar-identifier
+                                         _lex-rule-explicit-sign
+                                         _lex-rule-peculiar-identifier/form-1
+                                         _lex-rule-peculiar-identifier/form-2
+                                         _lex-rule-peculiar-identifier/form-3
+                                         $text
+                                         $end)))
+
+   $match-end)
 
  (elem funcref (ref.func $lex-match-peculiar-identifier))
 
@@ -1313,6 +1262,11 @@
  ;;                        | <inline hex escape>
  ;;                        | <mnemonic escape>
  ;;                        | \|
+ ;;
+ ;; NB: this specification does not allow an escaped backslash inside
+ ;; of a vertical-line quoted symbol, though a sample of 3 modern
+ ;; scheme implementations -- gauche, guile, and racket -- suggest
+ ;; that this is generally supported.
 
  (func $lex-match-symbol-element (export "lex-match-symbol-element")
    (param $text i32)
@@ -1490,20 +1444,17 @@
 
    (local $match-end i32)
 
-   ($lex-match-rules/longest-of-3 _lex-rule-character-name
-                                  _lex-rule-character-name/group-1
-                                  _lex-rule-character-name/group-2
-                                  _lex-rule-character-name/group-3
-                                  $text
-                                  $end)
-
-   ;; the "longest-of" rule combiners will return the sub rule id, but
-   ;; here that isn't useful, so discard it and replace with the combined rule.
-
-   (set! $match-end)
-   (drop) ;; rule-id
-
    _lex-rule-character-name
+
+   (drop ;; rule-id
+    (set! $match-end
+          ($lex-match-rules/longest-of-3 _lex-rule-character-name
+                                         _lex-rule-character-name/group-1
+                                         _lex-rule-character-name/group-2
+                                         _lex-rule-character-name/group-3
+                                         $text
+                                         $end)))
+
    $match-end)
 
  (elem funcref (ref.func $lex-match-character-name))

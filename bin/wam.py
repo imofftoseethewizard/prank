@@ -368,7 +368,7 @@ def wat_string_len(s):
         return len(s.encode())
 
     # replace simple backslash escapes with 'a', which has the same length.
-    parts = re.sub(r'''\\([tnr"'\\]|\d\d)''', 'a', s).split('\\')
+    parts = re.sub(r'''\\([tnr"'\\]|[0-9a-zA-Z]{2})''', 'a', s).split('\\')
     length = len(parts[0].encode())
 
     for part in parts[1:]:

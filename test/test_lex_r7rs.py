@@ -84,6 +84,587 @@ def check_match_fail(match_fn, src, expected_rule_id):
 def test_init():
     init_test()
 
+def test_lex_match_delimited_token():
+    init_test()
+
+    check_match_fail(lex_match_delimited_token, '', lex_rule_delimited_token)
+
+    check_match(lex_match_delimited_token, '#(',   lex_rule_delimited_token_string)
+    check_match(lex_match_delimited_token, '#u8(', lex_rule_delimited_token_string)
+
+    check_match(lex_match_delimited_token, '(', lex_rule_paren_char)
+    check_match(lex_match_delimited_token, ')', lex_rule_paren_char)
+
+    check_match(lex_match_delimited_token, '||',                 lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_delimited_token, r'|\||',              lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_delimited_token, r'|\a\b\n\r\t|',      lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_delimited_token, r'|\xbeef;|',         lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_delimited_token, '|foo \n bar|',       lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_delimited_token, '|dos foo \r\n bar|', lex_rule_vertical_line_quoted_symbol)
+
+    check_match(lex_match_delimited_token, '""',                 lex_rule_quoted_string)
+    check_match(lex_match_delimited_token, r'"\""',              lex_rule_quoted_string)
+    check_match(lex_match_delimited_token, r'"\a\b\n\r\t\\"',    lex_rule_quoted_string)
+    check_match(lex_match_delimited_token, r'"\xbeef;"',         lex_rule_quoted_string)
+    check_match(lex_match_delimited_token, '"foo \\ \n bar"',    lex_rule_quoted_string)
+    check_match(lex_match_delimited_token, '"dos foo \r\n bar"', lex_rule_quoted_string)
+
+def test_lex_match_paren_char():
+    init_test()
+
+    check_match_fail(lex_match_paren_char, '', lex_rule_paren_char)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in '()':
+            check_match(lex_match_paren_char, c, lex_rule_paren_char)
+        else:
+            check_match_fail(lex_match_paren_char, c, lex_rule_paren_char)
+
+def test_lex_match_undelimited_token():
+    init_test()
+
+    check_match_fail(lex_match_undelimited_token, '', lex_rule_undelimited_token)
+
+    check_match_fail(lex_match_undelimited_token, '||',                 lex_rule_undelimited_token)
+    check_match_fail(lex_match_undelimited_token, r'|\||',              lex_rule_undelimited_token)
+    check_match_fail(lex_match_undelimited_token, r'|\a\b\n\r\t|',      lex_rule_undelimited_token)
+    check_match_fail(lex_match_undelimited_token, r'|\xbeef;|',         lex_rule_undelimited_token)
+    check_match_fail(lex_match_undelimited_token, '|foo \n bar|',       lex_rule_undelimited_token)
+    check_match_fail(lex_match_undelimited_token, '|dos foo \r\n bar|', lex_rule_undelimited_token)
+
+    check_match(lex_match_undelimited_token, '#x1', lex_rule_num_16)
+    check_match(lex_match_undelimited_token, '1',   lex_rule_num_10)
+    check_match(lex_match_undelimited_token, '+1',  lex_rule_num_10)
+    check_match(lex_match_undelimited_token, '-i',  lex_rule_num_10)
+    check_match(lex_match_undelimited_token, '#d1', lex_rule_num_10)
+    check_match(lex_match_undelimited_token, '#o1', lex_rule_num_8)
+    check_match(lex_match_undelimited_token, '#b1', lex_rule_num_2)
+
+    check_match(lex_match_undelimited_token, '#f',     lex_rule_boolean)
+    check_match(lex_match_undelimited_token, '#false', lex_rule_boolean)
+    check_match(lex_match_undelimited_token, '#t',     lex_rule_boolean)
+    check_match(lex_match_undelimited_token, '#true',  lex_rule_boolean)
+
+    check_match(lex_match_undelimited_token, "'", lex_rule_token_char)
+    check_match(lex_match_undelimited_token, '`', lex_rule_token_char)
+    check_match(lex_match_undelimited_token, ',', lex_rule_token_char)
+    check_match(lex_match_undelimited_token, '.', lex_rule_token_char)
+
+    check_match(lex_match_undelimited_token, ',@', lex_rule_unquote_splicing)
+
+    check_match(lex_match_undelimited_token, 'a',    lex_rule_ordinary_identifier)
+    check_match(lex_match_undelimited_token, 'Z',    lex_rule_ordinary_identifier)
+    check_match(lex_match_undelimited_token, 'eq!?', lex_rule_ordinary_identifier)
+    check_match(lex_match_undelimited_token, 'B-52', lex_rule_ordinary_identifier)
+
+    check_match(lex_match_undelimited_token, '+',    lex_rule_peculiar_identifier)
+    check_match(lex_match_undelimited_token, '-',    lex_rule_peculiar_identifier)
+    check_match(lex_match_undelimited_token, '-?!A', lex_rule_peculiar_identifier)
+    check_match(lex_match_undelimited_token, '...',  lex_rule_peculiar_identifier)
+
+def test_lex_match_token_char():
+    init_test()
+
+    check_match_fail(lex_match_token_char, '', lex_rule_token_char)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in "'`,.":
+            check_match(lex_match_token_char, c, lex_rule_token_char)
+        else:
+            check_match_fail(lex_match_token_char, c, lex_rule_token_char)
+
+def test_lex_match_delimited_token_string():
+    init_test()
+
+    check_match_fail(lex_match_delimited_token_string, '', lex_rule_delimited_token_string)
+
+    check_match(lex_match_delimited_token_string, '#(',   lex_rule_delimited_token_string)
+    check_match(lex_match_delimited_token_string, '#u8(', lex_rule_delimited_token_string)
+
+def test_lex_match_unquote_splicing():
+    init_test()
+
+    check_match_fail(lex_match_unquote_splicing, '', lex_rule_unquote_splicing)
+
+    check_match(lex_match_unquote_splicing, ',@', lex_rule_unquote_splicing)
+
+def test_lex_match_delimiter():
+    init_test()
+
+    check_match_fail(lex_match_delimiter, '', lex_rule_delimiter)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in '\n\r\t |()";':
+            check_match(lex_match_delimiter, c, lex_rule_delimiter)
+        else:
+            check_match_fail(lex_match_delimiter, c, lex_rule_delimiter)
+
+def test_lex_match_intraline_whitespace():
+    test_init()
+
+    check_match_fail(lex_match_intraline_whitespace, '', lex_rule_intraline_whitespace)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in ' \t':
+            check_match(lex_match_intraline_whitespace, c, lex_rule_intraline_whitespace)
+        else:
+            check_match_fail(lex_match_intraline_whitespace, c, lex_rule_intraline_whitespace)
+
+def test_lex_match_whitespace():
+    init_test()
+
+    check_match_fail(lex_match_whitespace, '', lex_rule_whitespace)
+
+    check_match(lex_match_whitespace, ' ',    lex_rule_intraline_whitespace)
+    check_match(lex_match_whitespace, '\t',   lex_rule_intraline_whitespace)
+    check_match(lex_match_whitespace, '\n',   lex_rule_line_ending_char)
+    check_match(lex_match_whitespace, '\r',   lex_rule_line_ending_char)
+    check_match(lex_match_whitespace, '\r\n', lex_rule_dos_line_ending)
+
+def test_lex_match_line_ending():
+    init_test()
+
+    check_match_fail(lex_match_line_ending, '',  lex_rule_line_ending)
+    check_match_fail(lex_match_line_ending, ' ', lex_rule_line_ending)
+
+    check_match(lex_match_line_ending, '\n',   lex_rule_line_ending_char)
+    check_match(lex_match_line_ending, '\r',   lex_rule_line_ending_char)
+    check_match(lex_match_line_ending, '\r\n', lex_rule_dos_line_ending)
+
+def test_lex_match_dos_line_ending():
+    init_test()
+
+    check_match_fail(lex_match_dos_line_ending, '',   lex_rule_dos_line_ending)
+    check_match_fail(lex_match_dos_line_ending, ' ',  lex_rule_dos_line_ending)
+    check_match_fail(lex_match_dos_line_ending, '\n', lex_rule_dos_line_ending)
+    check_match_fail(lex_match_dos_line_ending, '\r', lex_rule_dos_line_ending)
+
+    check_match(lex_match_dos_line_ending, '\r\n', lex_rule_dos_line_ending)
+
+def test_lex_match_comment():
+    init_test()
+
+def test_lex_match_simple_comment():
+    init_test()
+
+def test_lex_match_simple_comment_continuation():
+    init_test()
+
+def test_lex_match_datum_comment():
+    init_test()
+
+def test_lex_match_begin_datum_comment():
+    init_test()
+
+def test_lex_match_begin_nested_comment():
+    init_test()
+
+def test_lex_match_end_nested_comment():
+    init_test()
+
+def test_lex_match_comment_text():
+    init_test()
+
+def test_lex_match_nested_comment_delimiters():
+    init_test()
+
+def test_lex_match_comment_continuation():
+    init_test()
+
+def test_lex_match_directive():
+    init_test()
+
+    check_match_fail(lex_match_directive, '', lex_rule_directive)
+
+    check_match(lex_match_directive, '#!fold-case',    lex_rule_directive)
+    check_match(lex_match_directive, '#!no-fold-case', lex_rule_directive)
+
+def test_lex_match_atmosphere():
+    init_test()
+
+    check_match_fail(lex_match_atmosphere, '', lex_rule_atmosphere)
+
+    check_match(lex_match_atmosphere, '#!fold-case',    lex_rule_directive)
+    check_match(lex_match_atmosphere, '#!no-fold-case', lex_rule_directive)
+
+def test_lex_match_intertoken_space():
+    init_test()
+
+def test_lex_match_identifier():
+    init_test()
+
+    check_match_fail(lex_match_identifier, '',  lex_rule_identifier)
+    check_match_fail(lex_match_identifier, '0', lex_rule_identifier)
+
+    check_match(lex_match_identifier, 'a',    lex_rule_ordinary_identifier)
+    check_match(lex_match_identifier, 'Z',    lex_rule_ordinary_identifier)
+    check_match(lex_match_identifier, 'eq!?', lex_rule_ordinary_identifier)
+    check_match(lex_match_identifier, 'B-52', lex_rule_ordinary_identifier)
+
+    check_match(lex_match_identifier, '||',                 lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_identifier, r'|\||',              lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_identifier, r'|\a\b\n\r\t|',      lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_identifier, r'|\xbeef;|',         lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_identifier, '|foo \n bar|',       lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_identifier, '|dos foo \r\n bar|', lex_rule_vertical_line_quoted_symbol)
+
+    check_match(lex_match_identifier, '+',    lex_rule_peculiar_identifier)
+    check_match(lex_match_identifier, '-',    lex_rule_peculiar_identifier)
+    check_match(lex_match_identifier, '-?!A', lex_rule_peculiar_identifier)
+    check_match(lex_match_identifier, '...',  lex_rule_peculiar_identifier)
+
+def test_lex_match_ordinary_identifier():
+    init_test()
+
+    check_match_fail(lex_match_ordinary_identifier, '', lex_rule_ordinary_identifier)
+
+    for b0 in range(32, 128):
+        c0 = chr(b0)
+        s = c0
+        if c0 in '!$%^&*/:<=>?_~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz':
+            check_match(lex_match_ordinary_identifier, s, lex_rule_ordinary_identifier)
+
+            for b1 in range(32, 128):
+                c1 = chr(b1)
+                s = c0 + c1
+                if c1 in '0123456789.!@$%^&*/+-:<=>?_~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz':
+                    check_match(lex_match_ordinary_identifier, s, lex_rule_ordinary_identifier)
+                else:
+                    check_match(lex_match_ordinary_identifier, s, lex_rule_ordinary_identifier, expected_end=1)
+
+        else:
+            check_match_fail(lex_match_ordinary_identifier, s, lex_rule_ordinary_identifier)
+
+def test_lex_match_vertical_line_quoted_symbol():
+    init_test()
+
+    check_match_fail(lex_match_vertical_line_quoted_symbol, '', lex_rule_vertical_line_quoted_symbol)
+
+    check_match(lex_match_vertical_line_quoted_symbol, '||',                 lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_vertical_line_quoted_symbol, r'|\||',              lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_vertical_line_quoted_symbol, r'|\a\b\n\r\t|',      lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_vertical_line_quoted_symbol, r'|\xbeef;|',         lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_vertical_line_quoted_symbol, '|foo \n bar|',       lex_rule_vertical_line_quoted_symbol)
+    check_match(lex_match_vertical_line_quoted_symbol, '|dos foo \r\n bar|', lex_rule_vertical_line_quoted_symbol)
+
+def test_lex_match_initial():
+    init_test()
+
+    check_match_fail(lex_match_initial, '', lex_rule_initial)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+            check_match(lex_match_initial, c, lex_rule_uppercase_letter)
+        elif c in 'abcdefghijklmnopqrstuvwxyz':
+            check_match(lex_match_initial, c, lex_rule_lowercase_letter)
+        elif c in '!$%&*/:<=>?^_~':
+            check_match(lex_match_initial, c, lex_rule_special_initial)
+        else:
+            check_match_fail(lex_match_initial, c, lex_rule_initial)
+
+def test_lex_match_subsequent():
+    init_test()
+
+    check_match_fail(lex_match_subsequent, '', lex_rule_subsequent)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+            check_match(lex_match_subsequent, c, lex_rule_uppercase_letter)
+        elif c in 'abcdefghijklmnopqrstuvwxyz':
+            check_match(lex_match_subsequent, c, lex_rule_lowercase_letter)
+        elif c in '!$%&*/:<=>?^_~':
+            check_match(lex_match_initial, c, lex_rule_special_initial)
+        elif c in '0123456789':
+            check_match(lex_match_subsequent, c, lex_rule_digit)
+        elif c in '+-.@':
+            check_match(lex_match_subsequent, c, lex_rule_special_subsequent)
+        else:
+            check_match_fail(lex_match_subsequent, c, lex_rule_subsequent)
+
+def test_lex_match_explicit_sign():
+
+    check_match_fail(lex_match_explicit_sign, '', lex_rule_explicit_sign)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in '+-':
+            check_match(lex_match_explicit_sign, c, lex_rule_explicit_sign)
+        else:
+            check_match_fail(lex_match_explicit_sign, c, lex_rule_explicit_sign)
+
+def test_lex_match_special_subsequent():
+    init_test()
+
+    check_match_fail(lex_match_special_subsequent, '', lex_rule_special_subsequent)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in '+-.@':
+            check_match(lex_match_special_subsequent, c, lex_rule_special_subsequent)
+        else:
+            check_match_fail(lex_match_special_subsequent, c, lex_rule_special_subsequent)
+
+def test_lex_match_inline_hex_escape():
+    init_test()
+
+    check_match_fail(lex_match_inline_hex_escape, '',       lex_rule_inline_hex_escape)
+    check_match_fail(lex_match_inline_hex_escape, '\\',     lex_rule_inline_hex_escape)
+    check_match_fail(lex_match_inline_hex_escape, '\\x',    lex_rule_inline_hex_escape)
+    check_match_fail(lex_match_inline_hex_escape, '\\x00',  lex_rule_inline_hex_escape)
+    check_match_fail(lex_match_inline_hex_escape, '\\x00 ', lex_rule_inline_hex_escape)
+
+    check_match(lex_match_inline_hex_escape, '\\x00;', lex_rule_inline_hex_escape)
+    check_match(lex_match_inline_hex_escape, '\\xff;', lex_rule_inline_hex_escape)
+    check_match(lex_match_inline_hex_escape, '\\x1;',  lex_rule_inline_hex_escape)
+
+    check_match(lex_match_inline_hex_escape, '\\x' + hex_digits + ';', lex_rule_inline_hex_escape)
+
+def test_lex_match_mnemonic_escape():
+    init_test()
+
+    check_match_fail(lex_match_mnemonic_escape, '',  lex_rule_mnemonic_escape)
+    check_match_fail(lex_match_mnemonic_escape, '\\', lex_rule_mnemonic_escape)
+
+    for b in range(32, 128):
+        c = chr(b)
+        s = f'\\{c}'
+        if c in 'abnrt':
+            check_match(lex_match_mnemonic_escape, s, lex_rule_mnemonic_escape)
+        else:
+            check_match_fail(lex_match_mnemonic_escape, c, lex_rule_mnemonic_escape)
+
+def test_lex_match_peculiar_identifier():
+    init_test()
+
+    check_match_fail(lex_match_peculiar_identifier, '', lex_rule_peculiar_identifier)
+
+    check_match(lex_match_peculiar_identifier, '+', lex_rule_peculiar_identifier)
+    check_match(lex_match_peculiar_identifier, '-', lex_rule_peculiar_identifier)
+
+    for sign in '+-':
+        for b0 in range(32, 128):
+            c0 = chr(b0)
+            s = sign + c0
+            if c0 in '!@$%^&*/+-:<=>?_~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz':
+                check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier)
+
+                for b1 in range(32, 128):
+                    c1 = chr(b1)
+                    s = sign + c0 + c1
+                    if c1 in '0123456789.!@$%^&*/+-:<=>?_~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz':
+                        check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier)
+                    else:
+                        check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier, expected_end=2)
+
+            else:
+                check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier, expected_end=1)
+
+    for sign in '+-':
+        for b0 in range(32, 128):
+            c0 = chr(b0)
+            s = sign + '.' + c0
+            if c0 in '.!@$%^&*/+-:<=>?_~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz':
+                check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier)
+
+                for b1 in range(32, 128):
+                    c1 = chr(b1)
+                    s = sign + '.' + c0 + c1
+                    if c1 in '0123456789.!@$%^&*/+-:<=>?_~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz':
+                        check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier)
+                    else:
+                        check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier, expected_end=3)
+
+            else:
+                check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier, expected_end=1)
+
+    for b0 in range(32, 128):
+        c0 = chr(b0)
+        s = '.' + c0
+        if c0 in '.!@$%^&*/+-:<=>?_~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz':
+            check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier)
+
+            for b1 in range(32, 128):
+                c1 = chr(b1)
+                s = '.' + c0 + c1
+                if c1 in '0123456789.!@$%^&*/+-:<=>?_~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz':
+                    check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier)
+                else:
+                    check_match(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier, expected_end=2)
+
+        else:
+            check_match_fail(lex_match_peculiar_identifier, s, lex_rule_peculiar_identifier)
+
+def test_lex_match_at_sign():
+
+    check_match_fail(lex_match_at_sign, '', lex_rule_at_sign)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in '@':
+            check_match(lex_match_at_sign, c, lex_rule_at_sign)
+        else:
+            check_match_fail(lex_match_at_sign, c, lex_rule_at_sign)
+
+def test_lex_match_symbol_element():
+    init_test()
+
+    check_match_fail(lex_match_symbol_element, '',   lex_rule_symbol_element)
+    check_match_fail(lex_match_symbol_element, '|',  lex_rule_symbol_element)
+    check_match_fail(lex_match_symbol_element, '\\', lex_rule_symbol_element)
+
+    check_match(lex_match_symbol_element, r'\xabcd;', lex_rule_inline_hex_escape)
+
+    for c in 'abnrt':
+        s = f'\\{c}'
+        check_match(lex_match_symbol_element, s, lex_rule_mnemonic_escape)
+
+    check_match(lex_match_symbol_element, '\\|', lex_rule_escaped_vertical_line)
+
+def test_lex_match_boolean():
+    init_test()
+
+    check_match_fail(lex_match_boolean, '', lex_rule_boolean)
+
+    check_match(lex_match_boolean, '#f',     lex_rule_boolean)
+    check_match(lex_match_boolean, '#false', lex_rule_boolean)
+    check_match(lex_match_boolean, '#t',     lex_rule_boolean)
+    check_match(lex_match_boolean, '#true',  lex_rule_boolean)
+
+def test_lex_match_character():
+    init_test()
+
+    check_match_fail(lex_match_character, '', lex_rule_character)
+
+    check_match(lex_match_character, r'#\ ',         lex_rule_escaped_character)
+    check_match(lex_match_character, r'#\a',         lex_rule_escaped_character)
+    check_match(lex_match_character, r'#\alarm',     lex_rule_named_character)
+    check_match(lex_match_character, r'#\backspace', lex_rule_named_character)
+    check_match(lex_match_character, r'#\delete',    lex_rule_named_character)
+    check_match(lex_match_character, r'#\escape',    lex_rule_named_character)
+    check_match(lex_match_character, r'#\newline',   lex_rule_named_character)
+    check_match(lex_match_character, r'#\null',      lex_rule_named_character)
+    check_match(lex_match_character, r'#\return',    lex_rule_named_character)
+    check_match(lex_match_character, r'#\space',     lex_rule_named_character)
+    check_match(lex_match_character, r'#\tab',       lex_rule_named_character)
+    check_match(lex_match_character, r'#\xb00',      lex_rule_escaped_character_hex)
+
+def test_lex_match_named_character():
+    init_test()
+
+    check_match_fail(lex_match_named_character, '', lex_rule_named_character)
+
+    check_match(lex_match_named_character, r'#\alarm',     lex_rule_named_character)
+    check_match(lex_match_named_character, r'#\backspace', lex_rule_named_character)
+    check_match(lex_match_named_character, r'#\delete',    lex_rule_named_character)
+    check_match(lex_match_named_character, r'#\escape',    lex_rule_named_character)
+    check_match(lex_match_named_character, r'#\newline',   lex_rule_named_character)
+    check_match(lex_match_named_character, r'#\null',      lex_rule_named_character)
+    check_match(lex_match_named_character, r'#\return',    lex_rule_named_character)
+    check_match(lex_match_named_character, r'#\space',     lex_rule_named_character)
+    check_match(lex_match_named_character, r'#\tab',       lex_rule_named_character)
+
+def test_lex_match_escaped_character_hex():
+    init_test()
+
+    check_match_fail(lex_match_escaped_character_hex, '', lex_rule_escaped_character_hex)
+
+    check_match(lex_match_escaped_character_hex, r'#\xb00', lex_rule_escaped_character_hex)
+
+def test_lex_match_character_name():
+    init_test()
+
+    check_match_fail(lex_match_character_name, '', lex_rule_character_name)
+
+    check_match(lex_match_character_name, 'alarm',     lex_rule_character_name)
+    check_match(lex_match_character_name, 'backspace', lex_rule_character_name)
+    check_match(lex_match_character_name, 'delete',    lex_rule_character_name)
+    check_match(lex_match_character_name, 'escape',    lex_rule_character_name)
+    check_match(lex_match_character_name, 'newline',   lex_rule_character_name)
+    check_match(lex_match_character_name, 'null',      lex_rule_character_name)
+    check_match(lex_match_character_name, 'return',    lex_rule_character_name)
+    check_match(lex_match_character_name, 'space',     lex_rule_character_name)
+    check_match(lex_match_character_name, 'tab',       lex_rule_character_name)
+
+def test_lex_match_quoted_string():
+    init_test()
+
+    check_match_fail(lex_match_quoted_string, '', lex_rule_quoted_string)
+
+    check_match(lex_match_quoted_string, '""',                 lex_rule_quoted_string)
+    check_match(lex_match_quoted_string, r'"\""',              lex_rule_quoted_string)
+    check_match(lex_match_quoted_string, r'"\a\b\n\r\t\\"',    lex_rule_quoted_string)
+    check_match(lex_match_quoted_string, r'"\xbeef;"',         lex_rule_quoted_string)
+    check_match(lex_match_quoted_string, '"foo \\ \n bar"',    lex_rule_quoted_string)
+    check_match(lex_match_quoted_string, '"dos foo \r\n bar"', lex_rule_quoted_string)
+
+def test_lex_match_string_element():
+    init_test()
+
+    check_match_fail(lex_match_string_element, '',  lex_rule_string_element)
+    check_match_fail(lex_match_string_element, '"', lex_rule_string_element)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c not in '\\"':
+            check_match(lex_match_string_element, c, lex_rule_string_element_character)
+
+    for c in 'abnrt':
+        s = f'\\{c}'
+        check_match(lex_match_string_element, s, lex_rule_mnemonic_escape)
+
+    check_match(lex_match_string_element, r'\"',       lex_rule_escaped_double_quote)
+    check_match(lex_match_string_element, r'\\',       lex_rule_escaped_backslash)
+    check_match(lex_match_string_element, '\\\n',      lex_rule_escaped_line_ending)
+    check_match(lex_match_string_element, '\\ \n\t\t', lex_rule_escaped_line_ending)
+    check_match(lex_match_string_element, r'\xabcd;',  lex_rule_inline_hex_escape)
+
+def test_lex_match_string_element_character():
+    init_test()
+
+    check_match_fail(lex_match_string_element_character, '', lex_rule_string_element_character)
+
+    for b in range(32, 128):
+        c = chr(b)
+        if c in '\\"':
+            check_match_fail(lex_match_string_element_character, c, lex_rule_string_element_character)
+
+        else:
+            check_match(lex_match_string_element_character, c, lex_rule_string_element_character)
+
+def test_lex_match_string_element_character_escape():
+    init_test()
+
+    check_match_fail(lex_match_string_element_character_escape, '', lex_rule_string_element_character_escape)
+
+    for b in range(32, 128):
+        c = chr(b)
+        s = f'\\{c}'
+        if c in 'abnrt':
+            check_match(lex_match_string_element_character_escape, s, lex_rule_mnemonic_escape)
+
+        elif c == '"':
+            check_match(lex_match_string_element_character_escape, s, lex_rule_escaped_double_quote)
+
+        elif c == '\\':
+            check_match(lex_match_string_element_character_escape, s, lex_rule_escaped_backslash)
+
+        else:
+            check_match_fail(lex_match_string_element_character_escape, s, lex_rule_string_element_character_escape)
+
+def test_lex_match_escaped_line_ending():
+    init_test()
+
+    check_match_fail(lex_match_escaped_line_ending, '\\ ', lex_rule_escaped_line_ending)
+
+    check_match(lex_match_escaped_line_ending, '\\\n',      lex_rule_escaped_line_ending)
+    check_match(lex_match_escaped_line_ending, '\\ \n\t\t', lex_rule_escaped_line_ending)
+
 def test_lex_match_number():
     init_test()
 
