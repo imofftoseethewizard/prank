@@ -199,7 +199,6 @@
    (table.set $lexical-rules _lex-rule-semicolon                       (ref.func $lex-match-semicolon))
    (table.set $lexical-rules _lex-rule-simple-comment-continuation     (ref.func $lex-match-simple-comment-continuation))
    (table.set $lexical-rules _lex-rule-datum-comment                   (ref.func $lex-match-datum-comment))
-   (table.set $lexical-rules _lex-rule-begin-datum-comment             (ref.func $lex-match-begin-datum-comment))
    (table.set $lexical-rules _lex-rule-nested-comment                  (ref.func $lex-match-nested-comment))
    (table.set $lexical-rules _lex-rule-begin-nested-comment            (ref.func $lex-match-begin-nested-comment))
    (table.set $lexical-rules _lex-rule-comment-continuations           (ref.func $lex-match-comment-continuations))
@@ -209,7 +208,6 @@
    (table.set $lexical-rules _lex-rule-comment-continuation            (ref.func $lex-match-comment-continuation))
    (table.set $lexical-rules _lex-rule-directive                       (ref.func $lex-match-directive))
    (table.set $lexical-rules _lex-rule-atmosphere                      (ref.func $lex-match-atmosphere))
-   (table.set $lexical-rules _lex-rule-intertoken-space                (ref.func $lex-match-intertoken-space))
    (table.set $lexical-rules _lex-rule-identifier                      (ref.func $lex-match-identifier))
    (table.set $lexical-rules _lex-rule-ordinary-identifier             (ref.func $lex-match-ordinary-identifier))
    (table.set $lexical-rules _lex-rule-subsequents                     (ref.func $lex-match-subsequents))
@@ -578,11 +576,19 @@
 
  (elem funcref (ref.func $lex-match-dos-line-ending))
 
- ;; cr lf -- dos/windows line ending
-
  ;; <comment> -> ; <all subsequent characters up to a line ending>
  ;;                | <nested comment>
  ;;                | #; <intertoken space> <datum>
+
+ ;; NB: #; is not lexically well-defined here, since <datum> is only
+ ;; well-defined at the parse stage.  In fact, #; is similar to '
+ ;; (quote) in that it alters how the following datum is parsed.  In
+ ;; the case of quote, the following datum is enclosed in a list
+ ;; beginning with the symbol "quote".  For #;, the datum is dropped
+ ;; and not included in the parsed value.  It is therefore
+ ;; categorically different from simple and nested comments, which are
+ ;; just text that can be ignored, and so it is not included in
+ ;; $lex-match-comment.
 
  (func $lex-match-comment (export "lex-match-comment")
    (param $text i32)
@@ -590,10 +596,9 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-of-3 _lex-rule-comment
+   ($lex-match-rules/longest-of-2 _lex-rule-comment
                                   _lex-rule-simple-comment
                                   _lex-rule-nested-comment
-                                  _lex-rule-datum-comment
                                   $text
                                   $end))
 
@@ -645,27 +650,12 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/sequence-of-2 _lex-rule-datum-comment
-                                   _lex-rule-begin-datum-comment
-                                   _lex-rule-intertoken-space
-                                   $text
-                                   $end))
-
- (elem funcref (ref.func $lex-match-datum-comment))
-
- (func $lex-match-begin-datum-comment (export "lex-match-begin-datum-comment")
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   ($lex-match-string _lex-rule-begin-datum-comment
+   ($lex-match-string _lex-rule-datum-comment
                       _string-begin-datum-comment
                       $text
                       $end))
 
- (elem funcref (ref.func $lex-match-begin-datum-comment))
-
+ (elem funcref (ref.func $lex-match-datum-comment))
 
  ;;<nested comment> -> #| <comment text> <comment cont>* |#
 
@@ -804,21 +794,6 @@
                                   $end))
 
  (elem funcref (ref.func $lex-match-atmosphere))
-
- ;; <intertoken space> -> <atmosphere>
-
- (func $lex-match-intertoken-space (export "lex-match-intertoken-space")
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   ($lex-match-rule/zero-or-more _lex-rule-intertoken-space
-                                 _lex-rule-atmosphere
-                                 $text
-                                 $end))
-
- (elem funcref (ref.func $lex-match-intertoken-space))
 
  ;; <identifier> -> <initial> <subsequent>*
  ;;                    | <vertical line> <symbol element>* <vertical line>

@@ -248,32 +248,78 @@ def test_lex_match_dos_line_ending():
 def test_lex_match_comment():
     init_test()
 
+    check_match_fail(lex_match_comment, '', lex_rule_comment)
+
+    check_match(lex_match_comment, ';abc\n', lex_rule_simple_comment, expected_end=-1)
+    check_match(lex_match_comment, '#||#',   lex_rule_nested_comment)
+
 def test_lex_match_simple_comment():
     init_test()
 
-def test_lex_match_simple_comment_continuation():
-    init_test()
+    check_match_fail(lex_match_simple_comment, '',     lex_rule_simple_comment)
+    check_match_fail(lex_match_simple_comment, ';',    lex_rule_simple_comment)
+    check_match_fail(lex_match_simple_comment, ';abc', lex_rule_simple_comment)
+
+    check_match(lex_match_simple_comment, ';abc\n', lex_rule_simple_comment, expected_end=-1)
+    check_match(lex_match_simple_comment, ';abc\r', lex_rule_simple_comment, expected_end=-1)
 
 def test_lex_match_datum_comment():
     init_test()
 
-def test_lex_match_begin_datum_comment():
+    check_match_fail(lex_match_datum_comment, '', lex_rule_datum_comment)
+    check_match_fail(lex_match_datum_comment, '#', lex_rule_datum_comment)
+
+    check_match(lex_match_datum_comment, '#;', lex_rule_datum_comment)
+
+def test_lex_match_nested_comment():
     init_test()
+
+    check_match_fail(lex_match_nested_comment, '', lex_rule_nested_comment)
+    check_match_fail(lex_match_nested_comment, '#', lex_rule_nested_comment)
+    check_match_fail(lex_match_nested_comment, '#||', lex_rule_nested_comment)
+    check_match_fail(lex_match_nested_comment, '#|comment #|nested improperly|#', lex_rule_nested_comment)
+
+    check_match(lex_match_nested_comment, '#||#', lex_rule_nested_comment)
+    check_match(lex_match_nested_comment, '#|comment #|nested|# properly|#', lex_rule_nested_comment)
+    check_match(lex_match_nested_comment, '#|multiline comment \n #|nested|# \n properly|#', lex_rule_nested_comment)
+    check_match(lex_match_nested_comment, '#|foo|#1', lex_rule_nested_comment, expected_end=-1)
 
 def test_lex_match_begin_nested_comment():
     init_test()
 
+    check_match_fail(lex_match_begin_nested_comment, '', lex_rule_begin_nested_comment)
+    check_match_fail(lex_match_begin_nested_comment, '#', lex_rule_begin_nested_comment)
+
+    check_match(lex_match_begin_nested_comment, '#|', lex_rule_begin_nested_comment)
+
 def test_lex_match_end_nested_comment():
     init_test()
+
+    check_match_fail(lex_match_end_nested_comment, '', lex_rule_end_nested_comment)
+    check_match_fail(lex_match_end_nested_comment, '|', lex_rule_end_nested_comment)
+
+    check_match(lex_match_end_nested_comment, '|#', lex_rule_end_nested_comment)
 
 def test_lex_match_comment_text():
     init_test()
 
+    check_match_fail(lex_match_comment_text, '', lex_rule_comment_text)
+
+    check_match(lex_match_comment_text, '|#', lex_rule_comment_text, expected_end=0)
+    check_match(lex_match_comment_text, '1|#', lex_rule_comment_text, expected_end=1)
+    check_match(lex_match_comment_text, '||#', lex_rule_comment_text, expected_end=1)
+    check_match(lex_match_comment_text, '1#|', lex_rule_comment_text, expected_end=1)
+    check_match(lex_match_comment_text, '##|', lex_rule_comment_text, expected_end=1)
+
 def test_lex_match_nested_comment_delimiters():
     init_test()
 
-def test_lex_match_comment_continuation():
-    init_test()
+    check_match_fail(lex_match_nested_comment_delimiters, '', lex_rule_nested_comment_delimiters)
+    check_match_fail(lex_match_nested_comment_delimiters, '#', lex_rule_nested_comment_delimiters)
+    check_match_fail(lex_match_nested_comment_delimiters, '|', lex_rule_nested_comment_delimiters)
+
+    check_match(lex_match_nested_comment_delimiters, '|#', lex_rule_nested_comment_delimiters)
+    check_match(lex_match_nested_comment_delimiters, '#|', lex_rule_nested_comment_delimiters)
 
 def test_lex_match_directive():
     init_test()
@@ -290,9 +336,13 @@ def test_lex_match_atmosphere():
 
     check_match(lex_match_atmosphere, '#!fold-case',    lex_rule_directive)
     check_match(lex_match_atmosphere, '#!no-fold-case', lex_rule_directive)
-
-def test_lex_match_intertoken_space():
-    init_test()
+    check_match(lex_match_atmosphere, ' ',              lex_rule_intraline_whitespace)
+    check_match(lex_match_atmosphere, '\t',             lex_rule_intraline_whitespace)
+    check_match(lex_match_atmosphere, '\n',             lex_rule_line_ending_char)
+    check_match(lex_match_atmosphere, '\r',             lex_rule_line_ending_char)
+    check_match(lex_match_atmosphere, '\r\n',           lex_rule_dos_line_ending)
+    check_match(lex_match_atmosphere, '#||#',           lex_rule_nested_comment)
+    check_match(lex_match_atmosphere, ';comment\n',     lex_rule_simple_comment, expected_end=-1)
 
 def test_lex_match_identifier():
     init_test()
