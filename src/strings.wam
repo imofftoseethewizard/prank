@@ -300,7 +300,35 @@
            (else
             _string-type-large)))))))
 
-  (func $build-string (export "build-string")
+ (func $slice-string-addr (export "slice-string-addr")
+   (param $start i32)
+   (param $end i32)
+   (result i32)
+
+   (local $addr i32)
+   (local $length i32)
+   (local $s i32)
+   (local $size i32)
+   (local $width i32)
+
+   (set! $size (i32.sub $end $start))
+
+   (set! $addr $start)
+
+   (loop $again
+     (if (i32.lt_u $addr $end)
+         (then
+          (set! $addr ($get-next-char-addr $addr))
+          (%incr i32 $length)
+          (br $again))))
+
+   (set! $s ($alloc-string $length $size))
+
+   (memory.copy ($get-string-addr $s) $start $size)
+
+   $s)
+
+ (func $build-string (export "build-string")
    (param $elements i32)
    (result i32)
 
@@ -754,7 +782,7 @@
 
    _null)
 
-  (func $match-string (export "match-string")
+ (func $match-string (export "match-string")
    (param $str i32)
    (param $text i32)
    (param $end i32)
@@ -796,7 +824,7 @@
    (if (i32.ge_s (i32.sub $s-end $s) (i32.const 4))
        (then
         (if (i32.ne (i32.load $s) (i32.load $t))
-          (then (return _null)))
+            (then (return _null)))
 
         (%incr-n i32 $s 4)
         (%incr-n i32 $t 4)))

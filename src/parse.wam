@@ -10,6 +10,7 @@
  (import "lex-r7rs" "lex-match-atmosphere"          (func $lex-match-atmosphere          (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-complex-2"           (func $lex-match-complex-2           (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-complex-infnan-im-2" (func $lex-match-complex-infnan-im-2 (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-datum-comment"       (func $lex-match-datum-comment       (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-delimited-token"     (func $lex-match-delimited-token     (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-delimiter"           (func $lex-match-delimiter           (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-prefix-2"            (func $lex-match-prefix-2            (param i32 i32)     (result i32 i32)))
@@ -46,6 +47,7 @@
  (import "strings" "get-string-char"                (func $get-string-char               (param i32)         (result i32)))
  (import "strings" "match-string"                   (func $match-string                  (param i32 i32 i32) (result i32)))
  (import "strings" "set-string-bytes"               (func $set-string-bytes              (param i32 i32 i32)))
+ (import "strings" "slice-string-addr"              (func $slice-string-addr             (param i32 i32)     (result i32)))
  (import "symbols" "make-symbol"                    (func $make-symbol                   (param i32)         (result i32)))
  (import "vectors" "build-vector"                   (func $build-vector                  (param i32)         (result i32)))
  (import "vectors" "dealloc-vector"                 (func $dealloc-vector                (param i32)))
@@ -117,14 +119,31 @@
  (define _ctx-value-offset (+offset))
  (define _ctx-size         (+offset))
 
+ (debug
+  (global $ctx-flags-offset (export "ctx-flags-offset") i32 _ctx-flags-offset)
+  (global $ctx-tail-offset  (export "ctx-tail-offset")  i32 _ctx-tail-offset)
+  (global $ctx-value-offset (export "ctx-value-offset") i32 _ctx-value-offset)
+  (global $ctx-size         (export "ctx-size")         i32 _ctx-size))
+
  ;; Flags
  (define _ctx-auto-unnest       (i32.const 0x01))
- (define _ctx-finalized         (i32.const 0x02))
- (define _ctx-finalizing        (i32.const 0x04))
- (define _ctx-type-bytevector   (i32.const 0x08))
- (define _ctx-type-vector       (i32.const 0x10))
- (define _ctx-type-mask         (i32.const 0x18))
- (define _ctx-type-mask-inverse (i32.const 0xffffffe7))
+ (define _ctx-datum-comment     (i32.const 0x02))
+ (define _ctx-finalized         (i32.const 0x04))
+ (define _ctx-finalizing        (i32.const 0x08))
+ (define _ctx-type-bytevector   (i32.const 0x10))
+ (define _ctx-type-vector       (i32.const 0x20))
+ (define _ctx-type-mask         (i32.const 0x30))
+ (define _ctx-type-mask-inverse (i32.const 0xffffffcf))
+
+ (debug
+  (global $ctx-auto-unnest       (export "ctx-auto-unnest")       i32 _ctx-auto-unnest)
+  (global $ctx-datum-comment     (export "ctx-datum-comment")     i32 _ctx-datum-comment)
+  (global $ctx-finalized         (export "ctx-finalized")         i32 _ctx-finalized)
+  (global $ctx-finalizing        (export "ctx-finalizing")        i32 _ctx-finalizing)
+  (global $ctx-type-bytevector   (export "ctx-type-bytevector")   i32 _ctx-type-bytevector)
+  (global $ctx-type-vector       (export "ctx-type-vector")       i32 _ctx-type-vector)
+  (global $ctx-type-mask         (export "ctx-type-mask")         i32 _ctx-type-mask)
+  (global $ctx-type-mask-inverse (export "ctx-type-mask-inverse") i32 _ctx-type-mask-inverse))
 
  ;; The stack is implemented as a list of bytevectors.
  (global $ctx-stack (debug (export "ctx-stack")) (mut i32) _null)
@@ -184,6 +203,10 @@
    (expr ,ctx)
    (i32.and (%get-ctx-flags ,ctx) _ctx-auto-unnest))
 
+ (macro %is-datum-comment-ctx
+   (expr ,ctx)
+   (i32.and (%get-ctx-flags ,ctx) _ctx-datum-comment))
+
  (macro %is-bytevector-ctx
    (expr ,ctx)
    (i32.and (%get-ctx-flags ,ctx) _ctx-type-bytevector))
@@ -208,6 +231,10 @@
  (macro %set-auto-unnest-ctx
    (label $ctx)
    (%set-ctx-flags $ctx (i32.or (%get-ctx-flags $ctx) _ctx-auto-unnest)))
+
+ (macro %set-datum-comment-ctx
+   (label $ctx)
+   (%set-ctx-flags $ctx (i32.or (%get-ctx-flags $ctx) _ctx-datum-comment)))
 
  (macro %set-bytevector-ctx
    (label $ctx)
@@ -242,7 +269,7 @@
 
  (macro %get-parse-result
    (if (result i32) (i32.eq (%get-parse-error) _null)
-     (then ($get-pair-cdr (%get-current-ctx-value)))
+     (then ($get-pair-car ($get-pair-cdr (%get-current-ctx-value))))
      (else (%get-parse-error))))
 
  (macro %is-parse-finished
@@ -286,7 +313,9 @@
    (global.set $quasiquote-symbol       ($make-symbol (%string-quasiquote-symbol)))
    (global.set $quote-symbol            ($make-symbol (%string-quote-symbol)))
    (global.set $unquote-splicing-symbol ($make-symbol (%string-unquote-splicing-symbol)))
-   (global.set $unquote-symbol          ($make-symbol (%string-unquote-symbol))))
+   (global.set $unquote-symbol          ($make-symbol (%string-unquote-symbol)))
+
+   (%set-ctx-stack _null))
 
  (func $make-parse-context (debug (export "make-parse-context"))
    (result i32)
@@ -332,13 +361,17 @@
    ($dealloc-pair $head)
    (set! $value ($get-pair-cdr (%get-ctx-value $ctx)))
 
-   ($append-value (if (result i32) (%is-list-ctx $ctx)
-                    (then (%make-value _tag-pair $value))
-                    (else
-                     (if (result i32) (%is-vector-ctx $ctx)
-                       (then ($build-vector $value))
-                       (else ($build-bytevector $value)))
-                     ($dealloc-list $value))))
+   (if (%is-datum-comment-ctx $ctx)
+       (then
+        ($dealloc-value $value))
+     (else
+      ($append-value (if (result i32) (%is-list-ctx $ctx)
+                       (then (%make-value _tag-pair $value))
+                       (else
+                        (if (result i32) (%is-vector-ctx $ctx)
+                          (then ($build-vector $value))
+                          (else ($build-bytevector $value)))
+                        ($dealloc-list $value))))))
 
    ($dealloc-parse-context $ctx))
 
@@ -374,8 +407,8 @@
          ($set-pair-cdr (%get-ctx-tail $ctx) $new-tail)
          (%set-ctx-tail $ctx $new-tail)))))
 
-   ;; quote, quasiquote, splice, unquote, and unquote-splicing all
-   ;; generate auto-unnest contexts.
+   ;; datum comment, quote, quasiquote, splice, unquote, and
+   ;; unquote-splicing all generate auto-unnest contexts.
 
    (if (%is-auto-unnest-ctx $ctx)
        (then
@@ -449,16 +482,16 @@
         ($unwind-parse-stack)
         ($dealloc-value (%get-current-ctx-value))
 
-        (set! $ctx (%get-current-ctx))
-        (set! $value (%get-ctx-value $ctx))
+        (%set-parse-error _null)))
 
-        ($set-pair-car $value _null)
-        ($set-pair-cdr $value _null)
+   (set! $ctx (%get-current-ctx))
+   (set! $value (%get-ctx-value $ctx))
 
-        (%set-ctx-tail $ctx $value)
-        (%set-ctx-flags $ctx (i32.const 0))
+   ($set-pair-car $value _null)
+   ($set-pair-cdr $value _null)
 
-        (%set-parse-error _null))))
+   (%set-ctx-tail $ctx $value)
+   (%set-ctx-flags $ctx (i32.const 0)))
 
  (func $parse (export "parse")
    (param $text i32)
@@ -558,6 +591,30 @@
                (%set-parse-location $end-match)
                (return (%get-parse-result))))
 
+          (br $again)))
+
+     ;; Datum comments are similar to quotes. Where ' indicates that
+     ;; the following datum should be appended to the parsed value in
+     ;; a list beginning with the symbol "quote", datum comments
+     ;; indicate that the following datum should be dropped and not
+     ;; added to the parsed value.
+
+     (set! $rule-id
+           (set! $end-match
+                 ($lex-match-datum-comment $text $end)))
+
+     (if (i32.ne $end-match _null)
+         (then
+          ($parse-datum-comment $rule-id $text $end-match)
+
+          ;; If the text processed so far makes a complete value, then stop and
+          ;; return that to the caller.
+
+          (if (%is-parse-finished)
+              (then
+               (%set-parse-location $end-match)
+               (return (%get-parse-result))))
+
           (br $again))))
 
    (%set-parse-location $text)
@@ -650,25 +707,28 @@
         ($parse-escaped-character-hex $text $end)
         (return)))
 
-   ;; (if (i32.eq $rule-id _lex-rule-num-10)
-   ;;     (then
-   ;;      ($parse-num-10 $text $end) ;; todo
-   ;;      (return)))
+   (if (i32.eq $rule-id _lex-rule-num-10)
+       (then
+        (unreachable)
+        ;;($parse-num-10 $text $end) ;; todo
+        (return)))
 
-   ;; (if (i32.eq $rule-id _lex-rule-num-16)
-   ;;     (then
-   ;;      ($parse-num-16 $text $end) ;; todo
-   ;;      (return)))
+   (if (i32.eq $rule-id _lex-rule-num-16)
+       (then
+        (unreachable)
+        ;; ($parse-num-16 $text $end) ;; todo
+        (return)))
 
    (if (i32.eq $rule-id _lex-rule-num-2)
        (then
         ($parse-num-2 $text $end)
         (return)))
 
-   ;; (if (i32.eq $rule-id _lex-rule-num-8)
-   ;;     (then
-   ;;      ($parse-num-8 $text $end) ;; todo
-   ;;      (return)))
+   (if (i32.eq $rule-id _lex-rule-num-8)
+       (then
+        (unreachable)
+        ;; ($parse-num-8 $text $end) ;; todo
+        (return)))
 
    (if (i32.eq $rule-id _lex-rule-unquote-splicing)
        (then
@@ -708,50 +768,33 @@
 
    (if (i32.eq $char _char-quote)
        (then
-        (set! $symbol (%quote-symbol))) ;; todo
+        (set! $symbol (%quote-symbol)))
      (else
       (if (i32.eq $char _char-backtick)
           (then
-           (set! $symbol (%quasiquote-symbol))) ;; todo
+           (set! $symbol (%quasiquote-symbol)))
         (else
          (if (i32.eq $char _char-comma)
              (then
-              (set! $symbol (%unquote-symbol))) ;; todo
+              (set! $symbol (%unquote-symbol)))
            (else
             (unreachable)))))))
 
    ($append-value $symbol)
    (%set-auto-unnest-ctx (%get-current-ctx)))
 
+ (func $parse-datum-comment (debug (export "parse-datum-comment"))
+   (param $text i32)
+   (param $end i32)
+
+   (%set-auto-unnest-ctx (%get-current-ctx))
+   (%set-datum-comment-ctx (%get-current-ctx)))
+
  (func $parse-simple-identifier (debug (export "parse-simple-identifier"))
    (param $text i32)
    (param $end i32)
 
-   (local $char i32)
-   (local $char-list i32)
-   (local $next i32)
-   (local $tail i32)
-
-   (set! $char-list ($make-pair _null _null))
-   (set! $tail $char-list)
-
-   (loop $again
-
-     (if (i32.lt_u $text $end)
-         (then
-
-          (set! $char ($get-string-char $text))
-
-          (set! $next ($make-pair $char _null))
-          ($set-pair-cdr $tail $next)
-          (set! $tail $next)
-
-          (set! $text (i32.add $text ($calc-encoded-length $char)))
-          (br $again))))
-
-   ($append-value ($make-symbol ($build-string ($get-pair-cdr $char-list))))
-
-   ($dealloc-list $char-list))
+   ($append-value ($make-symbol ($slice-string-addr $text $end))))
 
  (func $parse-boolean (debug (export "parse-boolean"))
    (param $text i32)
@@ -1014,7 +1057,7 @@
    (local $rule-id i32)
 
    (drop ;; rule-id
-    (set! $end ($lex-match-prefix-2 $text $end)))
+    (set! $text ($lex-match-prefix-2 $text $end)))
 
    (set! $rule-id
          (drop ;; end
@@ -1223,6 +1266,7 @@
    (if (i32.ne $start $text)
        (then
         (set! $value ($negate-number $value))))
+
    $value)
 
  (func $parse-urational-2-value (debug (export "parse-urational-2-value"))

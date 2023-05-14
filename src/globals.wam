@@ -107,7 +107,14 @@
  (global $numbers-blockset     (export "numbers-blockset")     i32 _numbers-blockset)
  (global $strings-blockset     (export "strings-blockset")     i32 _strings-blockset)
  (global $vectors-blockset     (export "vectors-blockset")     i32 _vectors-blockset)
- (global $blockset-count       (export "blockset-count")       i32 _blockset-count))
+ (global $blockset-count       (export "blockset-count")       i32 _blockset-count)
+
+ (global $error-delimiter-must-follow-directive (export "error-delimiter-must-follow-directive") i32 _error-delimiter-must-follow-directive)
+ (global $error-illegal-bytevector-element      (export "error-illegal-bytevector-element") i32      _error-illegal-bytevector-element)
+ (global $error-incomplete-input                (export "error-incomplete-input") i32                _error-incomplete-input)
+ (global $error-pair-missing-close-parenthesis  (export "error-pair-missing-close-parenthesis") i32  _error-pair-missing-close-parenthesis)
+ (global $error-unmatched-close-parenthesis     (export "error-unmatched-close-parenthesis") i32     _error-unmatched-close-parenthesis)
+ (global $error-unrecognized-token              (export "error-unrecognized-token") i32              _error-unrecognized-token))
 
 (macro %incr
   (class Int)

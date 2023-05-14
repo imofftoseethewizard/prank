@@ -1,6 +1,6 @@
 import pytest
 
-from util import format_addr
+from util import create_test_string, format_addr
 
 from modules.debug.block_mgr import *
 from modules.debug.chars import *
@@ -27,14 +27,6 @@ def init_test():
     init_blockset_manager()
     init_strings()
     init_lex_r7rs()
-
-def create_test_string(text):
-    data = text.encode()
-    s = alloc_string(len(text), len(data))
-    addr = get_string_addr(s)
-    for i, b in enumerate(data):
-        set_string_bytes(addr+i, b, 1)
-    return s
 
 def check_match(match_fn, src, expected_rule_id, expected_end=None):
     s = create_test_string(src)

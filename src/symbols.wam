@@ -90,6 +90,12 @@
    (expr ,symbol)
    (i32.load ,symbol))
 
+ (debug
+  (func $get-symbol-name (export "get-symbol-name")
+    (param $symbol i32)
+    (result i32)
+    (%get-symbol-name $symbol)))
+
  (macro %get-symbol-hash
    (expr ,symbol)
    (i32.load (i32.add ,symbol (i32.const _value-size))))

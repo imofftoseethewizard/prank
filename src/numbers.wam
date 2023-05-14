@@ -707,5 +707,17 @@
    (f64.reinterpret_i64 (i64.or $abcissa $mantissa)))
 
 
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Number properties
+ ;;
+ ;;-----------------------------------------------------------------------------
+
+ (func $is-complex (export "is-complex")
+   (param $n i32)
+   (result i32)
+
+   (i32.eq (i32.and (%get-number-type (%get-box-type $n)) _number-type-complex)
+           _number-type-complex))
 
 )
