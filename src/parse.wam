@@ -24,6 +24,7 @@
  (import "lists" "dealloc-list"                     (func $dealloc-list                  (param i32)))
  (import "math" "cos"                               (func $cos                           (param f64)         (result f64)))
  (import "math" "sin"                               (func $sin                           (param f64)         (result f64)))
+ (import "numbers" "is-inexact"                  (func $is-inexact                 (param i32)         (result i32)))
  (import "numbers" "alloc-integer"                  (func $alloc-integer                 (param i32)         (result i32)))
  (import "numbers" "coerce-f64"                     (func $coerce-f64                    (param i32)         (result f64)))
  (import "numbers" "dealloc-number"                 (func $dealloc-number                (param i32)))
@@ -1145,22 +1146,30 @@
 
    ($append-value ($make-complex $re $im)))
 
+ (global $v (export "v") (mut i32) _null)
+
  (func $parse-complex-polar-2 (debug (export "parse-complex-polar-2"))
    (param $text i32)
    (param $end i32)
 
    (local $magnitude f64)
+   (local $end-match i32)
    (local $arg f64)
-
-   (set! $magnitude ($coerce-f64 ($parse-real-2-value $text $end)))
+   (local $re i32)
 
    (drop ;; rule-id
-    (set! $text ($lex-match-real-2 $text $end)))
+    (set! $end-match ($lex-match-real-2 $text $end)))
 
-   (set! $arg ($coerce-f64 ($parse-real-2-value (i32.add $text (i32.const 1)) $end)))
+   (set! $magnitude ($coerce-f64 ($parse-real-2-value $text $end-match)))
 
+   (set! $arg ($coerce-f64 ($parse-real-2-value (i32.add $end-match (i32.const 1)) $end)))
+
+   (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
+   ;; (if (i32.eqz ($is-inexact $re))
+   ;;     (then unreachable))
+   (global.set $v (%get-box-type $re))
    ($append-value ($make-complex
-                   ($make-boxed-f64 (f64.mul $magnitude ($cos $arg)))
+                   $re
                    ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
 
  (func $parse-complex-unit-im-2 (debug (export "parse-complex-unit-im-2"))

@@ -6,10 +6,10 @@ from . import bytevectors, chars, lex, lex_r7rs, lists, numbers, pairs, strings,
 import math
 
 def cos(x: float) -> float:
-    return math.cos(float)
+    return math.cos(x)
 
 def sin(x: float) -> float:
-    return math.sin(float)
+    return math.sin(x)
 
 class Math:
     __module_name__ = 'math'

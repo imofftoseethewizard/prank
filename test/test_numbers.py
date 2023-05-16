@@ -138,3 +138,40 @@ def test_negate_3():
 
     assert get_integer_digit_i32(n, 1) == 0x7fff_ffff
     assert get_integer_digit_i32(n, 0) == -1
+
+def test_negate_rational():
+
+    init_test()
+
+    n = make_rational(make_small_integer(1), make_small_integer(2))
+
+    negate_number(n)
+
+def test_make_rational():
+
+    init_test()
+
+    n = make_rational(make_small_integer(1), make_small_integer(2))
+
+    assert is_rational(n)
+    assert denominator(n) == make_small_integer(2)
+    assert numerator(n) == make_small_integer(1)
+
+def test_make_complex_f64():
+
+    init_test()
+
+    n = make_complex(make_boxed_f64(1.0), make_boxed_f64(2.0))
+
+    assert is_complex(n)
+    assert is_inexact(real_part(n))
+    assert is_inexact(imag_part(n))
+
+def test_make_boxed_f64():
+
+    init_test()
+
+    for i in range(-5, 6):
+        n = make_boxed_f64(1.0 * i)
+        assert is_inexact(n)
+        assert get_boxed_f64(n) == 1.0 * i

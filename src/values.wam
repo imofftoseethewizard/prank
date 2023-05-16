@@ -53,8 +53,8 @@
 (define _value-data-mask (i32.const 0xfffffff8))
 
 (debug
- (global $value-tag-mask  (export "tag-mask")  i32 _value-tag-mask)
- (global $value-data-mask (export "data-mask") i32 _value-data-mask))
+ (global $value-tag-mask  (export "value-tag-mask")  i32 _value-tag-mask)
+ (global $value-data-mask (export "value-data-mask") i32 _value-data-mask))
 
 (macro %get-value-data
   (expr ,value)

@@ -22,7 +22,6 @@ def test_calc_idx_mask():
 def test_alloc():
     init_test()
     s = alloc_string(5, 7)
-    print(format_addr(get_pair_car(s)))
     assert get_string_length(s) == 5
     assert get_string_size(s) == 7
 
@@ -91,33 +90,15 @@ def test_string_equal():
     init_test()
 
     s1 = alloc_string(1, 1)
-    print(format_addr(s1))
-    s1_addr = get_string_addr(s1)
-    print(format_addr(s1_addr))
-    print(format_addr(get_pair_car(s1)))
-    print(format_addr(get_pair_cdr(s1)))
-    print(format_addr(get_pair_cdar(s1)))
-    print(format_addr(get_pair_cddr(s1)))
-    print(format_addr(get_pair_cdaar(s1)))
-    print(format_addr(get_pair_cdadr(s1)))
+    s1_pair = s1 & value_data_mask.value
+    s1_addr = get_string_addr(s1_pair)
     set_string_bytes(s1_addr, ord('a'), 1)
     assert get_string_bytes(s1_addr, 1) == ord('a')
 
     s2 = alloc_string(1, 1)
-    print(format_addr(s2))
-    s2_addr = get_string_addr(s2)
-    print(format_addr(s2_addr))
-    print(format_addr(get_pair_car(s2)))
-    print(format_addr(get_pair_cdr(s2)))
-    print(format_addr(get_pair_cdar(s2)))
-    print(format_addr(get_pair_cddr(s2)))
-    print(format_addr(get_pair_cdaar(s2)))
-    print(format_addr(get_pair_cdadr(s2)))
+    s2_pair = s2 & value_data_mask.value
+    s2_addr = get_string_addr(s2_pair)
     set_string_bytes(s2_addr, ord('a'), 1)
     assert get_string_bytes(s2_addr, 1) == ord('a')
 
-    # print(s1)
-    # print(s2)
-    # print(s1_addr)
-    # print(s2_addr)
-    # print(string_equal(s1, s2))
+    assert string_equal(s1, s2)
