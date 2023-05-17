@@ -1,59 +1,77 @@
 (module
 
- (import "bytevectors" "alloc-bytevector"           (func $alloc-bytevector              (param i32)         (result i32)))
- (import "bytevectors" "build-bytevector"           (func $build-bytevector              (param i32)         (result i32)))
- (import "bytevectors" "dealloc-bytevector"         (func $dealloc-bytevector            (param i32)))
- (import "bytevectors" "get-bytevector-i32"         (func $get-bytevector-i32            (param i32 i32)     (result i32)))
- (import "bytevectors" "set-bytevector-i32"         (func $set-bytevector-i32            (param i32 i32 i32)))
- (import "chars" "ascii-lower"                      (func $ascii-lower                   (param i32)         (result i32)))
- (import "chars" "calc-encoded-length"              (func $calc-encoded-length           (param i32)         (result i32)))
- (import "lex-r7rs" "lex-match-atmosphere"          (func $lex-match-atmosphere          (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-2"           (func $lex-match-complex-2           (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-infnan-im-2" (func $lex-match-complex-infnan-im-2 (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-datum-comment"       (func $lex-match-datum-comment       (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-delimited-token"     (func $lex-match-delimited-token     (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-delimiter"           (func $lex-match-delimiter           (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-prefix-2"            (func $lex-match-prefix-2            (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-real-2"              (func $lex-match-real-2              (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-sign"                (func $lex-match-sign                (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-string-element"      (func $lex-match-string-element      (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-symbol-element"      (func $lex-match-symbol-element      (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-uinteger-2"          (func $lex-match-uinteger-2          (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-undelimited-token"   (func $lex-match-undelimited-token   (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-ureal-2"             (func $lex-match-ureal-2             (param i32 i32)     (result i32 i32)))
- (import "lists" "dealloc-list"                     (func $dealloc-list                  (param i32)))
- (import "math" "cos"                               (func $cos                           (param f64)         (result f64)))
- (import "math" "sin"                               (func $sin                           (param f64)         (result f64)))
- (import "numbers" "is-inexact"                  (func $is-inexact                 (param i32)         (result i32)))
- (import "numbers" "alloc-integer"                  (func $alloc-integer                 (param i32)         (result i32)))
- (import "numbers" "coerce-f64"                     (func $coerce-f64                    (param i32)         (result f64)))
- (import "numbers" "dealloc-number"                 (func $dealloc-number                (param i32)))
- (import "numbers" "make-boxed-f64"                 (func $make-boxed-f64                (param f64)         (result i32)))
- (import "numbers" "make-boxed-i64"                 (func $make-boxed-i64                (param i64)         (result i32)))
- (import "numbers" "make-complex"                   (func $make-complex                  (param i32 i32)     (result i32)))
- (import "numbers" "make-rational"                  (func $make-rational                 (param i32 i32)     (result i32)))
- (import "numbers" "make-small-integer"             (func $make-small-integer            (param i32)         (result i32)))
- (import "numbers" "negate-number"                  (func $negate-number                 (param i32)         (result i32)))
- (import "numbers" "set-integer-i64-digit"          (func $set-integer-i64-digit         (param i32 i32 i64)))
- (import "pairs" "dealloc-pair"                     (func $dealloc-pair                  (param i32)))
- (import "pairs" "get-pair-car"                     (func $get-pair-car                  (param i32)         (result i32)))
- (import "pairs" "get-pair-cdr"                     (func $get-pair-cdr                  (param i32)         (result i32)))
- (import "pairs" "make-pair"                        (func $make-pair                     (param i32 i32)     (result i32)))
- (import "pairs" "set-pair-car"                     (func $set-pair-car                  (param i32 i32)))
- (import "pairs" "set-pair-cdr"                     (func $set-pair-cdr                  (param i32 i32)))
- (import "strings" "alloc-string"                   (func $alloc-string                  (param i32 i32)     (result i32)))
- (import "strings" "build-string"                   (func $build-string                  (param i32)         (result i32)))
- (import "strings" "dealloc-string"                 (func $dealloc-string                (param i32)))
- (import "strings" "get-string-addr"                (func $get-string-addr               (param i32)         (result i32)))
- (import "strings" "get-string-char"                (func $get-string-char               (param i32)         (result i32)))
- (import "strings" "match-string"                   (func $match-string                  (param i32 i32 i32) (result i32)))
- (import "strings" "set-string-bytes"               (func $set-string-bytes              (param i32 i32 i32)))
- (import "strings" "slice-string-addr"              (func $slice-string-addr             (param i32 i32)     (result i32)))
- (import "symbols" "make-symbol"                    (func $make-symbol                   (param i32)         (result i32)))
- (import "vectors" "build-vector"                   (func $build-vector                  (param i32)         (result i32)))
- (import "vectors" "dealloc-vector"                 (func $dealloc-vector                (param i32)))
- (import "vectors" "get-vector-element"             (func $get-vector-element            (param i32 i32)     (result i32)))
- (import "vectors" "get-vector-length"              (func $get-vector-length             (param i32)         (result i32)))
+ (import "bytevectors" "alloc-bytevector"            (func $alloc-bytevector               (param i32)         (result i32)))
+ (import "bytevectors" "build-bytevector"            (func $build-bytevector               (param i32)         (result i32)))
+ (import "bytevectors" "dealloc-bytevector"          (func $dealloc-bytevector             (param i32)))
+ (import "bytevectors" "get-bytevector-i32"          (func $get-bytevector-i32             (param i32 i32)     (result i32)))
+ (import "bytevectors" "set-bytevector-i32"          (func $set-bytevector-i32             (param i32 i32 i32)))
+ (import "chars" "ascii-lower"                       (func $ascii-lower                    (param i32)         (result i32)))
+ (import "chars" "calc-encoded-length"               (func $calc-encoded-length            (param i32)         (result i32)))
+ (import "lex-r7rs" "lex-match-atmosphere"           (func $lex-match-atmosphere           (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-2"            (func $lex-match-complex-2            (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-infnan-im-2"  (func $lex-match-complex-infnan-im-2  (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-8"            (func $lex-match-complex-8            (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-infnan-im-8"  (func $lex-match-complex-infnan-im-8  (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-10"           (func $lex-match-complex-10           (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-infnan-im-10" (func $lex-match-complex-infnan-im-10 (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-16"           (func $lex-match-complex-16           (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-infnan-im-16" (func $lex-match-complex-infnan-im-16 (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-datum-comment"        (func $lex-match-datum-comment        (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-delimited-token"      (func $lex-match-delimited-token      (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-delimiter"            (func $lex-match-delimiter            (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-prefix-2"             (func $lex-match-prefix-2             (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-real-2"               (func $lex-match-real-2               (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-prefix-8"             (func $lex-match-prefix-8             (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-real-8"               (func $lex-match-real-8               (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-prefix-10"            (func $lex-match-prefix-10            (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-real-10"              (func $lex-match-real-10              (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-prefix-16"            (func $lex-match-prefix-16            (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-real-16"              (func $lex-match-real-16              (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-sign"                 (func $lex-match-sign                 (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-string-element"       (func $lex-match-string-element       (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-symbol-element"       (func $lex-match-symbol-element       (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-uinteger-2"           (func $lex-match-uinteger-2           (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-uinteger-8"           (func $lex-match-uinteger-8           (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-uinteger-10"          (func $lex-match-uinteger-10          (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-uinteger-16"          (func $lex-match-uinteger-16          (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-undelimited-token"    (func $lex-match-undelimited-token    (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-ureal-2"              (func $lex-match-ureal-2              (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-ureal-8"              (func $lex-match-ureal-8              (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-ureal-10"             (func $lex-match-ureal-10             (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-ureal-16"             (func $lex-match-ureal-16             (param i32 i32)     (result i32 i32)))
+ (import "lists" "dealloc-list"                      (func $dealloc-list                   (param i32)))
+ (import "math" "cos"                                (func $cos                            (param f64)         (result f64)))
+ (import "math" "sin"                                (func $sin                            (param f64)         (result f64)))
+ (import "numbers" "is-inexact"                      (func $is-inexact                     (param i32)         (result i32)))
+ (import "numbers" "alloc-integer"                   (func $alloc-integer                  (param i32)         (result i32)))
+ (import "numbers" "coerce-f64"                      (func $coerce-f64                     (param i32)         (result f64)))
+ (import "numbers" "dealloc-number"                  (func $dealloc-number                 (param i32)))
+ (import "numbers" "make-boxed-f64"                  (func $make-boxed-f64                 (param f64)         (result i32)))
+ (import "numbers" "make-boxed-i64"                  (func $make-boxed-i64                 (param i64)         (result i32)))
+ (import "numbers" "make-complex"                    (func $make-complex                   (param i32 i32)     (result i32)))
+ (import "numbers" "make-rational"                   (func $make-rational                  (param i32 i32)     (result i32)))
+ (import "numbers" "make-small-integer"              (func $make-small-integer             (param i32)         (result i32)))
+ (import "numbers" "negate-number"                   (func $negate-number                  (param i32)         (result i32)))
+ (import "numbers" "set-integer-i64-digit"           (func $set-integer-i64-digit          (param i32 i32 i64)))
+ (import "pairs" "dealloc-pair"                      (func $dealloc-pair                   (param i32)))
+ (import "pairs" "get-pair-car"                      (func $get-pair-car                   (param i32)         (result i32)))
+ (import "pairs" "get-pair-cdr"                      (func $get-pair-cdr                   (param i32)         (result i32)))
+ (import "pairs" "make-pair"                         (func $make-pair                      (param i32 i32)     (result i32)))
+ (import "pairs" "set-pair-car"                      (func $set-pair-car                   (param i32 i32)))
+ (import "pairs" "set-pair-cdr"                      (func $set-pair-cdr                   (param i32 i32)))
+ (import "strings" "alloc-string"                    (func $alloc-string                   (param i32 i32)     (result i32)))
+ (import "strings" "build-string"                    (func $build-string                   (param i32)         (result i32)))
+ (import "strings" "dealloc-string"                  (func $dealloc-string                 (param i32)))
+ (import "strings" "get-string-addr"                 (func $get-string-addr                (param i32)         (result i32)))
+ (import "strings" "get-string-char"                 (func $get-string-char                (param i32)         (result i32)))
+ (import "strings" "match-string"                    (func $match-string                   (param i32 i32 i32) (result i32)))
+ (import "strings" "set-string-bytes"                (func $set-string-bytes               (param i32 i32 i32)))
+ (import "strings" "slice-string-addr"               (func $slice-string-addr              (param i32 i32)     (result i32)))
+ (import "symbols" "make-symbol"                     (func $make-symbol                    (param i32)         (result i32)))
+ (import "vectors" "build-vector"                    (func $build-vector                   (param i32)         (result i32)))
+ (import "vectors" "dealloc-vector"                  (func $dealloc-vector                 (param i32)))
+ (import "vectors" "get-vector-element"              (func $get-vector-element             (param i32 i32)     (result i32)))
+ (import "vectors" "get-vector-length"               (func $get-vector-length              (param i32)         (result i32)))
 
  (import "lex-r7rs" "string-alarm"                   (global $string-alarm                   (mut i32)))
  (import "lex-r7rs" "string-begin-vector"            (global $string-begin-vector            (mut i32)))
@@ -710,14 +728,12 @@
 
    (if (i32.eq $rule-id _lex-rule-num-10)
        (then
-        (unreachable)
-        ;;($parse-num-10 $text $end) ;; todo
+        ($parse-num-10 $text $end)
         (return)))
 
    (if (i32.eq $rule-id _lex-rule-num-16)
        (then
-        (unreachable)
-        ;; ($parse-num-16 $text $end) ;; todo
+        ($parse-num-16 $text $end)
         (return)))
 
    (if (i32.eq $rule-id _lex-rule-num-2)
@@ -727,8 +743,7 @@
 
    (if (i32.eq $rule-id _lex-rule-num-8)
        (then
-        (unreachable)
-        ;; ($parse-num-8 $text $end) ;; todo
+        ($parse-num-8 $text $end)
         (return)))
 
    (if (i32.eq $rule-id _lex-rule-unquote-splicing)
@@ -1146,8 +1161,6 @@
 
    ($append-value ($make-complex $re $im)))
 
- (global $v (export "v") (mut i32) _null)
-
  (func $parse-complex-polar-2 (debug (export "parse-complex-polar-2"))
    (param $text i32)
    (param $end i32)
@@ -1165,9 +1178,7 @@
    (set! $arg ($coerce-f64 ($parse-real-2-value (i32.add $end-match (i32.const 1)) $end)))
 
    (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
-   ;; (if (i32.eqz ($is-inexact $re))
-   ;;     (then unreachable))
-   (global.set $v (%get-box-type $re))
+
    ($append-value ($make-complex
                    $re
                    ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
@@ -1176,17 +1187,18 @@
    (param $text i32)
    (param $end i32)
 
+   (local $end-match i32)
    (local $re i32)
 
-   (set! $re ($parse-real-2-value $text $end))
-
    (drop ;; rule-id
-    (set! $text ($lex-match-real-2 $text $end)))
+    (set! $end-match ($lex-match-real-2 $text $end)))
+
+   (set! $re ($parse-real-2-value $text $end-match))
 
    ($append-value
     ($make-complex $re
                    ($make-small-integer
-                    (if (result i32) (i32.eq ($get-string-char $text) _char-plus)
+                    (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
                       (then (i32.const 1))
                       (else (i32.const -1)))))))
 
@@ -1194,41 +1206,23 @@
    (param $text i32)
    (param $end i32)
 
-   (local $im i32)
-
-   (set! $im ($parse-signed-real-2-value (i32.add $text (i32.const 1)) $end))
-
-   ($append-value
-    ($make-complex ($make-small-integer (i32.const 0))
-                   (if (result i32) (i32.eq ($get-string-char $text) _char-plus)
-                     (then $im)
-                     (else ($negate-number $im))))))
+   ($append-value ($make-complex ($make-small-integer (i32.const 0))
+                                 ($parse-signed-real-2-value $text
+                                                             (i32.sub $end (i32.const 1))))))
 
  (func $parse-complex-infnan-im-2 (debug (export "parse-complex-infnan-im-2"))
    (param $text i32)
    (param $end i32)
 
+   (local $end-match i32)
    (local $re i32)
 
-   (set! $re ($parse-real-2-value $text $end))
-
    (drop ;; rule-id
-    (set! $text ($lex-match-complex-infnan-im-2 $text $end)))
+    (set! $end-match ($lex-match-real-2 $text $end)))
 
-   ($append-value ($make-complex $re ($parse-infnan-value $text $end))))
+   (set! $re ($parse-real-2-value $text $end-match))
 
- (func $parse-infnan (debug (export "parse-infnan"))
-   (param $text i32)
-   (param $end i32)
-
-   ($append-value ($parse-infnan-value $text $end)))
-
- (func $parse-infnan-im (debug (export "parse-infnan-im"))
-   (param $text i32)
-   (param $end i32)
-
-   ($append-value ($make-complex ($make-small-integer (i32.const 0))
-                                 ($parse-infnan-value $text $end))))
+   ($append-value ($make-complex $re ($parse-infnan-value $end-match $end))))
 
  (func $parse-real-2-value (debug (export "parse-real-2-value"))
    (param $text i32)
@@ -1272,7 +1266,7 @@
            (else
             ($parse-urational-2-value $text $end))))
 
-   (if (i32.ne $start $text)
+   (if (i32.eq ($get-string-char $start) _char-minus)
        (then
         (set! $value ($negate-number $value))))
 
@@ -1392,6 +1386,1005 @@
           (br $again))))
 
    $value)
+
+ (func $parse-num-8 (debug (export "parse-num-8"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $rule-id i32)
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-prefix-8 $text $end)))
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-complex-8 $text $end)))
+
+   (if (i32.eq $rule-id _lex-rule-signed-real-8)
+       (then
+        (return ($parse-signed-real-8 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-full-complex-8)
+       (then
+        (return ($parse-full-complex-8 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-polar-8)
+       (then
+        (return ($parse-complex-polar-8 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-unit-im-8)
+       (then
+        (return ($parse-complex-unit-im-8 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-im-only-8)
+       (then
+        (return ($parse-complex-im-only-8 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-infnan-im-8)
+       (then
+        (return ($parse-complex-infnan-im-8 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-unit-im)
+       (then
+        (return ($parse-unit-im $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-infnan)
+       (then
+        (return ($parse-infnan $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-infnan-im)
+       (then
+        (return ($parse-infnan-im $text $end))))
+
+   (unreachable))
+
+ (func $parse-signed-real-8 (debug (export "parse-signed-real-8"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value ($parse-signed-real-8-value $text $end)))
+
+ (func $parse-full-complex-8 (debug (export "parse-full-complex-8"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $end-match i32)
+   (local $im i32)
+   (local $is-negative-im i32)
+   (local $re i32)
+   (local $rule-id i32)
+
+   (set! $rule-id
+         (set! $end-match
+               ($lex-match-real-8 $text $end)))
+
+   (set! $re
+         (if (result i32) (i32.eq $rule-id _lex-rule-infnan)
+           (then ($parse-infnan-value $text $end-match))
+           (else ($parse-real-8-value $text $end-match))))
+
+   (set! $is-negative-im (i32.eq ($get-string-char $end-match) _char-minus))
+
+   (set! $text (i32.add $end-match (i32.const 1)))
+
+   (set! $rule-id
+         (set! $end-match
+               ($lex-match-ureal-8 $text $end)))
+
+   (set! $im
+         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-8)
+           (then ($parse-uinteger-8-value $text $end-match))
+           (else ($parse-urational-8-value $text $end-match))))
+
+   (if $is-negative-im
+       (then
+        (set! $im ($negate-number $im))))
+
+   ($append-value ($make-complex $re $im)))
+
+ (func $parse-complex-polar-8 (debug (export "parse-complex-polar-8"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $magnitude f64)
+   (local $end-match i32)
+   (local $arg f64)
+   (local $re i32)
+
+   (drop ;; rule-id
+    (set! $end-match ($lex-match-real-8 $text $end)))
+
+   (set! $magnitude ($coerce-f64 ($parse-real-8-value $text $end-match)))
+
+   (set! $arg ($coerce-f64 ($parse-real-8-value (i32.add $end-match (i32.const 1)) $end)))
+
+   (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
+
+   ($append-value ($make-complex
+                   $re
+                   ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
+
+ (func $parse-complex-unit-im-8 (debug (export "parse-complex-unit-im-8"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $end-match i32)
+   (local $re i32)
+
+   (drop ;; rule-id
+    (set! $end-match ($lex-match-real-8 $text $end)))
+
+   (set! $re ($parse-real-8-value $text $end-match))
+
+   ($append-value
+    ($make-complex $re
+                   ($make-small-integer
+                    (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
+                      (then (i32.const 1))
+                      (else (i32.const -1)))))))
+
+ (func $parse-complex-im-only-8 (debug (export "parse-complex-im-only-8"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value ($make-complex ($make-small-integer (i32.const 0))
+                                 ($parse-signed-real-8-value $text
+                                                             (i32.sub $end (i32.const 1))))))
+
+ (func $parse-complex-infnan-im-8 (debug (export "parse-complex-infnan-im-8"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $end-match i32)
+   (local $re i32)
+
+   (drop ;; rule-id
+    (set! $end-match ($lex-match-real-8 $text $end)))
+
+   (set! $re ($parse-real-8-value $text $end-match))
+
+   ($append-value ($make-complex $re ($parse-infnan-value $end-match $end))))
+
+ (func $parse-real-8-value (debug (export "parse-real-8-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $rule-id i32)
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-real-8 $text $end)))
+
+   (if (result i32) (i32.eq $rule-id _lex-rule-signed-real-8)
+     (then
+      ($parse-signed-real-8-value $text $end))
+     (else
+      ($parse-infnan-value $text $end))))
+
+ (func $parse-signed-real-8-value (debug (export "parse-signed-real-8-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $start i32)
+   (local $rule-id i32)
+   (local $value i32)
+
+   (set! $start $text)
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-sign $text $end)))
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-ureal-8 $text $end)))
+
+   (set! $value
+         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-8)
+           (then
+            ($parse-uinteger-8-value $text $end))
+           (else
+            ($parse-urational-8-value $text $end))))
+
+   (if (i32.eq ($get-string-char $start) _char-minus)
+       (then
+        (set! $value ($negate-number $value))))
+
+   $value)
+
+ (func $parse-urational-8-value (debug (export "parse-urational-8-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $end-match i32)
+
+   (drop ;; rule-id
+    (set! $end-match
+          ($lex-match-uinteger-8 $text $end)))
+
+   ($make-rational ($parse-uinteger-8-value $text $end-match)
+                   ($parse-uinteger-8-value (i32.add $end-match (i32.const 1)) $end)))
+
+ (func $parse-uinteger-8-value (debug (export "parse-uinteger-8-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $length i32)
+   (set! $length (i32.sub $end $text))
+
+   (if (i32.lt_u $length (i32.const 10))
+       (then
+        ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
+        (return ($parse-small-uinteger-8-value $text $end))))
+
+   ;; todo
+   (if (i32.lt_u $length (i32.const 64))
+       (then
+        ;; 29-63 bits will fit in an i64
+        (return ($parse-i64-uinteger-8-value $text $end))))
+
+   ;; >= 64 bits
+   ($parse-integer-uintger-8-value $text $end))
+
+ (func $parse-small-uinteger-8-value (debug (export "parse-small-uinteger-8-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $char i32)
+   (local $value i32)
+
+   (set! $value (i32.const 0))
+
+   (loop $again
+     (if (i32.ne $text $end)
+         (then
+          (set! $char ($get-string-char $text))
+          (set! $value (i32.add (i32.shl $value (i32.const 3)) (i32.sub $char _char-0)))
+
+          (%incr i32 $text)
+          (br $again))))
+
+   ($make-small-integer $value))
+
+ (func $parse-i64-uinteger-8-value (debug (export "parse-i64-uinteger-8-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $char i32)
+   (local $value i64)
+
+   (set! $value (i64.const 0))
+
+   (loop $again
+     (if (i32.ne $text $end)
+         (then
+          (set! $char ($get-string-char $text))
+          (set! $value (i64.add (i64.shl $value (i64.const 3))
+                                (i64.extend_i32_u (i32.sub $char _char-0))))
+
+          (%incr i32 $text)
+          (br $again))))
+
+   ($make-boxed-i64 $value))
+
+ (func $parse-integer-uintger-8-value (debug (export "parse-integer-uinteger-8-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $accum i64)
+   (local $bit-length i32)
+   (local $char i32)
+   (local $value i32)
+
+   (set! $bit-length (i32.mul (i32.sub $end $text) (i32.const 3)))
+
+   ;; normally, we'd have (x + 63) >> 6, but here we need to allow for a sign
+   ;; bit as well, so it becomes (x + 64) >> 6 = (x >> 6) + 1.
+   (set! $value ($alloc-integer (i32.add (i32.shr_u $bit-length (i32.const 6))
+                                         (i32.const 1))))
+
+   (set! $accum (i64.const 0))
+
+   (loop $again
+     (if (i32.ne $text $end)
+         (then
+          (set! $char ($get-string-char $text))
+          (set! $accum (i64.add (i64.shl $accum (i64.const 3))
+                                (i64.extend_i32_u (i32.sub $char _char-0))))
+
+          ;; todo
+          (if (i32.eqz (i32.and $bit-length (i32.const 0x3f)))
+              (then
+               ($set-integer-i64-digit $value (i32.shr_u $bit-length (i32.const 6)) $accum)
+               (set! $accum (i64.const 0))))
+
+          (%incr i32 $text)
+          (%decr-n i32 $bit-length 3)
+          (br $again))))
+
+   $value)
+
+ (func $parse-num-10 (debug (export "parse-num-10"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $rule-id i32)
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-prefix-10 $text $end)))
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-complex-10 $text $end)))
+
+   (if (i32.eq $rule-id _lex-rule-signed-real-10)
+       (then
+        (return ($parse-signed-real-10 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-full-complex-10)
+       (then
+        (return ($parse-full-complex-10 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-polar-10)
+       (then
+        (return ($parse-complex-polar-10 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-unit-im-10)
+       (then
+        (return ($parse-complex-unit-im-10 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-im-only-10)
+       (then
+        (return ($parse-complex-im-only-10 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-infnan-im-10)
+       (then
+        (return ($parse-complex-infnan-im-10 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-unit-im)
+       (then
+        (return ($parse-unit-im $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-infnan)
+       (then
+        (return ($parse-infnan $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-infnan-im)
+       (then
+        (return ($parse-infnan-im $text $end))))
+
+   (unreachable))
+
+ (func $parse-signed-real-10 (debug (export "parse-signed-real-10"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value ($parse-signed-real-10-value $text $end)))
+
+ (func $parse-full-complex-10 (debug (export "parse-full-complex-10"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $end-match i32)
+   (local $im i32)
+   (local $is-negative-im i32)
+   (local $re i32)
+   (local $rule-id i32)
+
+   (set! $rule-id
+         (set! $end-match
+               ($lex-match-real-10 $text $end)))
+
+   (set! $re
+         (if (result i32) (i32.eq $rule-id _lex-rule-infnan)
+           (then ($parse-infnan-value $text $end-match))
+           (else ($parse-real-10-value $text $end-match))))
+
+   (set! $is-negative-im (i32.eq ($get-string-char $end-match) _char-minus))
+
+   (set! $text (i32.add $end-match (i32.const 1)))
+
+   (set! $rule-id
+         (set! $end-match
+               ($lex-match-ureal-10 $text $end)))
+
+   (set! $im
+         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-10)
+           (then ($parse-uinteger-10-value $text $end-match))
+           (else ($parse-urational-10-value $text $end-match))))
+
+   (if $is-negative-im
+       (then
+        (set! $im ($negate-number $im))))
+
+   ($append-value ($make-complex $re $im)))
+
+ (func $parse-complex-polar-10 (debug (export "parse-complex-polar-10"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $magnitude f64)
+   (local $end-match i32)
+   (local $arg f64)
+   (local $re i32)
+
+   (drop ;; rule-id
+    (set! $end-match ($lex-match-real-10 $text $end)))
+
+   (set! $magnitude ($coerce-f64 ($parse-real-10-value $text $end-match)))
+
+   (set! $arg ($coerce-f64 ($parse-real-10-value (i32.add $end-match (i32.const 1)) $end)))
+
+   (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
+
+   ($append-value ($make-complex
+                   $re
+                   ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
+
+ (func $parse-complex-unit-im-10 (debug (export "parse-complex-unit-im-10"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $end-match i32)
+   (local $re i32)
+
+   (drop ;; rule-id
+    (set! $end-match ($lex-match-real-10 $text $end)))
+
+   (set! $re ($parse-real-10-value $text $end-match))
+
+   ($append-value
+    ($make-complex $re
+                   ($make-small-integer
+                    (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
+                      (then (i32.const 1))
+                      (else (i32.const -1)))))))
+
+ (func $parse-complex-im-only-10 (debug (export "parse-complex-im-only-10"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value ($make-complex ($make-small-integer (i32.const 0))
+                                 ($parse-signed-real-10-value $text
+                                                             (i32.sub $end (i32.const 1))))))
+
+ (func $parse-complex-infnan-im-10 (debug (export "parse-complex-infnan-im-10"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $end-match i32)
+   (local $re i32)
+
+   (drop ;; rule-id
+    (set! $end-match ($lex-match-real-10 $text $end)))
+
+   (set! $re ($parse-real-10-value $text $end-match))
+
+   ($append-value ($make-complex $re ($parse-infnan-value $end-match $end))))
+
+ (func $parse-real-10-value (debug (export "parse-real-10-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $rule-id i32)
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-real-10 $text $end)))
+
+   (if (result i32) (i32.eq $rule-id _lex-rule-signed-real-10)
+     (then
+      ($parse-signed-real-10-value $text $end))
+     (else
+      ($parse-infnan-value $text $end))))
+
+ (func $parse-signed-real-10-value (debug (export "parse-signed-real-10-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $start i32)
+   (local $rule-id i32)
+   (local $value i32)
+
+   (set! $start $text)
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-sign $text $end)))
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-ureal-10 $text $end)))
+
+   (set! $value
+         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-10)
+           (then
+            ($parse-uinteger-10-value $text $end))
+           (else
+            ($parse-urational-10-value $text $end))))
+
+   (if (i32.eq ($get-string-char $start) _char-minus)
+       (then
+        (set! $value ($negate-number $value))))
+
+   $value)
+
+ (func $parse-urational-10-value (debug (export "parse-urational-10-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $end-match i32)
+
+   (drop ;; rule-id
+    (set! $end-match
+          ($lex-match-uinteger-10 $text $end)))
+
+   ($make-rational ($parse-uinteger-10-value $text $end-match)
+                   ($parse-uinteger-10-value (i32.add $end-match (i32.const 1)) $end)))
+
+ (func $parse-uinteger-10-value (debug (export "parse-uinteger-10-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $length i32)
+   (set! $length (i32.sub $end $text))
+
+   (if (i32.lt_u $length (i32.const 9))
+       (then
+        ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
+        (return ($parse-small-uinteger-10-value $text $end))))
+
+   ;; todo
+   (if (i32.lt_u $length (i32.const 64))
+       (then
+        ;; 29-63 bits will fit in an i64
+        (return ($parse-i64-uinteger-10-value $text $end))))
+
+   ;; >= 64 bits
+   ($parse-integer-uintger-10-value $text $end))
+
+ (func $parse-small-uinteger-10-value (debug (export "parse-small-uinteger-10-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $char i32)
+   (local $value i32)
+
+   (set! $value (i32.const 0))
+
+   (loop $again
+     (if (i32.ne $text $end)
+         (then
+          (set! $char ($get-string-char $text))
+          (set! $value (i32.add (i32.add (i32.shl $value (i32.const 3))
+                                         (i32.shl $value (i32.const 1)))
+                                 (i32.sub $char _char-0)))
+
+          (%incr i32 $text)
+          (br $again))))
+
+   ($make-small-integer $value))
+
+ (func $parse-i64-uinteger-10-value (debug (export "parse-i64-uinteger-10-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $char i32)
+   (local $value i64)
+
+   (set! $value (i64.const 0))
+
+   (loop $again
+     (if (i32.ne $text $end)
+         (then
+          (set! $char ($get-string-char $text))
+          (set! $value (i64.add (i64.add (i64.shl $value (i64.const 3))
+                                         (i64.shl $value (i64.const 1)))
+                                (i64.extend_i32_u (i32.sub $char _char-0))))
+
+          (%incr i32 $text)
+          (br $again))))
+
+   ($make-boxed-i64 $value))
+
+ (func $parse-integer-uintger-10-value (debug (export "parse-integer-uinteger-10-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $accum i64)
+   (local $bit-length i32)
+   (local $char i32)
+   (local $value i32)
+
+   ;; todo
+   (set! $bit-length (i32.sub $end $text))
+
+   ;; normally, we'd have (x + 63) >> 6, but here we need to allow for a sign
+   ;; bit as well, so it becomes (x + 64) >> 6 = (x >> 6) + 1.
+   (set! $value ($alloc-integer (i32.add (i32.shr_u $bit-length (i32.const 6))
+                                         (i32.const 1))))
+
+   (set! $accum (i64.const 0))
+
+   (loop $again
+     (if (i32.ne $text $end)
+         (then
+          (set! $char ($get-string-char $text))
+          (set! $accum (i64.add (i64.add (i64.shl $accum (i64.const 3))
+                                         (i64.shl $accum (i64.const 1)))
+                                (i64.extend_i32_u (i32.sub $char _char-0))))
+
+          ;; todo
+          (if (i32.eqz (i32.and $bit-length (i32.const 0x3f)))
+              (then
+               ($set-integer-i64-digit $value (i32.shr_u $bit-length (i32.const 6)) $accum)
+               (set! $accum (i64.const 0))))
+
+          (%incr i32 $text)
+          ;;todo
+          (%decr i32 $bit-length)
+          (br $again))))
+
+   $value)
+
+ (func $parse-num-16 (debug (export "parse-num-16"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $rule-id i32)
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-prefix-16 $text $end)))
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-complex-16 $text $end)))
+
+   (if (i32.eq $rule-id _lex-rule-signed-real-16)
+       (then
+        (return ($parse-signed-real-16 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-full-complex-16)
+       (then
+        (return ($parse-full-complex-16 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-polar-16)
+       (then
+        (return ($parse-complex-polar-16 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-unit-im-16)
+       (then
+        (return ($parse-complex-unit-im-16 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-im-only-16)
+       (then
+        (return ($parse-complex-im-only-16 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-complex-infnan-im-16)
+       (then
+        (return ($parse-complex-infnan-im-16 $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-unit-im)
+       (then
+        (return ($parse-unit-im $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-infnan)
+       (then
+        (return ($parse-infnan $text $end))))
+
+   (if (i32.eq $rule-id _lex-rule-infnan-im)
+       (then
+        (return ($parse-infnan-im $text $end))))
+
+   (unreachable))
+
+ (func $parse-signed-real-16 (debug (export "parse-signed-real-16"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value ($parse-signed-real-16-value $text $end)))
+
+ (func $parse-full-complex-16 (debug (export "parse-full-complex-16"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $end-match i32)
+   (local $im i32)
+   (local $is-negative-im i32)
+   (local $re i32)
+   (local $rule-id i32)
+
+   (set! $rule-id
+         (set! $end-match
+               ($lex-match-real-16 $text $end)))
+
+   (set! $re
+         (if (result i32) (i32.eq $rule-id _lex-rule-infnan)
+           (then ($parse-infnan-value $text $end-match))
+           (else ($parse-real-16-value $text $end-match))))
+
+   (set! $is-negative-im (i32.eq ($get-string-char $end-match) _char-minus))
+
+   (set! $text (i32.add $end-match (i32.const 1)))
+
+   (set! $rule-id
+         (set! $end-match
+               ($lex-match-ureal-16 $text $end)))
+
+   (set! $im
+         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-16)
+           (then ($parse-uinteger-16-value $text $end-match))
+           (else ($parse-urational-16-value $text $end-match))))
+
+   (if $is-negative-im
+       (then
+        (set! $im ($negate-number $im))))
+
+   ($append-value ($make-complex $re $im)))
+
+ (func $parse-complex-polar-16 (debug (export "parse-complex-polar-16"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $magnitude f64)
+   (local $end-match i32)
+   (local $arg f64)
+   (local $re i32)
+
+   (drop ;; rule-id
+    (set! $end-match ($lex-match-real-16 $text $end)))
+
+   (set! $magnitude ($coerce-f64 ($parse-real-16-value $text $end-match)))
+
+   (set! $arg ($coerce-f64 ($parse-real-16-value (i32.add $end-match (i32.const 1)) $end)))
+
+   (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
+
+   ($append-value ($make-complex
+                   $re
+                   ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
+
+ (func $parse-complex-unit-im-16 (debug (export "parse-complex-unit-im-16"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $end-match i32)
+   (local $re i32)
+
+   (drop ;; rule-id
+    (set! $end-match ($lex-match-real-16 $text $end)))
+
+   (set! $re ($parse-real-16-value $text $end-match))
+
+   ($append-value
+    ($make-complex $re
+                   ($make-small-integer
+                    (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
+                      (then (i32.const 1))
+                      (else (i32.const -1)))))))
+
+ (func $parse-complex-im-only-16 (debug (export "parse-complex-im-only-16"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value ($make-complex ($make-small-integer (i32.const 0))
+                                 ($parse-signed-real-16-value $text
+                                                             (i32.sub $end (i32.const 1))))))
+
+ (func $parse-complex-infnan-im-16 (debug (export "parse-complex-infnan-im-16"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $end-match i32)
+   (local $re i32)
+
+   (drop ;; rule-id
+    (set! $end-match ($lex-match-real-16 $text $end)))
+
+   (set! $re ($parse-real-16-value $text $end-match))
+
+   ($append-value ($make-complex $re ($parse-infnan-value $end-match $end))))
+
+ (func $parse-real-16-value (debug (export "parse-real-16-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $rule-id i32)
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-real-16 $text $end)))
+
+   (if (result i32) (i32.eq $rule-id _lex-rule-signed-real-16)
+     (then
+      ($parse-signed-real-16-value $text $end))
+     (else
+      ($parse-infnan-value $text $end))))
+
+ (func $parse-signed-real-16-value (debug (export "parse-signed-real-16-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $start i32)
+   (local $rule-id i32)
+   (local $value i32)
+
+   (set! $start $text)
+
+   (drop ;; rule-id
+    (set! $text ($lex-match-sign $text $end)))
+
+   (set! $rule-id
+         (drop ;; end
+          ($lex-match-ureal-16 $text $end)))
+
+   (set! $value
+         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-16)
+           (then
+            ($parse-uinteger-16-value $text $end))
+           (else
+            ($parse-urational-16-value $text $end))))
+
+   (if (i32.eq ($get-string-char $start) _char-minus)
+       (then
+        (set! $value ($negate-number $value))))
+
+   $value)
+
+ (func $parse-urational-16-value (debug (export "parse-urational-16-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $end-match i32)
+
+   (drop ;; rule-id
+    (set! $end-match
+          ($lex-match-uinteger-16 $text $end)))
+
+   ($make-rational ($parse-uinteger-16-value $text $end-match)
+                   ($parse-uinteger-16-value (i32.add $end-match (i32.const 1)) $end)))
+
+ (func $parse-uinteger-16-value (debug (export "parse-uinteger-16-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $length i32)
+   (set! $length (i32.sub $end $text))
+
+   (if (i32.lt_u $length (i32.const 8))
+       (then
+        ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
+        (return ($parse-small-uinteger-16-value $text $end))))
+
+   ;; todo
+   (if (i32.lt_u $length (i32.const 64))
+       (then
+        ;; 29-63 bits will fit in an i64
+        (return ($parse-i64-uinteger-16-value $text $end))))
+
+   ;; >= 64 bits
+   ($parse-integer-uintger-16-value $text $end))
+
+ (func $parse-small-uinteger-16-value (debug (export "parse-small-uinteger-16-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $char i32)
+   (local $value i32)
+
+   (set! $value (i32.const 0))
+
+   (loop $again
+     (if (i32.ne $text $end)
+         (then
+          (set! $char ($get-string-char $text))
+          (set! $value (i32.add (i32.shl $value (i32.const 4)) ($hex-digit-value $char)))
+
+          (%incr i32 $text)
+          (br $again))))
+
+   ($make-small-integer $value))
+
+ (func $parse-i64-uinteger-16-value (debug (export "parse-i64-uinteger-16-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $char i32)
+   (local $value i64)
+
+   (set! $value (i64.const 0))
+
+   (loop $again
+     (if (i32.ne $text $end)
+         (then
+          (set! $char ($get-string-char $text))
+          (set! $value (i64.add (i64.shl $value (i64.const 4))
+                                (i64.extend_i32_u ($hex-digit-value $char))))
+
+          (%incr i32 $text)
+          (br $again))))
+
+   ($make-boxed-i64 $value))
+
+ (func $parse-integer-uintger-16-value (debug (export "parse-integer-uinteger-16-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $accum i64)
+   (local $bit-length i32)
+   (local $char i32)
+   (local $value i32)
+
+   (set! $bit-length (i32.sub $end $text))
+
+   ;; normally, we'd have (x + 63) >> 6, but here we need to allow for a sign
+   ;; bit as well, so it becomes (x + 64) >> 6 = (x >> 6) + 1.
+   (set! $value ($alloc-integer (i32.add (i32.shr_u $bit-length (i32.const 6))
+                                         (i32.const 1))))
+
+   (set! $accum (i64.const 0))
+
+   (loop $again
+     (if (i32.ne $text $end)
+         (then
+          (set! $char ($get-string-char $text))
+          (set! $accum (i64.add (i64.shl $accum (i64.const 4))
+                                (i64.extend_i32_u ($hex-digit-value $char))))
+
+          (if (i32.eqz (i32.and $bit-length (i32.const 0x3f)))
+              (then
+               ($set-integer-i64-digit $value (i32.shr_u $bit-length (i32.const 6)) $accum)
+               (set! $accum (i64.const 0))))
+
+          (%incr i32 $text)
+          (%decr i32 $bit-length)
+          (br $again))))
+
+   $value)
+
+ (func $hex-digit-value (debug (export "hex-digit-value"))
+   (param $char i32)
+   (result i32)
+
+   (if (result i32) (i32.le_u $char _char-9)
+     (then (i32.sub $char _char-0))
+     (else
+      (i32.add (i32.const 10)
+               (if (result i32) (i32.le_u $char _char-F)
+                 (then (i32.sub $char _char-A))
+                 (else (i32.sub $char _char-a)))))))
+
+ (func $parse-infnan (debug (export "parse-infnan"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value ($parse-infnan-value $text $end)))
+
+ (func $parse-infnan-im (debug (export "parse-infnan-im"))
+   (param $text i32)
+   (param $end i32)
+
+   ($append-value ($make-complex ($make-small-integer (i32.const 0))
+                                 ($parse-infnan-value $text $end))))
 
  (func $parse-infnan-value (debug (export "parse-infnan-value"))
    (param $text i32)

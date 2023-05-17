@@ -59,47 +59,52 @@ def test_parse_symbol():
     src = 'a'
     assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
 
-def test_parse_binary_small_integer():
+@pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
+def test_parse_small_integer(radix, fmt):
 
     init_test()
 
-    for i in range(-10, 11):
+    for i in range(-20, 21):
         init_parser()
-        src = f'#b{i:b}'
+        src = f'{radix}{{i:{fmt}}}'.format(i=i)
+        print(src)
         assert parse_test(src) >> tag_size_bits.value == i
 
-def test_parse_rational_2():
+@pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
+def test_parse_rational_2(radix, fmt):
 
     init_test()
 
-    for n in range(-4, 5):
-        for d in range(1, 4):
+    for n in range(-20, 21):
+        for d in range(1, 20):
             init_parser()
-            src = f'#b{n:b}/{d:b}'
+            src = f'{radix}{{n:{fmt}}}/{{d:{fmt}}}'.format(n=n, d=d)
 
             value = parse_test(src)
             assert is_rational(value)
 
-def test_parse_binary_full_complex():
+@pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
+def test_parse_full_complex(radix, fmt):
 
     init_test()
 
-    for re in range(-10, 11):
-        for im in range(-10, 11):
+    for re in range(-20, 21):
+        for im in range(-20, 21):
             init_parser()
-            src = f'#b{re:b}{im:+b}i'
+            src = f'{radix}{{re:{fmt}}}{{im:+{fmt}}}i'.format(re=re, im=im)
             value = parse_test(src)
             assert is_complex(value)
             assert real_part(value) >> tag_size_bits.value == re
             assert imag_part(value) >> tag_size_bits.value == im
 
-def test_parse_binary_complex_polar():
+@pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
+def test_parse_complex_polar(radix, fmt):
 
     init_test()
 
     for m in range(0, 5):
         init_parser()
-        src = f'#b{m:b}@0'
+        src = f'{radix}{{m:{fmt}}}@0'.format(m=m)
         value = parse_test(src)
         assert is_complex(value)
 
@@ -113,7 +118,7 @@ def test_parse_binary_complex_polar():
 
     for m in range(0, 5):
         init_parser()
-        src = f'#b{m:b}@{11:b}/{7:b}'
+        src = f'{radix}{{m:{fmt}}}@{{n:{fmt}}}/{{d:{fmt}}}'.format(m=m, n=11, d=7)
         value = parse_test(src)
         assert is_complex(value)
 
@@ -124,3 +129,100 @@ def test_parse_binary_complex_polar():
         im = imag_part(value)
         assert is_inexact(im)
         assert get_boxed_f64(im) == pytest.approx(m, abs=1e-2)
+
+@pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
+def test_parse_complex_unit_im(radix, fmt):
+
+    init_test()
+
+    for re in range(-20, 21):
+        init_parser()
+        src = f'{radix}{{re:{fmt}}}+i'.format(re=re)
+        value = parse_test(src)
+        assert is_complex(value)
+        assert real_part(value) >> tag_size_bits.value == re
+        assert imag_part(value) >> tag_size_bits.value == 1
+
+        init_parser()
+        src = f'{radix}{{re:{fmt}}}-i'.format(re=re)
+        value = parse_test(src)
+        assert is_complex(value)
+        assert real_part(value) >> tag_size_bits.value == re
+        assert imag_part(value) >> tag_size_bits.value == -1
+
+@pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
+def test_parse_complex_im_only(radix, fmt):
+
+    init_test()
+
+    for im in range(-20, 21):
+        init_parser()
+        src = f'{radix}{{im:+{fmt}}}i'.format(im=im)
+        print(src)
+        value = parse_test(src)
+        assert is_complex(value)
+        assert real_part(value) == 0
+        assert imag_part(value) >> tag_size_bits.value == im
+
+@pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
+def test_parse_complex_infnan_im(radix, fmt):
+
+    init_test()
+
+    for re in range(-20, 21):
+        for sign in '+-':
+            for im_val in ['inf', 'nan']:
+                init_parser()
+                src = f'{radix}{{re:{fmt}}}{{sign}}{{im_val}}.0i'.format(re=re, sign=sign, im_val=im_val)
+                value = parse_test(src)
+                assert is_complex(value)
+                assert real_part(value) >> tag_size_bits.value == re
+
+                im = imag_part(value)
+                assert is_inexact(im)
+                im_f64 = get_boxed_f64(im)
+
+                if im_val == 'nan':
+                    assert math.isnan(im_f64)
+                else:
+                    assert im_f64 == float(f'{sign}inf')
+
+@pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
+def test_parse_infnan_im(radix, fmt):
+
+    init_test()
+
+    for sign in '+-':
+        for im_val in ['inf', 'nan']:
+            init_parser()
+            src = f'{radix}{{sign}}{{im_val}}.0i'.format(sign=sign, im_val=im_val)
+            value = parse_test(src)
+            assert is_complex(value)
+            assert real_part(value) == 0
+
+            im = imag_part(value)
+            assert is_inexact(im)
+            im_f64 = get_boxed_f64(im)
+
+            if im_val == 'nan':
+                assert math.isnan(im_f64)
+            else:
+                assert im_f64 == float(f'{sign}inf')
+
+@pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
+def test_parse_infnan(radix, fmt):
+
+    init_test()
+
+    for sign in '+-':
+        for val in ['inf', 'nan']:
+            init_parser()
+            src = f'{radix}{{sign}}{{val}}.0'.format(sign=sign, val=val)
+            value = parse_test(src)
+            assert is_inexact(value)
+            f64 = get_boxed_f64(value)
+
+            if val == 'nan':
+                assert math.isnan(f64)
+            else:
+                assert f64 == float(f'{sign}inf')
