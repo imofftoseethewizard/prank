@@ -17,6 +17,7 @@
  (import "lex-r7rs" "lex-match-complex-16"           (func $lex-match-complex-16           (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-complex-infnan-im-16" (func $lex-match-complex-infnan-im-16 (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-datum-comment"        (func $lex-match-datum-comment        (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-decimal-10-forms"     (func $lex-match-decimal-10-forms     (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-delimited-token"      (func $lex-match-delimited-token      (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-delimiter"            (func $lex-match-delimiter            (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-prefix-2"             (func $lex-match-prefix-2             (param i32 i32)     (result i32 i32)))
@@ -125,7 +126,7 @@
  ;; todo: belongs elsewhere
  (macro %get-small-integer-value
    (expr ,v)
-   (i32.shr_u ,v _tag-size-bits))
+   (i32.shr_s ,v _tag-size-bits))
 
  ;; todo: belongs elsewhere
  (macro %is-small-integer
@@ -1908,7 +1909,11 @@
            (then
             ($parse-uinteger-10-value $text $end))
            (else
-            ($parse-urational-10-value $text $end))))
+            (if (result i32) (i32.eq $rule-id _lex-rule-urational-10)
+              (then
+               ($parse-urational-10-value $text $end))
+              (else
+               ($parse-decimal-10-value $text $end))))))
 
    (if (i32.eq ($get-string-char $start) _char-minus)
        (then
@@ -1929,6 +1934,173 @@
 
    ($make-rational ($parse-uinteger-10-value $text $end-match)
                    ($parse-uinteger-10-value (i32.add $end-match (i32.const 1)) $end)))
+
+ (func $parse-decimal-10-value (debug (export "parse-decimal-10-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $char i32)
+   (local $digit-count i32)
+   (local $end-match i32)
+   (local $exp i32)
+   (local $exp-adj i32)
+   (local $exp-digits i32)
+   (local $exp-start i32)
+   (local $exp-value i32)
+   (local $is-exp-negative i32)
+   (local $rule-id i32)
+   (local $scan i32)
+   (local $significand i64)
+
+   (set! $rule-id
+         (set! $end-match
+               ($lex-match-decimal-10-forms $text $end)))
+
+   ;; match uinteger 10
+   ;; accum into i64 up to 16 digits
+   ;; if less than 16 digits accumulated
+   ;;   if dot
+   ;;      match uinteger 10 after dot
+   ;;      accum into i64 up to 16 digits
+   ;;      exp adj = - # of right of decimal digits included
+   ;; else
+   ;;  exp adj = # of left of decimal digits excluded
+
+   (drop ;; rule-id
+    (set! $end-match
+          ($lex-match-uinteger-10 $text $end)))
+
+   (set! $significand (i64.const 0))
+   (set! $digit-count (i32.const 19)) ;; up to 19 decimal digits will fit in an i64_u
+
+   (if (i32.eq $end-match _null)
+       (then
+        (set! $end-match $text))
+
+     (else
+      (set! $scan $text)
+
+      (loop $again
+        (if (i32.and (i32.gt_u $digit-count (i32.const 0))
+                     (i32.lt_u $scan $end-match))
+            (then
+             (set! $char ($get-string-char $scan))
+             (set! $significand (i64.add (i64.add (i64.shl $significand (i64.const 3))
+                                                  (i64.shl $significand (i64.const 1)))
+                                         (i64.extend_i32_u (i32.sub $char _char-0))))
+
+             (%incr i32 $scan)
+             (%decr i32 $digit-count)
+             (br $again))))
+
+      (set! $exp-adj (i32.sub $end-match $scan))))
+
+   (if (i32.eq ($get-string-char $end-match) _char-dot)
+       (then
+
+        (set! $scan (i32.add $end-match (i32.const 1)))
+
+        (drop ;; rule-id
+         (set! $end-match
+               ($lex-match-uinteger-10 $scan $end)))
+
+        (if (i32.eq $end-match _null)
+            (then
+             (set! $end-match $scan))
+
+          (else
+
+           (loop $again
+             (if (i32.and (i32.gt_u $digit-count (i32.const 0))
+                          (i32.lt_u $scan $end-match))
+                 (then
+                  (set! $char ($get-string-char $scan))
+                  (set! $significand (i64.add (i64.add (i64.shl $significand (i64.const 3))
+                                                       (i64.shl $significand (i64.const 1)))
+                                              (i64.extend_i32_u (i32.sub $char _char-0))))
+
+                  (%incr i32 $scan)
+                  (%decr i32 $digit-count)
+                  (%decr i32 $exp-adj)
+                  (br $again))))))))
+
+   (if (i32.eq $end $end-match)
+       (then
+        (set! $exp $exp-adj))
+     (else
+      ;; parse suffix: e+25, for example
+
+      (set! $exp-start (i32.add $end-match (i32.const 1)))
+
+      (drop ;; rule-id
+       (set! $exp-digits
+             ($lex-match-sign $exp-start $end)))
+
+      (if (i32.eq $exp-digits $exp-start)
+          (then
+           (set! $is-exp-negative (i32.const 0)))
+        (else
+         (set! $is-exp-negative (i32.eq _char-minus ($get-string-char $exp-start)))))
+
+      (set! $exp-value ($parse-uinteger-10-value $exp-digits $end))
+
+      (if (%is-small-integer $exp-value)
+          (then
+           (set! $exp (%get-small-integer-value $exp-value)))
+        (else
+         ($dealloc-number $exp)
+         (set! $exp (i32.const 0x7ffffff))))
+
+      (if $is-exp-negative
+          (then
+           (set! $exp (i32.sub (i32.const 0) $exp))))
+
+      (set! $exp (i32.add $exp $exp-adj))))
+
+   ($make-boxed-f64 (f64.mul (f64.convert_i64_u $significand)
+                             ($pow-f64 (f64.const 10.0) $exp))))
+
+ (func $parse-decimal-fractional-part (debug (export "parse-decimal-fractional-part"))
+   (param $text i32)
+   (param $end i32)
+   (result f64)
+
+   ;; skip over decimal point
+   (%incr i32 $text)
+   (f64.div ($coerce-f64 ($parse-uinteger-10-value $text $end))
+            ($pow-f64 (f64.const 10.0) (i32.sub $end $text))))
+
+ (func $pow-f64 (debug (export "pow-f64"))
+   (param $x f64)
+   (param $n i32)
+   (result f64)
+
+   (local $k i32)
+   (local $r f64)
+
+   (if (i32.lt_s $n (i32.const 0))
+       (then
+        (set! $n (i32.sub (i32.const 0) $n))
+        (set! $x (f64.div (f64.const 1.0) $x))))
+
+   (set! $k (i32.clz $n))
+   (set! $r (f64.const 1.0))
+
+   (set! $n (i32.shl $n $k))
+
+   (loop $again
+     (if (i32.lt_u $k (i32.const 32))
+         (then
+          (set! $r (f64.mul $r $r))
+          (if (i32.and $n (i32.const 0x80000000))
+              (then
+               (set! $r (f64.mul $r $x))))
+          (%incr i32 $k)
+          (set! $n (i32.shl $n (i32.const 1)))
+          (br $again))))
+
+   $r)
 
  (func $parse-uinteger-10-value (debug (export "parse-uinteger-10-value"))
    (param $text i32)

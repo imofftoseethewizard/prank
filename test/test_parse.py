@@ -1,5 +1,7 @@
 import pytest
 
+import math
+
 from util import create_test_string, format_addr
 
 from modules.debug.block_mgr import *
@@ -226,3 +228,30 @@ def test_parse_infnan(radix, fmt):
                 assert math.isnan(f64)
             else:
                 assert f64 == float(f'{sign}inf')
+
+def test_parse_decimals():
+
+    init_test()
+
+    test_cases = [
+        '1.0',
+        '0.1',
+        '.3333',
+        '6553.6',
+        str(math.pi),
+        '6.02e+23',
+        '95e-201',
+        '1e-400',
+        '1e+400',
+        '29e6',
+        '-10000000000000000000000000000000000000000000.0',
+    ]
+
+    for src in test_cases:
+        init_parser()
+        value = parse_test(src)
+
+        assert is_inexact(value)
+        # todo (big) integer division will make this more accurate
+        # see parse-decimal in parse.wam
+        assert get_boxed_f64(value) == pytest.approx(float(src), rel=1e-15)
