@@ -1071,10 +1071,23 @@
    (param $text i32)
    (param $end i32)
 
+   (local $number-start i32)
    (local $rule-id i32)
+   (local $value i32)
 
    (drop ;; rule-id
-    (set! $text ($lex-match-prefix-2 $text $end)))
+    (set! $number-start ($lex-match-prefix-2 $text $end)))
+
+   (set! $value ($parse-num-2-value $number-start $end))
+
+   ($append-value $value))
+
+ (func $parse-num-2-value (debug (export "parse-num-2-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $rule-id i32)
 
    (set! $rule-id
          (drop ;; end
@@ -1082,51 +1095,46 @@
 
    (if (i32.eq $rule-id _lex-rule-signed-real-2)
        (then
-        (return ($parse-signed-real-2 $text $end))))
+        (return ($parse-signed-real-2-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-full-complex-2)
        (then
-        (return ($parse-full-complex-2 $text $end))))
+        (return ($parse-full-complex-2-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-polar-2)
        (then
-        (return ($parse-complex-polar-2 $text $end))))
+        (return ($parse-complex-polar-2-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-unit-im-2)
        (then
-        (return ($parse-complex-unit-im-2 $text $end))))
+        (return ($parse-complex-unit-im-2-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-im-only-2)
        (then
-        (return ($parse-complex-im-only-2 $text $end))))
+        (return ($parse-complex-im-only-2-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-infnan-im-2)
        (then
-        (return ($parse-complex-infnan-im-2 $text $end))))
+        (return ($parse-complex-infnan-im-2-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-unit-im)
        (then
-        (return ($parse-unit-im $text $end))))
+        (return ($parse-unit-im-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-infnan)
        (then
-        (return ($parse-infnan $text $end))))
+        (return ($parse-infnan-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-infnan-im)
        (then
-        (return ($parse-infnan-im $text $end))))
+        (return ($parse-infnan-im-value $text $end))))
 
    (unreachable))
 
- (func $parse-signed-real-2 (debug (export "parse-signed-real-2"))
+ (func $parse-full-complex-2-value (debug (export "parse-full-complex-2-value"))
    (param $text i32)
    (param $end i32)
-
-   ($append-value ($parse-signed-real-2-value $text $end)))
-
- (func $parse-full-complex-2 (debug (export "parse-full-complex-2"))
-   (param $text i32)
-   (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $im i32)
@@ -1160,11 +1168,12 @@
        (then
         (set! $im ($negate-number $im))))
 
-   ($append-value ($make-complex $re $im)))
+   ($make-complex $re $im))
 
- (func $parse-complex-polar-2 (debug (export "parse-complex-polar-2"))
+ (func $parse-complex-polar-2-value (debug (export "parse-complex-polar-2-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $magnitude f64)
    (local $end-match i32)
@@ -1180,13 +1189,14 @@
 
    (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
 
-   ($append-value ($make-complex
-                   $re
-                   ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
+   ($make-complex
+    $re
+    ($make-boxed-f64 (f64.mul $magnitude ($sin $arg)))))
 
- (func $parse-complex-unit-im-2 (debug (export "parse-complex-unit-im-2"))
+ (func $parse-complex-unit-im-2-value (debug (export "parse-complex-unit-im-2-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $re i32)
@@ -1196,24 +1206,25 @@
 
    (set! $re ($parse-real-2-value $text $end-match))
 
-   ($append-value
-    ($make-complex $re
-                   ($make-small-integer
-                    (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
-                      (then (i32.const 1))
-                      (else (i32.const -1)))))))
+   ($make-complex $re
+                  ($make-small-integer
+                   (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
+                     (then (i32.const 1))
+                     (else (i32.const -1))))))
 
- (func $parse-complex-im-only-2 (debug (export "parse-complex-im-only-2"))
+ (func $parse-complex-im-only-2-value (debug (export "parse-complex-im-only-2-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
-   ($append-value ($make-complex ($make-small-integer (i32.const 0))
-                                 ($parse-signed-real-2-value $text
-                                                             (i32.sub $end (i32.const 1))))))
+   ($make-complex ($make-small-integer (i32.const 0))
+                  ($parse-signed-real-2-value $text
+                                              (i32.sub $end (i32.const 1)))))
 
- (func $parse-complex-infnan-im-2 (debug (export "parse-complex-infnan-im-2"))
+ (func $parse-complex-infnan-im-2-value (debug (export "parse-complex-infnan-im-2-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $re i32)
@@ -1223,7 +1234,7 @@
 
    (set! $re ($parse-real-2-value $text $end-match))
 
-   ($append-value ($make-complex $re ($parse-infnan-value $end-match $end))))
+   ($make-complex $re ($parse-infnan-value $end-match $end)))
 
  (func $parse-real-2-value (debug (export "parse-real-2-value"))
    (param $text i32)
@@ -1392,10 +1403,23 @@
    (param $text i32)
    (param $end i32)
 
+   (local $number-start i32)
    (local $rule-id i32)
+   (local $value i32)
 
    (drop ;; rule-id
-    (set! $text ($lex-match-prefix-8 $text $end)))
+    (set! $number-start ($lex-match-prefix-8 $text $end)))
+
+   (set! $value ($parse-num-8-value $number-start $end))
+
+   ($append-value $value))
+
+ (func $parse-num-8-value (debug (export "parse-num-8-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $rule-id i32)
 
    (set! $rule-id
          (drop ;; end
@@ -1403,51 +1427,46 @@
 
    (if (i32.eq $rule-id _lex-rule-signed-real-8)
        (then
-        (return ($parse-signed-real-8 $text $end))))
+        (return ($parse-signed-real-8-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-full-complex-8)
        (then
-        (return ($parse-full-complex-8 $text $end))))
+        (return ($parse-full-complex-8-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-polar-8)
        (then
-        (return ($parse-complex-polar-8 $text $end))))
+        (return ($parse-complex-polar-8-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-unit-im-8)
        (then
-        (return ($parse-complex-unit-im-8 $text $end))))
+        (return ($parse-complex-unit-im-8-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-im-only-8)
        (then
-        (return ($parse-complex-im-only-8 $text $end))))
+        (return ($parse-complex-im-only-8-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-infnan-im-8)
        (then
-        (return ($parse-complex-infnan-im-8 $text $end))))
+        (return ($parse-complex-infnan-im-8-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-unit-im)
        (then
-        (return ($parse-unit-im $text $end))))
+        (return ($parse-unit-im-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-infnan)
        (then
-        (return ($parse-infnan $text $end))))
+        (return ($parse-infnan-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-infnan-im)
        (then
-        (return ($parse-infnan-im $text $end))))
+        (return ($parse-infnan-im-value $text $end))))
 
    (unreachable))
 
- (func $parse-signed-real-8 (debug (export "parse-signed-real-8"))
+ (func $parse-full-complex-8-value (debug (export "parse-full-complex-8-value"))
    (param $text i32)
    (param $end i32)
-
-   ($append-value ($parse-signed-real-8-value $text $end)))
-
- (func $parse-full-complex-8 (debug (export "parse-full-complex-8"))
-   (param $text i32)
-   (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $im i32)
@@ -1481,11 +1500,12 @@
        (then
         (set! $im ($negate-number $im))))
 
-   ($append-value ($make-complex $re $im)))
+   ($make-complex $re $im))
 
- (func $parse-complex-polar-8 (debug (export "parse-complex-polar-8"))
+ (func $parse-complex-polar-8-value (debug (export "parse-complex-polar-8-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $magnitude f64)
    (local $end-match i32)
@@ -1501,13 +1521,14 @@
 
    (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
 
-   ($append-value ($make-complex
-                   $re
-                   ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
+   ($make-complex
+    $re
+    ($make-boxed-f64 (f64.mul $magnitude ($sin $arg)))))
 
- (func $parse-complex-unit-im-8 (debug (export "parse-complex-unit-im-8"))
+ (func $parse-complex-unit-im-8-value (debug (export "parse-complex-unit-im-8-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $re i32)
@@ -1517,24 +1538,25 @@
 
    (set! $re ($parse-real-8-value $text $end-match))
 
-   ($append-value
-    ($make-complex $re
-                   ($make-small-integer
-                    (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
-                      (then (i32.const 1))
-                      (else (i32.const -1)))))))
+   ($make-complex $re
+                  ($make-small-integer
+                   (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
+                     (then (i32.const 1))
+                     (else (i32.const -1))))))
 
- (func $parse-complex-im-only-8 (debug (export "parse-complex-im-only-8"))
+ (func $parse-complex-im-only-8-value (debug (export "parse-complex-im-only-8-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
-   ($append-value ($make-complex ($make-small-integer (i32.const 0))
-                                 ($parse-signed-real-8-value $text
-                                                             (i32.sub $end (i32.const 1))))))
+   ($make-complex ($make-small-integer (i32.const 0))
+                  ($parse-signed-real-8-value $text
+                                              (i32.sub $end (i32.const 1)))))
 
- (func $parse-complex-infnan-im-8 (debug (export "parse-complex-infnan-im-8"))
+ (func $parse-complex-infnan-im-8-value (debug (export "parse-complex-infnan-im-8-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $re i32)
@@ -1544,7 +1566,7 @@
 
    (set! $re ($parse-real-8-value $text $end-match))
 
-   ($append-value ($make-complex $re ($parse-infnan-value $end-match $end))))
+   ($make-complex $re ($parse-infnan-value $end-match $end)))
 
  (func $parse-real-8-value (debug (export "parse-real-8-value"))
    (param $text i32)
@@ -1715,10 +1737,23 @@
    (param $text i32)
    (param $end i32)
 
+   (local $number-start i32)
    (local $rule-id i32)
+   (local $value i32)
 
    (drop ;; rule-id
-    (set! $text ($lex-match-prefix-10 $text $end)))
+    (set! $number-start ($lex-match-prefix-10 $text $end)))
+
+   (set! $value ($parse-num-10-value $number-start $end))
+
+   ($append-value $value))
+
+ (func $parse-num-10-value (debug (export "parse-num-10-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $rule-id i32)
 
    (set! $rule-id
          (drop ;; end
@@ -1726,51 +1761,46 @@
 
    (if (i32.eq $rule-id _lex-rule-signed-real-10)
        (then
-        (return ($parse-signed-real-10 $text $end))))
+        (return ($parse-signed-real-10-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-full-complex-10)
        (then
-        (return ($parse-full-complex-10 $text $end))))
+        (return ($parse-full-complex-10-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-polar-10)
        (then
-        (return ($parse-complex-polar-10 $text $end))))
+        (return ($parse-complex-polar-10-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-unit-im-10)
        (then
-        (return ($parse-complex-unit-im-10 $text $end))))
+        (return ($parse-complex-unit-im-10-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-im-only-10)
        (then
-        (return ($parse-complex-im-only-10 $text $end))))
+        (return ($parse-complex-im-only-10-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-infnan-im-10)
        (then
-        (return ($parse-complex-infnan-im-10 $text $end))))
+        (return ($parse-complex-infnan-im-10-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-unit-im)
        (then
-        (return ($parse-unit-im $text $end))))
+        (return ($parse-unit-im-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-infnan)
        (then
-        (return ($parse-infnan $text $end))))
+        (return ($parse-infnan-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-infnan-im)
        (then
-        (return ($parse-infnan-im $text $end))))
+        (return ($parse-infnan-im-value $text $end))))
 
    (unreachable))
 
- (func $parse-signed-real-10 (debug (export "parse-signed-real-10"))
+ (func $parse-full-complex-10-value (debug (export "parse-full-complex-10-value"))
    (param $text i32)
    (param $end i32)
-
-   ($append-value ($parse-signed-real-10-value $text $end)))
-
- (func $parse-full-complex-10 (debug (export "parse-full-complex-10"))
-   (param $text i32)
-   (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $im i32)
@@ -1804,11 +1834,12 @@
        (then
         (set! $im ($negate-number $im))))
 
-   ($append-value ($make-complex $re $im)))
+   ($make-complex $re $im))
 
- (func $parse-complex-polar-10 (debug (export "parse-complex-polar-10"))
+ (func $parse-complex-polar-10-value (debug (export "parse-complex-polar-10-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $magnitude f64)
    (local $end-match i32)
@@ -1824,13 +1855,12 @@
 
    (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
 
-   ($append-value ($make-complex
-                   $re
-                   ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
+   ($make-complex $re ($make-boxed-f64 (f64.mul $magnitude ($sin $arg)))))
 
- (func $parse-complex-unit-im-10 (debug (export "parse-complex-unit-im-10"))
+ (func $parse-complex-unit-im-10-value (debug (export "parse-complex-unit-im-10-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $re i32)
@@ -1840,24 +1870,25 @@
 
    (set! $re ($parse-real-10-value $text $end-match))
 
-   ($append-value
-    ($make-complex $re
-                   ($make-small-integer
-                    (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
-                      (then (i32.const 1))
-                      (else (i32.const -1)))))))
+   ($make-complex $re
+                  ($make-small-integer
+                   (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
+                     (then (i32.const 1))
+                     (else (i32.const -1))))))
 
- (func $parse-complex-im-only-10 (debug (export "parse-complex-im-only-10"))
+ (func $parse-complex-im-only-10-value (debug (export "parse-complex-im-only-10-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
-   ($append-value ($make-complex ($make-small-integer (i32.const 0))
-                                 ($parse-signed-real-10-value $text
-                                                             (i32.sub $end (i32.const 1))))))
+   ($make-complex ($make-small-integer (i32.const 0))
+                  ($parse-signed-real-10-value $text
+                                               (i32.sub $end (i32.const 1)))))
 
- (func $parse-complex-infnan-im-10 (debug (export "parse-complex-infnan-im-10"))
+ (func $parse-complex-infnan-im-10-value (debug (export "parse-complex-infnan-im-10-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $re i32)
@@ -1867,7 +1898,7 @@
 
    (set! $re ($parse-real-10-value $text $end-match))
 
-   ($append-value ($make-complex $re ($parse-infnan-value $end-match $end))))
+   ($make-complex $re ($parse-infnan-value $end-match $end)))
 
  (func $parse-real-10-value (debug (export "parse-real-10-value"))
    (param $text i32)
@@ -1956,16 +1987,6 @@
    (set! $rule-id
          (set! $end-match
                ($lex-match-decimal-10-forms $text $end)))
-
-   ;; match uinteger 10
-   ;; accum into i64 up to 16 digits
-   ;; if less than 16 digits accumulated
-   ;;   if dot
-   ;;      match uinteger 10 after dot
-   ;;      accum into i64 up to 16 digits
-   ;;      exp adj = - # of right of decimal digits included
-   ;; else
-   ;;  exp adj = # of left of decimal digits excluded
 
    (drop ;; rule-id
     (set! $end-match
@@ -2058,19 +2079,13 @@
 
       (set! $exp (i32.add $exp $exp-adj))))
 
+   ;; todo: (big) integer multiplication and division will make this more
+   ;; accurate.
+
    ($make-boxed-f64 (f64.mul (f64.convert_i64_u $significand)
                              ($pow-f64 (f64.const 10.0) $exp))))
 
- (func $parse-decimal-fractional-part (debug (export "parse-decimal-fractional-part"))
-   (param $text i32)
-   (param $end i32)
-   (result f64)
-
-   ;; skip over decimal point
-   (%incr i32 $text)
-   (f64.div ($coerce-f64 ($parse-uinteger-10-value $text $end))
-            ($pow-f64 (f64.const 10.0) (i32.sub $end $text))))
-
+ ;; todo: this belongs elsewhere
  (func $pow-f64 (debug (export "pow-f64"))
    (param $x f64)
    (param $n i32)
@@ -2215,10 +2230,23 @@
    (param $text i32)
    (param $end i32)
 
+   (local $number-start i32)
    (local $rule-id i32)
+   (local $value i32)
 
    (drop ;; rule-id
-    (set! $text ($lex-match-prefix-16 $text $end)))
+    (set! $number-start ($lex-match-prefix-16 $text $end)))
+
+   (set! $value ($parse-num-16-value $number-start $end))
+
+   ($append-value $value))
+
+ (func $parse-num-16-value (debug (export "parse-num-16-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $rule-id i32)
 
    (set! $rule-id
          (drop ;; end
@@ -2226,51 +2254,46 @@
 
    (if (i32.eq $rule-id _lex-rule-signed-real-16)
        (then
-        (return ($parse-signed-real-16 $text $end))))
+        (return ($parse-signed-real-16-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-full-complex-16)
        (then
-        (return ($parse-full-complex-16 $text $end))))
+        (return ($parse-full-complex-16-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-polar-16)
        (then
-        (return ($parse-complex-polar-16 $text $end))))
+        (return ($parse-complex-polar-16-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-unit-im-16)
        (then
-        (return ($parse-complex-unit-im-16 $text $end))))
+        (return ($parse-complex-unit-im-16-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-im-only-16)
        (then
-        (return ($parse-complex-im-only-16 $text $end))))
+        (return ($parse-complex-im-only-16-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-complex-infnan-im-16)
        (then
-        (return ($parse-complex-infnan-im-16 $text $end))))
+        (return ($parse-complex-infnan-im-16-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-unit-im)
        (then
-        (return ($parse-unit-im $text $end))))
+        (return ($parse-unit-im-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-infnan)
        (then
-        (return ($parse-infnan $text $end))))
+        (return ($parse-infnan-value $text $end))))
 
    (if (i32.eq $rule-id _lex-rule-infnan-im)
        (then
-        (return ($parse-infnan-im $text $end))))
+        (return ($parse-infnan-im-value $text $end))))
 
    (unreachable))
 
- (func $parse-signed-real-16 (debug (export "parse-signed-real-16"))
+ (func $parse-full-complex-16-value (debug (export "parse-full-complex-16-value"))
    (param $text i32)
    (param $end i32)
-
-   ($append-value ($parse-signed-real-16-value $text $end)))
-
- (func $parse-full-complex-16 (debug (export "parse-full-complex-16"))
-   (param $text i32)
-   (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $im i32)
@@ -2304,11 +2327,12 @@
        (then
         (set! $im ($negate-number $im))))
 
-   ($append-value ($make-complex $re $im)))
+   ($make-complex $re $im))
 
- (func $parse-complex-polar-16 (debug (export "parse-complex-polar-16"))
+ (func $parse-complex-polar-16-value (debug (export "parse-complex-polar-16-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $magnitude f64)
    (local $end-match i32)
@@ -2324,13 +2348,12 @@
 
    (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
 
-   ($append-value ($make-complex
-                   $re
-                   ($make-boxed-f64 (f64.mul $magnitude ($sin $arg))))))
+   ($make-complex $re ($make-boxed-f64 (f64.mul $magnitude ($sin $arg)))))
 
- (func $parse-complex-unit-im-16 (debug (export "parse-complex-unit-im-16"))
+ (func $parse-complex-unit-im-16-value (debug (export "parse-complex-unit-im-16-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $re i32)
@@ -2340,24 +2363,25 @@
 
    (set! $re ($parse-real-16-value $text $end-match))
 
-   ($append-value
-    ($make-complex $re
-                   ($make-small-integer
-                    (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
-                      (then (i32.const 1))
-                      (else (i32.const -1)))))))
+   ($make-complex $re
+                  ($make-small-integer
+                   (if (result i32) (i32.eq ($get-string-char $end-match) _char-plus)
+                     (then (i32.const 1))
+                     (else (i32.const -1))))))
 
- (func $parse-complex-im-only-16 (debug (export "parse-complex-im-only-16"))
+ (func $parse-complex-im-only-16-value (debug (export "parse-complex-im-only-16-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
-   ($append-value ($make-complex ($make-small-integer (i32.const 0))
-                                 ($parse-signed-real-16-value $text
-                                                             (i32.sub $end (i32.const 1))))))
+   ($make-complex ($make-small-integer (i32.const 0))
+                  ($parse-signed-real-16-value $text
+                                               (i32.sub $end (i32.const 1)))))
 
- (func $parse-complex-infnan-im-16 (debug (export "parse-complex-infnan-im-16"))
+ (func $parse-complex-infnan-im-16-value (debug (export "parse-complex-infnan-im-16-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
    (local $end-match i32)
    (local $re i32)
@@ -2367,7 +2391,7 @@
 
    (set! $re ($parse-real-16-value $text $end-match))
 
-   ($append-value ($make-complex $re ($parse-infnan-value $end-match $end))))
+   ($make-complex $re ($parse-infnan-value $end-match $end)))
 
  (func $parse-real-16-value (debug (export "parse-real-16-value"))
    (param $text i32)
@@ -2545,18 +2569,13 @@
                  (then (i32.sub $char _char-A))
                  (else (i32.sub $char _char-a)))))))
 
- (func $parse-infnan (debug (export "parse-infnan"))
+ (func $parse-infnan-im-value (debug (export "parse-infnan-im-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
-   ($append-value ($parse-infnan-value $text $end)))
-
- (func $parse-infnan-im (debug (export "parse-infnan-im"))
-   (param $text i32)
-   (param $end i32)
-
-   ($append-value ($make-complex ($make-small-integer (i32.const 0))
-                                 ($parse-infnan-value $text $end))))
+   ($make-complex ($make-small-integer (i32.const 0))
+                  ($parse-infnan-value $text $end)))
 
  (func $parse-infnan-value (debug (export "parse-infnan-value"))
    (param $text i32)
@@ -2577,12 +2596,13 @@
                          (then (f64.const -inf))
                          (else (f64.const -nan)))))))
 
- (func $parse-unit-im (debug (export "parse-unit-im"))
+ (func $parse-unit-im-value (debug (export "parse-unit-im-value"))
    (param $text i32)
    (param $end i32)
+   (result i32)
 
-   ($append-value ($make-complex ($make-small-integer (i32.const 0))
-                                 ($make-small-integer
-                                  (if (result i32) (i32.eq ($get-string-char $text) _char-plus)
-                                    (then (i32.const 1))
-                                    (else (i32.const -1))))))))
+   ($make-complex ($make-small-integer (i32.const 0))
+                  ($make-small-integer
+                   (if (result i32) (i32.eq ($get-string-char $text) _char-plus)
+                     (then (i32.const 1))
+                     (else (i32.const -1)))))))

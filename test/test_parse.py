@@ -229,7 +229,7 @@ def test_parse_infnan(radix, fmt):
             else:
                 assert f64 == float(f'{sign}inf')
 
-def test_parse_decimals():
+def test_parse_decimal():
 
     init_test()
 
@@ -252,6 +252,6 @@ def test_parse_decimals():
         value = parse_test(src)
 
         assert is_inexact(value)
-        # todo (big) integer division will make this more accurate
-        # see parse-decimal in parse.wam
+        # todo: (big) integer multiplication and division will make this more
+        # accurate.  See parse-decimal in parse.wam
         assert get_boxed_f64(value) == pytest.approx(float(src), rel=1e-15)
