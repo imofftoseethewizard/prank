@@ -66,6 +66,7 @@
  (import "strings" "get-string-addr"                 (func $get-string-addr                (param i32)         (result i32)))
  (import "strings" "get-string-char"                 (func $get-string-char                (param i32)         (result i32)))
  (import "strings" "match-string"                    (func $match-string                   (param i32 i32 i32) (result i32)))
+ (import "strings" "match-string/ascii-ci"           (func $match-string/ascii-ci          (param i32 i32 i32) (result i32)))
  (import "strings" "set-string-bytes"                (func $set-string-bytes               (param i32 i32 i32)))
  (import "strings" "slice-string-addr"               (func $slice-string-addr              (param i32 i32)     (result i32)))
  (import "symbols" "make-symbol"                     (func $make-symbol                    (param i32)         (result i32)))
@@ -74,10 +75,11 @@
  (import "vectors" "get-vector-element"              (func $get-vector-element             (param i32 i32)     (result i32)))
  (import "vectors" "get-vector-length"               (func $get-vector-length              (param i32)         (result i32)))
 
- (import "lex-r7rs" "string-alarm"                   (global $string-alarm                   (mut i32)))
- (import "lex-r7rs" "string-begin-vector"            (global $string-begin-vector            (mut i32)))
- (import "lex-r7rs" "string-delete"                  (global $string-delete                  (mut i32)))
- (import "lex-r7rs" "string-escape"                  (global $string-escape                  (mut i32)))
+ (import "lex-r7rs" "string-alarm"          (global $string-alarm          (mut i32)))
+ (import "lex-r7rs" "string-begin-vector"   (global $string-begin-vector   (mut i32)))
+ (import "lex-r7rs" "string-delete"         (global $string-delete         (mut i32)))
+ (import "lex-r7rs" "string-escape"         (global $string-escape         (mut i32)))
+ (import "lex-r7rs" "string-inexact-prefix" (global $string-inexact-prefix (mut i32)))
 
  (global $string-quasiquote-symbol       (export "string-quasiquote-symbol")       (mut i32) (i32.const 0))
  (global $string-quote-symbol            (export "string-quote-symbol")            (mut i32) (i32.const 0))
@@ -100,6 +102,9 @@
 
  (macro %string-escape
    (global.get $string-escape))
+
+ (macro %string-inexact-prefix
+   (global.get $string-inexact-prefix))
 
  (macro %string-quasiquote-symbol
    (global.get $string-quasiquote-symbol))
@@ -1080,7 +1085,9 @@
 
    (set! $value ($parse-num-2-value $number-start $end))
 
-   ($append-value $value))
+   ($append-value (if (result i32) ($is-num-prefix-exact $text $number-start)
+                    (then $value)
+                    (else ($make-boxed-f64 ($coerce-f64 $value))))))
 
  (func $parse-num-2-value (debug (export "parse-num-2-value"))
    (param $text i32)
@@ -1412,7 +1419,9 @@
 
    (set! $value ($parse-num-8-value $number-start $end))
 
-   ($append-value $value))
+   ($append-value (if (result i32) ($is-num-prefix-exact $text $number-start)
+                    (then $value)
+                    (else ($make-boxed-f64 ($coerce-f64 $value))))))
 
  (func $parse-num-8-value (debug (export "parse-num-8-value"))
    (param $text i32)
@@ -1746,7 +1755,9 @@
 
    (set! $value ($parse-num-10-value $number-start $end))
 
-   ($append-value $value))
+   ($append-value (if (result i32) ($is-num-prefix-exact $text $number-start)
+                    (then $value)
+                    (else ($make-boxed-f64 ($coerce-f64 $value))))))
 
  (func $parse-num-10-value (debug (export "parse-num-10-value"))
    (param $text i32)
@@ -2239,7 +2250,9 @@
 
    (set! $value ($parse-num-16-value $number-start $end))
 
-   ($append-value $value))
+   ($append-value (if (result i32) ($is-num-prefix-exact $text $number-start)
+                    (then $value)
+                    (else ($make-boxed-f64 ($coerce-f64 $value))))))
 
  (func $parse-num-16-value (debug (export "parse-num-16-value"))
    (param $text i32)
@@ -2568,6 +2581,35 @@
                (if (result i32) (i32.le_u $char _char-F)
                  (then (i32.sub $char _char-A))
                  (else (i32.sub $char _char-a)))))))
+
+ (func $is-num-prefix-exact (debug (export "is-num-prefix-exact"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (if (result i32) (i32.eq $text $end)
+     (then (i32.const 1))
+
+     (else
+      (if (result i32) (i32.eq (i32.sub $end $text) (i32.const 2))
+        (then (i32.eqz ($match-inexact-prefix $text $end)))
+
+        (else
+         (if (i32.ne (i32.sub $end $text) (i32.const 4))
+             (then (unreachable)))
+
+         (if (result i32) ($match-inexact-prefix $text $end)
+           (then (i32.const 0))
+
+           (else
+            (i32.eqz ($match-inexact-prefix (i32.add $text (i32.const 2)) $end)))))))))
+
+ (func $match-inexact-prefix (debug (export "match-inexact-prefix"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (i32.ne _null ($match-string/ascii-ci (%string-inexact-prefix) $text $end)))
 
  (func $parse-infnan-im-value (debug (export "parse-infnan-im-value"))
    (param $text i32)

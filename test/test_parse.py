@@ -255,3 +255,7 @@ def test_parse_decimal():
         # todo: (big) integer multiplication and division will make this more
         # accurate.  See parse-decimal in parse.wam
         assert get_boxed_f64(value) == pytest.approx(float(src), rel=1e-15)
+
+
+# todo: test exact/inexact
+# todo: test small integer vs i64 vs integer
