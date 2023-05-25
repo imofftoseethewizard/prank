@@ -234,7 +234,10 @@ def test_parse_decimal():
     init_test()
 
     test_cases = [
+        '1e0',
+        '1.',
         '1.0',
+        '1.00',
         '0.1',
         '.3333',
         '6553.6',
@@ -245,6 +248,11 @@ def test_parse_decimal():
         '1e+400',
         '29e6',
         '-10000000000000000000000000000000000000000000.0',
+        '1.0e310',
+        '1.0e-310',
+        '-1.0e310',
+        '-1.0e-310',
+        '10000e307'
     ]
 
     for src in test_cases:
@@ -254,6 +262,7 @@ def test_parse_decimal():
         assert is_inexact(value)
         # todo: (big) integer multiplication and division will make this more
         # accurate.  See parse-decimal in parse.wam
+        # assert get_boxed_f64(value) == float(src)
         assert get_boxed_f64(value) == pytest.approx(float(src), rel=1e-15)
 
 

@@ -573,6 +573,28 @@
 
    (i64.store (%get-i64-digit-addr $int $idx) $digit))
 
+ (func $to-inexact (export "to-inexact")
+   (param $x i32)
+   (result i32)
+
+   (local $type i32)
+   (local $value i32)
+
+   (if (i32.eq (%get-value-tag $x) _tag-small-integer)
+       (then
+        (return ($make-boxed-f64 ($coerce-f64 $x)))))
+
+   (set! $type (%get-number-type $x))
+   (set! $value (%get-box-value $x))
+
+   (if (result i32) (i32.eq $type _number-type-complex)
+     (then
+      ($set-real-part $x ($make-boxed-f64 ($coerce-f64 ($real-part $x))))
+      ($set-imag-part $x ($make-boxed-f64 ($coerce-f64 ($imag-part $x))))
+      $x)
+     (else
+      ($make-boxed-f64 ($coerce-f64 $x)))))
+
  (func $coerce-f64 (export "coerce-f64")
    (param $x i32)
    (result f64)
@@ -751,6 +773,18 @@
    (result i32)
 
    ($get-pair-cdr (%get-box-value $n)))
+
+ (func $set-real-part (export "set-real-part")
+   (param $n i32)
+   (param $re i32)
+
+   ($set-pair-car (%get-box-value $n) $re))
+
+ (func $set-imag-part (export "set-imag-part")
+   (param $n i32)
+   (param $im i32)
+
+   ($set-pair-cdr (%get-box-value $n) $im))
 
  (func $is-inexact (export "is-inexact")
    (param $n i32)
