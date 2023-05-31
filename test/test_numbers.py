@@ -95,49 +95,27 @@ def test_multiply_add_carry_2():
     assert get_integer_digit_i32(n, 1) == 1
     assert get_integer_digit_i32(n, 0) == 5
 
-def test_negate_1():
+def test_negate_integer():
 
     init_test()
 
-    n = alloc_integer(1)
+    n = make_integer(1, 1)
 
     set_integer_i32_digit(n, 0, 1)
-    negate_integer(n)
 
-    assert get_integer_digit_i32(n, 1) == -1
-    assert get_integer_digit_i32(n, 0) == -1
-
-def test_negate_2():
-
-    init_test()
-
-    n = alloc_integer(1)
-
-    set_integer_i32_digit(n, 0, -1)
-    set_integer_i32_digit(n, 1, -1)
-    negate_integer(n)
-
-    assert get_integer_digit_i32(n, 1) == 0
-    assert get_integer_digit_i32(n, 0) == 1
-
-def test_negate_3():
-
-    init_test()
-
-    n = alloc_integer(1)
-
-    set_integer_i32_digit(n, 0, 0xffff_ffff)
-    set_integer_i32_digit(n, 1, 0x7fff_ffff)
+    assert not is_negative(n)
 
     negate_integer(n)
 
-    assert (get_integer_digit_i32(n, 1) & 0xffff_ffff) == 0x8000_0000
-    assert get_integer_digit_i32(n, 0) == 1
+    assert is_negative(n)
+
+    n = make_integer(-1, 1)
+
+    assert is_negative(n)
 
     negate_integer(n)
 
-    assert get_integer_digit_i32(n, 1) == 0x7fff_ffff
-    assert get_integer_digit_i32(n, 0) == -1
+    assert not is_negative(n)
 
 def test_negate_rational():
 
@@ -145,7 +123,11 @@ def test_negate_rational():
 
     n = make_rational(make_small_integer(1), make_small_integer(2))
 
+    assert not is_negative(n)
+
     negate_number(n)
+
+    assert is_negative(n)
 
 def test_make_rational():
 

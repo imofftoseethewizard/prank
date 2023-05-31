@@ -159,7 +159,7 @@ def parse(src, path):
 
         elif name == 'close-paren':
             if len(exprs) == 1:
-                raise Exception(f'unmatched close paren: {match}', match)
+                raise Exception(f'unmatched close paren at {line}:{column}')
             exprs.pop()
 
         else:

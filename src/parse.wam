@@ -17,7 +17,7 @@
  (import "lex-r7rs" "lex-match-complex-16"           (func $lex-match-complex-16           (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-complex-infnan-im-16" (func $lex-match-complex-infnan-im-16 (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-datum-comment"        (func $lex-match-datum-comment        (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-decimal-10-forms"     (func $lex-match-decimal-10-forms     (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-significand-forms"    (func $lex-match-significand-forms    (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-delimited-token"      (func $lex-match-delimited-token      (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-delimiter"            (func $lex-match-delimiter            (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-prefix-2"             (func $lex-match-prefix-2             (param i32 i32)     (result i32 i32)))
@@ -44,6 +44,7 @@
  (import "math" "cos"                                (func $cos                            (param f64)         (result f64)))
  (import "math" "sin"                                (func $sin                            (param f64)         (result f64)))
  (import "numbers" "is-inexact"                      (func $is-inexact                     (param i32)         (result i32)))
+ (import "numbers" "is-negative"                     (func $is-negative                    (param i32)         (result i32)))
  (import "numbers" "alloc-integer"                   (func $alloc-integer                  (param i32)         (result i32)))
  (import "numbers" "coerce-f64"                      (func $coerce-f64                     (param i32)         (result f64)))
  (import "numbers" "dealloc-number"                  (func $dealloc-number                 (param i32)))
@@ -52,6 +53,9 @@
  (import "numbers" "make-complex"                    (func $make-complex                   (param i32 i32)     (result i32)))
  (import "numbers" "make-rational"                   (func $make-rational                  (param i32 i32)     (result i32)))
  (import "numbers" "make-small-integer"              (func $make-small-integer             (param i32)         (result i32)))
+ (import "numbers" "multiply-add-integer-i32"        (func $multiply-add-integer-i32       (param i32 i32 i32)))
+ (import "numbers" "multiply-integers/dealloc"       (func $multiply-integers/dealloc      (param i32 i32)     (result i32)))
+ (import "numbers" "pow-10-integer"                  (func $pow-10-integer                 (param i32)         (result i32)))
  (import "numbers" "negate-number"                   (func $negate-number                  (param i32)         (result i32)))
  (import "numbers" "set-integer-i64-digit"           (func $set-integer-i64-digit          (param i32 i32 i64)))
  (import "numbers" "to-inexact"                      (func $to-inexact                     (param i32)         (result i32)))
@@ -132,6 +136,9 @@
  (include "./string-loader.wam")
 
  (memory (debug (export "memory")) 1)
+
+ (define _powers-of-10-i32     (i32.const 0))
+ (define _end-powers-of-10-i32 (i32.const 40)) ;; 10^9 fits in an i32, so reserve 10 i32s
 
  ;; todo: belongs elsewhere
  (macro %get-small-integer-value
@@ -340,6 +347,9 @@
 
  (start $init-parse)
  (func $init-parse (debug (export "init-parse"))
+   (local $addr i32)
+   (local $x i32)
+
    (global.set $string-quasiquote-symbol       ($load-string _string-quasiquote-symbol-data))
    (global.set $string-quote-symbol            ($load-string _string-quote-symbol-data))
    (global.set $string-unquote-symbol          ($load-string _string-unquote-symbol-data))
@@ -349,6 +359,15 @@
    (global.set $quote-symbol            ($make-symbol (%string-quote-symbol)))
    (global.set $unquote-splicing-symbol ($make-symbol (%string-unquote-splicing-symbol)))
    (global.set $unquote-symbol          ($make-symbol (%string-unquote-symbol)))
+
+   (set! $x (i32.const 1))
+   (set! $addr _powers-of-10-i32)
+   (loop $again
+     (i32.store $addr $x)
+     (set! $x (i32.mul $x (i32.const 10)))
+     (%incr-n i32 $addr 4)
+     (if (i32.lt_u $addr _end-powers-of-10-i32)
+         (br $again)))
 
    (%set-ctx-stack _null))
 
@@ -1981,7 +2000,7 @@
               (then
                ($parse-urational-10-value $text $end))
               (else
-               ($parse-decimal-10-value $text $end $exactness))))))
+               ($parse-decimal-value $text $end $exactness))))))
 
    (if (i32.eq ($get-string-char $start) _char-minus)
        (then
@@ -2003,13 +2022,125 @@
    ($make-rational ($parse-uinteger-10-value $text $end-match)
                    ($parse-uinteger-10-value (i32.add $end-match (i32.const 1)) $end)))
 
- ;; max positive i64 divided by 10.
- (define _max-significand (i64.const 0x0ccccccccccccccc))
-
- (func $parse-decimal-10-value (debug (export "parse-decimal-10-value"))
+ (func $parse-decimal-value (debug (export "parse-decimal-value"))
    (param $text i32)
    (param $end i32)
    (param $exactness i32)
+   (result i32)
+
+   (if (result i32) (i32.eq $exactness _exact)
+     (then ($parse-exact-decimal-value $text $end))
+     (else ($parse-inexact-decimal-value $text $end))))
+
+ (func $parse-exact-decimal-value (debug (export "parse-exact-decimal-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $decimal-point i32)
+   (local $denominator i32)
+   (local $end-match i32)
+   (local $end-significand i32)
+   (local $exp i32)
+   (local $exp-digits i32)
+   (local $exp-start i32)
+   (local $exp-value i32)
+   (local $frac-start i32)
+   (local $fractional-digits i32)
+   (local $numerator i32)
+   (local $pow-10-exp i32)
+   (local $rule-id i32)
+   (local $scan i32)
+
+   (set! $rule-id
+         (set! $end-significand
+               ($lex-match-significand-forms $text $end)))
+
+   (set! $numerator ($alloc-integer
+                     ($estimate-i64-digits-10
+                      (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-10)
+                        (then (i32.sub $end-significand $text))
+                        (else (i32.sub (i32.sub $end-significand $text) (i32.const 1)))))))
+
+   (drop ;; rule-id
+    (set! $end-match
+          ($lex-match-uinteger-10 $text $end-significand)))
+
+   (if (i32.eq $end-match _null)
+       (then
+        (set! $decimal-point $text))
+     (else
+      ($accumulate-integer-10 $numerator $text $end-match)
+      (set! $decimal-point $end-match)))
+
+   (if (i32.lt_u $decimal-point $end-significand)
+       (then
+        (set! $frac-start (i32.add $decimal-point (i32.const 1)))
+
+        (drop ;; rule-id
+         (set! $end-match
+               ($lex-match-uinteger-10 $frac-start $end)))
+
+        (if (i32.ne $end-match _null)
+            (then
+             ($accumulate-integer-10 $numerator $frac-start $end-match)))))
+
+   (set! $fractional-digits (i32.sub (i32.sub $end-significand $decimal-point)
+                                     (i32.const 1)))
+
+   (if (i32.eq $end $end-significand)
+       (then
+        (set! $denominator ($pow-10-integer (i32.sub (i32.const 0) $fractional-digits))))
+
+     (else
+      ;; parse suffix: e+25, for example
+
+      (set! $exp-start (i32.add $end-match (i32.const 1)))
+
+      (drop ;; rule-id
+       (set! $exp-digits
+             ($lex-match-sign $exp-start $end)))
+
+      (set! $exp-value ($parse-uinteger-10-value $exp-digits $end))
+
+      (if (i32.and (i32.gt_u $exp-digits $exp-start)
+                   (i32.eq ($get-string-char $exp-start) _char-minus))
+          (then
+           (set! $exp-value ($negate-number $exp-value))))
+
+      (if (%is-small-integer $exp-value)
+          (then
+           (set! $exp (i32.sub (%get-small-integer-value $exp-value) $fractional-digits))
+           (set! $pow-10-exp ($pow-10-integer $exp))
+
+           (if (i32.lt_s $exp (i32.const 0))
+             (then
+              (set! $denominator $pow-10-exp))
+             (else
+              (set! $denominator ($make-small-integer (i32.const 1)))
+              (if (i32.gt_s $exp (i32.const 0))
+                (then
+                 (set! $numerator ($multiply-integers/dealloc $numerator $pow-10-exp)))))))
+        (else
+         ($dealloc-number $numerator)
+         (if ($is-negative $exp)
+             (then
+              ;; 0
+              (set! $numerator ($make-small-integer (i32.const 0)))
+              (set! $denominator ($make-small-integer (i32.const 1))))
+           (else
+            ;; inf
+            (set! $numerator ($make-small-integer (i32.const 1)))
+            (set! $denominator ($make-small-integer (i32.const 0)))))
+         ($dealloc-number $exp)))))
+   ($make-rational $numerator $denominator))
+
+ ;; max positive i64 divided by 10.
+ (define _max-significand (i64.const 0x0ccccccccccccccc))
+
+ (func $parse-inexact-decimal-value (debug (export "parse-inexact-decimal-value"))
+   (param $text i32)
+   (param $end i32)
    (result i32)
 
    (local $char i32)
@@ -2027,7 +2158,7 @@
 
    (drop ;; rule-id
     (set! $end-match
-          ($lex-match-decimal-10-forms $text $end)))
+          ($lex-match-significand-forms $text $end)))
 
    (set! $scan $text)
    (set! $significand (i64.const 0))
@@ -2202,7 +2333,7 @@
           (set! $char ($get-string-char $text))
           (set! $value (i32.add (i32.add (i32.shl $value (i32.const 3))
                                          (i32.shl $value (i32.const 1)))
-                                 (i32.sub $char _char-0)))
+                                (i32.sub $char _char-0)))
 
           (%incr i32 $text)
           (br $again))))
@@ -2237,41 +2368,69 @@
    (param $end i32)
    (result i32)
 
-   (local $accum i64)
-   (local $bit-length i32)
-   (local $char i32)
    (local $value i32)
 
-   ;; todo
-   (set! $bit-length (i32.sub $end $text))
+   (set! $value ($alloc-integer ($estimate-i64-digits-10 (i32.sub $end $text))))
 
+   ($accumulate-integer-10 $value $text $end)
+
+   $value)
+
+ (func $estimate-i64-digits-10 (debug (export "estimate-i64-digits-10"))
+   (param $digit-count i32)
+   (result i32)
+
+   ;; log2(10) ~= 3.321928094887362 < 10/3 ~= 3.3333
    ;; normally, we'd have (x + 63) >> 6, but here we need to allow for a sign
    ;; bit as well, so it becomes (x + 64) >> 6 = (x >> 6) + 1.
-   (set! $value ($alloc-integer (i32.add (i32.shr_u $bit-length (i32.const 6))
-                                         (i32.const 1))))
 
-   (set! $accum (i64.const 0))
+   (i32.add (i32.shr_u (i32.div_u (i32.mul $digit-count (i32.const 10))
+                                  (i32.const 3))
+                       (i32.const 6))
+            (i32.const 1)))
+
+ (func $accumulate-integer-10 (debug (export "accumulate-integer-10"))
+   (param $value i32)
+   (param $text i32)
+   (param $end i32)
+
+   (local $accum i32)
+   (local $char i32)
+   (local $digits i32)
+   (local $place-count i32)
+
+   (set! $accum (i32.const 0))
+   (set! $digits (i32.sub $end $text))
+   (set! $place-count (i32.const 0))
 
    (loop $again
      (if (i32.ne $text $end)
          (then
           (set! $char ($get-string-char $text))
-          (set! $accum (i64.add (i64.add (i64.shl $accum (i64.const 3))
-                                         (i64.shl $accum (i64.const 1)))
-                                (i64.extend_i32_u (i32.sub $char _char-0))))
-
-          ;; todo
-          (if (i32.eqz (i32.and $bit-length (i32.const 0x3f)))
-              (then
-               ($set-integer-i64-digit $value (i32.shr_u $bit-length (i32.const 6)) $accum)
-               (set! $accum (i64.const 0))))
+          (set! $accum (i32.add (i32.mul $accum (i32.const 10))
+                                (i32.sub $char _char-0)))
 
           (%incr i32 $text)
-          ;;todo
-          (%decr i32 $bit-length)
-          (br $again))))
+          (%decr i32 $digits)
+          (%incr i32 $place-count)
 
-   $value)
+          ;; log2(10) ~= 3.321928094887362, so 32/log2(10) ~= 9.632959861247398
+          (if (i32.eqz (i32.rem_u $digits (i32.const 9)))
+              (then
+               ($multiply-add-integer-i32 $value ($pow-10-i32 $place-count) $accum)
+               (set! $accum (i32.const 0))
+               (set! $place-count (i32.const 0))))
+
+          (br $again)))))
+
+ (func $pow-10-i32 (debug (export "pow-10-i32"))
+   (param $n i32)
+   (result i32)
+
+   (if (i32.gt_u $n (i32.const 9))
+       (then (unreachable)))
+
+   (i32.load (i32.add _powers-of-10-i32 (i32.shl $n (i32.const 2)))))
 
  (func $parse-num-16 (debug (export "parse-num-16"))
    (param $text i32)
@@ -2635,8 +2794,8 @@
 
    (loop $again
      (if (i32.eq $text $end)
-       (then
-        (return _no-exactness)))
+         (then
+          (return _no-exactness)))
 
      (if ($match-exact-prefix $text $end)
          (then (return _exact)))

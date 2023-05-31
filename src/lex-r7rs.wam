@@ -320,7 +320,7 @@
    (table.set $lexical-rules _lex-rule-urational-2                     (ref.func $lex-match-urational-2))
    (table.set $lexical-rules _lex-rule-slash                           (ref.func $lex-match-slash))
    (table.set $lexical-rules _lex-rule-decimal-10                      (ref.func $lex-match-decimal-10))
-   (table.set $lexical-rules _lex-rule-decimal-10-forms                (ref.func $lex-match-decimal-10-forms))
+   (table.set $lexical-rules _lex-rule-significand-forms               (ref.func $lex-match-significand-forms))
    (table.set $lexical-rules _lex-rule-dot-digits-10                   (ref.func $lex-match-dot-digits-10))
    (table.set $lexical-rules _lex-rule-digits-10                       (ref.func $lex-match-digits-10))
    (table.set $lexical-rules _lex-rule-digits-dot-digits-10            (ref.func $lex-match-digits-dot-digits-10))
@@ -2516,27 +2516,27 @@
    (result i32 i32)
 
    ($lex-match-rules/sequence-of-2 _lex-rule-decimal-10
-                                   _lex-rule-decimal-10-forms
+                                   _lex-rule-significand-forms
                                    _lex-rule-suffix
                                    $text
                                    $end))
 
  (elem funcref (ref.func $lex-match-decimal-10))
 
- (func $lex-match-decimal-10-forms (export "lex-match-decimal-10-forms")
+ (func $lex-match-significand-forms (export "lex-match-significand-forms")
    (param $text i32)
    (param $end i32)
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-of-3 _lex-rule-decimal-10-forms
+   ($lex-match-rules/longest-of-3 _lex-rule-significand-forms
                                   _lex-rule-uinteger-10
                                   _lex-rule-dot-digits-10
                                   _lex-rule-digits-dot-digits-10
                                   $text
                                   $end))
 
- (elem funcref (ref.func $lex-match-decimal-10-forms))
+ (elem funcref (ref.func $lex-match-significand-forms))
 
  (func $lex-match-dot-digits-10 (export "lex-match-dot-digits-10")
    (param $text i32)

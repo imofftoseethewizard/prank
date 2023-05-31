@@ -11,74 +11,37 @@
 ;;     list has value -1
 ;;
 ;;   number box types
-;;                        BCRE
-;;     i64              0x0001 xxxx xxxx xxxx xxxx xxxx xxx1 1111
-;;     f64              0x0?00 xxxx xxxx xxxx xxxx xxxx xxx1 1111
-;;     rational         0x0011 xxxx xxxx xxxx xxxx xxxx xxx1 1111
-;;     complex          0x0101 xxxx xxxx xxxx xxxx xxxx xxx1 1111
-;;     integer          0x1001 rrrr rrrr rrrr rrrr xxxx xxx1 1111
+;;                                               STTT
+;;     i64              xxxx xxxx xxxx xxxx xxxx 0000 0000 0001
+;;     f64              xxxx xxxx xxxx xxxx xxxx 0001 0000 0001
+;;     rational         xxxx xxxx xxxx xxxx xxxx 0010 0000 0001
+;;     complex          xxxx xxxx xxxx xxxx xxxx 0011 0000 0001
+;;     integer          rrrr rrrr rrrr rrrr rrrr ?100 0000 0001
 ;;
-;;     B = 1 means that the box value is stored in a block and consists
-;;           of up to 2^16 64 bit digits
+;;     S = sign bit, only used by integers, 1 => negative, 0 => positive
 ;;
-;;     R = 1 means that the number is rational, the box value is a pair,
-;;           the car of which is the numerator the cdr of which is the
-;;           denominator
-;;
-;;     C = 1 means that the number is complex, the car of which is the
-;;           real part, the cdr of which is the imaginary part
-;;
-;;     E = 1 means that the number is exact.
-;;
-;;     constraints
-;;       B = 1 => C = 0, R = 0, E = 1
-;;       R = 1 => B = 0, C = 0, E = 1
+;;     TTT = type code
 ;;
 ;;     i64
-;;       the box value is an address into a numbers block
+;;       the box value is an address of an x64 block
 ;;
 ;;     f64
-;;       box value is either (C=0) an address into a numbers block or
-;;       (C=1) a pair, its car and cdr each containing an address into a
-;;       numbers block
+;;       the box value is an address of an x64 block
 ;;
 ;;     rational
 ;;       pair stored in box value, car is num, cdr is denom; num and denomm must
 ;;       be exact and must not be complex or rational
 ;;
 ;;     complex
-;;       pair stored in box value, car is re, cdr is im; re and im must be exact
-;;       and must not be complex
+;;       pair stored in box value, car is re, cdr is im; re and im
+;;       must not be complex
 ;;
 ;;     integer
 ;;       box value is a block ref containing up to 2^16 64-bit digits
 ;;
-;;   a box type of block has a block ref as its box value. it must also be exact
-;;     and not rational nor complex.
-;;
-;;   a box value which is not complex, rational, or block is an address into a
-;;     numbers block if the box type is exact, it is i64, otherwise f64.
-;;
-;;   a box type which is either complex or rational must have a pair as its value
-;;     the value of the pair may be
-;;
-;;     if the box is rational
-;;        the car and cdr may independently be addresss into a numbers block or
-;;        references to boxed numbers which are exact and not rational nor
-;;        complex, ie a tagged 29-bit integer, an i64, or an integer
-;;
-;;     if the box is complex and exact
-;;        the car and cdr may independently be addresss into a numbers block or
-;;        references to boxed numbers which are exact and not complex, ie a
-;;        tagged 29-bit integer, an i64, a rational, or an integer
-;;
-;;     if the box is complex and inexact
-;;        the car and cdr must be addresss into a numbers block
-;;
 ;; exhaustive list of number encodings
 ;;
 ;;   f64
-;;   complex f64
 ;;   tagged 29-bit
 ;;   i64
 ;;   integer
@@ -91,36 +54,10 @@
 ;;   rational integer 29-bit
 ;;   rational integer i64
 ;;   rational integer integer
-;;   complex ... 144 binary combinations of { 29-bit i64 integer } + rationals
+;;   complex ... 169 binary combinations of { 29-bit i64 integer } + rationals
 ;;
-;;   => 160 different possible encoding structures for a number
+;;   => 182 different possible encoding structures for a number
 ;;
-;; Required support for parser:
-;;   f64? should parser directly synthesize binary form?
-;;   Multiply integer by 2 and add 1
-;;   Multiply integer by 8 and add 1-7
-;;   Multiply integer by 10 and add 1-9
-;;   Multiply integer by 16 and add 1-15
-;;   create rational
-;;   create exact complex
-;;   create inexact complex
-;;
-;; # of bits required to represent a decimal integer of n digits:
-;;   log2 10 = 3.321928094887362
-;;   256 * log2 10 = 850.4135922911647
-;;   add 255 to get ceil with >> 8, and +1 for sign bit:
-;;     b = ((n*851 + 255)>>8) + 1
-;;   to get number of i64 digits (b + 63) >> 6
-;;
-;; multiply-add i64 by i32, i32 (n, k)
-;;
-;;   split i64 into i32 h, l and fill i64x2 with h, l
-;;   fill i64x2 with n, n
-;;   i64x2 mul -> n*h, n*l
-;;   fill i64x2 with 0, k
-;;   i64x2.add -> n*h, n*l + k -> a, b
-;;   split a in into a_h, a_l
-;;   result is a_l << 32 + b, with carry a_h >> 32
 
 (module
 
@@ -148,20 +85,23 @@
 
  (debug (global $debug (export "#debug") (mut i32) (i32.const 0)))
 
- ;;     i64              xxxx xxxx xxxx xxxx xxxx 0001 0000 0001
- ;;     f64              xxxx xxxx xxxx xxxx xxxx 0?00 0000 0001
- ;;     rational         xxxx xxxx xxxx xxxx xxxx 0011 0000 0001
- ;;     complex          xxxx xxxx xxxx xxxx xxxx 0101 0000 0001
- ;;     integer          rrrr rrrr rrrr rrrr rrrr 1001 0000 0001
+ ;;     i64              xxxx xxxx xxxx xxxx xxxx 0000 0000 0001
+ ;;     f64              xxxx xxxx xxxx xxxx xxxx 0001 0000 0001
+ ;;     rational         xxxx xxxx xxxx xxxx xxxx 0010 0000 0001
+ ;;     complex          xxxx xxxx xxxx xxxx xxxx 0011 0000 0001
+ ;;     integer          rrrr rrrr rrrr rrrr rrrr ?100 0000 0001
 
  (define _number-block-size    (i32.const 0x400))
 
- (define _number-type-i64      (i32.const 0x00000101))
- (define _number-type-f64      (i32.const 0x00000001))
- (define _number-type-complex  (i32.const 0x00000501))
- (define _number-type-rational (i32.const 0x00000301))
- (define _number-type-integer  (i32.const 0x00000901))
- (define _number-type-mask     (i32.const 0x00000fff))
+ (define _number-type-i64      (i32.const 0x00000001))
+ (define _number-type-f64      (i32.const 0x00000101))
+ (define _number-type-rational (i32.const 0x00000201))
+ (define _number-type-complex  (i32.const 0x00000301))
+ (define _number-type-integer  (i32.const 0x00000401))
+ (define _number-type-mask     (i32.const 0x000007ff))
+
+ (define _integer-sign-flag      (i32.const 0x00000800))
+ (define _integer-sign-flag-mask (i32.const 0xfffff7ff))
 
  (debug
   (global $number-block-size    (export "number-block-size")    i32 _number-block-size)
@@ -184,6 +124,20 @@
   (global $number-block-list (debug (export "number-block-list")) (mut i32) (i32.const 0))
   (global $x64-count (debug (export "x64-count")) (mut i32) (i32.const 0)))
 
+ (global $integer-1e32  (debug (export "integer-1e32"))  (mut i32) (i32.const 0))
+ (global $integer-1e64  (debug (export "integer-1e64"))  (mut i32) (i32.const 0))
+ (global $integer-1e128 (debug (export "integer-1e128")) (mut i32) (i32.const 0))
+ (global $integer-1e256 (debug (export "integer-1e256")) (mut i32) (i32.const 0))
+
+ (define _i32-1e4  (i32.const 10000))
+ (define _i32-1e8  (i32.const 100000000))
+ (define _i64-1e16 (i64.const 10000000000000000))
+
+ (define _integer-1e32  (global.get $integer-1e32))
+ (define _integer-1e64  (global.get $integer-1e64))
+ (define _integer-1e128 (global.get $integer-1e128))
+ (define _integer-1e256 (global.get $integer-1e256))
+
  (start $init-numbers)
  (func $init-numbers (debug (export "init-numbers"))
 
@@ -194,12 +148,32 @@
    (global.set $x64-free-list _null)
    (debug
     (global.set $number-block-list _null)
-    (global.set $x64-count (i32.const 0))))
+    (global.set $x64-count (i32.const 0)))
+
+   (global.set $integer-1e32 ($square-integer/dealloc ($make-integer _i64-1e16 (i32.const 1))))
+
+   (global.set $integer-1e64  ($square-integer (global.get $integer-1e32)))
+   (global.set $integer-1e128 ($square-integer (global.get $integer-1e64)))
+   (global.set $integer-1e256 ($square-integer (global.get $integer-1e128))))
 
  (macro %make-integer-number-type
    (expr ,digits)
    (i32.or _number-type-integer
            (i32.shl ,digits (i32.const 12))))
+
+ (macro %get-integer-sign-flag
+   (expr ,int)
+   (i32.and (%get-box-type ,int) _integer-sign-flag))
+
+ (macro %set-integer-sign-flag
+   (label $int)
+   (expr ,v)
+   (%set-box-type $int (i32.or (i32.and (%get-box-type $int) _integer-sign-flag-mask)
+                               ,v)))
+
+ (macro %is-negative-integer
+   (expr ,int)
+   (i32.eq (%get-integer-sign-flag ,int) _integer-sign-flag))
 
  (macro %get-number-type
    (expr ,x)
@@ -413,7 +387,12 @@
    (local $int i32)
    (set! $int ($alloc-integer $size))
 
-   (i64.store (%get-integer-addr $int) $x)
+   (if (i64.lt_s $x (i64.const 0))
+       (then
+        (%set-integer-sign-flag $int _integer-sign-flag)
+        (i64.store (%get-integer-addr $int) (i64.sub (i64.const 0) $x)))
+     (else
+      (i64.store (%get-integer-addr $int) $x)))
 
    $int)
 
@@ -448,7 +427,296 @@
           (i32.store $addr (i32.wrap_i64 $v))
           (set! $c (i64.shr_u $v (i64.const 32)))
           (%incr-n i32 $addr #i32-size)
-          (br $again)))))
+          (br $again))))
+
+   (debug (if (i64.ne $c (i64.const 0)) (then (unreachable)))))
+
+ (func $multiply-integer-i32 (export "multiply-integer-i32")
+   (param $int i32)
+   (param $n i32)
+
+   ($multiply-add-integer-i32 $int $n (i32.const 0)))
+
+ (func $multiply-integer-i64 (export "multiply-integery-i64")
+   (param $int i32)
+   (param $x i64)
+
+   (drop ($multiply-integers/dealloc-1 ($make-integer $x (i32.const 1)) $int)))
+
+ (func $multiply-integers/dealloc (export "multiply-integers/dealloc")
+   (param $x i32)
+   (param $y i32)
+   (result i32)
+
+   (local $z i32)
+
+   (set! $z ($multiply-integers $x $y))
+
+   ($dealloc-number $x)
+   ($dealloc-number $y)
+
+   $z)
+
+ (func $multiply-integers/dealloc-1 (export "multiply-integers/dealloc-1")
+   (param $x i32)
+   (param $y i32)
+   (result i32)
+
+   (local $z i32)
+
+   (set! $z ($multiply-integers $x $y))
+
+   ($dealloc-number $x)
+
+   $z)
+
+ (func $square-integer/dealloc (export "square-integer/dealloc")
+   (param $x i32)
+   (result i32)
+
+   ($multiply-integers/dealloc-1 $x $x))
+
+ (func $square-integer (export "square-integer")
+   (param $x i32)
+   (result i32)
+
+   ($multiply-integers $x $x))
+
+ (func $multiply-integers (export "multiply-integers")
+   (param $x i32)
+   (param $y i32)
+   (result i32)
+
+   (local $c i64)
+   (local $x-addr i32)
+   (local $x-end i32)
+   (local $x-i i64)
+   (local $y-addr i32)
+   (local $y-base-addr i32)
+   (local $y-end i32)
+   (local $z i32)
+   (local $z-addr i32)
+   (local $z-base-addr i32)
+   (local $z-j i64)
+
+   ;;  ($trim-integer-size $z) ;; todo trim integer size
+   ;; calc-product-integer-size
+   (set! $z ($alloc-integer (i32.add (%get-integer-size $x) (%get-integer-size $y))))
+
+   (set! $x-addr      (%get-integer-addr $x))
+   (set! $y-base-addr (%get-integer-addr $y))
+   (set! $z-base-addr (%get-integer-addr $z))
+
+   (set! $x-end (i32.add $x-addr      (i32.shl (%get-integer-size $x) (i32.const 6))))
+   (set! $y-end (i32.add $y-base-addr (i32.shl (%get-integer-size $y) (i32.const 6))))
+
+   (loop $x-digits
+     (if (i32.lt_u $x-addr $x-end)
+         (then
+          (set! $x-i (i64.load32_u $x-addr))
+          (set! $c (i64.const 0))
+
+          (set! $y-addr $y-base-addr)
+          (set! $z-addr $z-base-addr)
+
+          (loop $y-digits
+            (if (i32.lt_u $y-addr $y-end)
+                (then
+                 (set! $z-j (i64.add (i64.add (i64.load32_u $z-addr)
+                                              (i64.mul $x-i (i64.load32_u $y-addr)))
+                                     $c))
+
+                 (i32.store $z-addr (i32.wrap_i64 $z-j))
+                 (set! $c (i64.shr_u $z-j (i64.const 32)))
+
+                 (%incr-n i32 $y-addr 4)
+                 (%incr-n i32 $z-addr 4)
+                 (br $y-digits))))
+
+          (i32.store $z-addr (i32.wrap_i64 $c))
+
+          (%incr-n i32 $x-addr 4)
+          (%incr-n i32 $z-base-addr 4)
+          (br $x-digits))))
+
+   (%set-integer-sign-flag $x (i32.xor (%get-integer-sign-flag $x)
+                                       (%get-integer-sign-flag $y)))
+
+   $z)
+
+ (func $is-negative (export "is-negative")
+   (param $x i32)
+   (result i32)
+
+   (local $type i32)
+   (local $value i32)
+
+   (if (i32.eq (%get-value-tag $x) _tag-small-integer)
+       (then
+        (return (i32.lt_s $x (i32.const 0)))))
+
+   (set! $type (%get-number-type $x))
+   (set! $value (%get-box-value $x))
+
+   (if (i32.eq $type _number-type-f64)
+       (then
+        (return (f64.lt (f64.load $value) (f64.const 0.0)))))
+
+   (if (i32.eq $type _number-type-i64)
+       (then
+        (return (i64.lt_s (i64.load $value) (i64.const 0)))))
+
+   (if (i32.eq $type _number-type-rational)
+       (then
+        (return (i32.xor ($is-negative ($get-pair-car $value))
+                         ($is-negative ($get-pair-cdr $value))))))
+
+   (if (i32.eq $type _number-type-integer)
+       (then
+        (return (%is-negative-integer $x))))
+
+   (unreachable))
+
+ (func $pow-10-integer (debug (export "pow-10-integer"))
+   (param $n i32)
+   (result i32)
+
+   (local $mask i32)
+   (local $p i32)
+   (local $result i32)
+
+   ;; limit exponent range to unsigned 2^28.
+   (if (i32.and $n (i32.const 0xf0000000))
+       (then
+        (unreachable)))
+
+   (set! $result (if (result i32) (i32.and $n (i32.const 1))
+                   (then ($make-integer (i64.const 10) (i32.const 1)))
+                   (else ($make-integer (i64.const 1)  (i32.const 1)))))
+
+   (if (i32.and $n (i32.const 2))
+       (then
+        ($multiply-integer-i32 $result (i32.const 100))))
+
+   (if (i32.and $n (i32.const 4))
+       (then
+        ($multiply-integer-i32 $result _i32-1e4)))
+
+   (if (i32.and $n (i32.const 8))
+       (then
+        ($multiply-integer-i32 $result _i32-1e8)))
+
+   (if (i32.and $n (i32.const 0x10))
+       (then
+        ($multiply-integer-i64 $result _i64-1e16)))
+
+   (if (i32.eqz (i32.and $n (i32.const 0x0fffffe0)))
+       (then
+        (return $result)))
+
+   (if (i32.and $n (i32.const 0x20))
+       (then
+        (set! $result ($multiply-integers/dealloc-1 $result _integer-1e32))))
+
+   (if (i32.and $n (i32.const 0x40))
+       (then
+        (set! $result ($multiply-integers/dealloc-1 $result _integer-1e64))))
+
+   (if (i32.and $n (i32.const 0x80))
+       (then
+        (set! $result ($multiply-integers/dealloc-1 $result _integer-1e128))))
+
+   (if (i32.and $n (i32.const 0x100))
+       (then
+        (set! $result ($multiply-integers/dealloc-1 $result _integer-1e256))))
+
+   (set! $n (i32.and $n (i32.const 0x0ffffe00)))
+
+   (if (i32.eqz $n)
+       (then
+        (return $result)))
+
+   (set! $mask (i32.const 0x200))
+   (set! $p _integer-1e256)
+
+   (loop $again
+     (if $n
+         (then
+          (set! $p ($square-integer/dealloc $p))
+          (if (i32.and $n $mask)
+              (then
+               (set! $n (i32.xor $n $mask))
+               (set! $result ($multiply-integers/dealloc-1 $result $p))))
+
+          (set! $mask (i32.shl $mask (i32.const 1)))
+          (br $again))))
+
+   (if (i32.ne $p _integer-1e256)
+       (then
+        ($dealloc-number $p)))
+
+   $result)
+
+ (func $pow-10-f64 (debug (export "pow-10-f64"))
+   (param $n i32)
+   (result f64)
+
+   (local $is-negative i32)
+   (local $result f64)
+
+   (set! $is-negative (i32.lt_s $n (i32.const 0)))
+
+   (if $is-negative
+       (then (set! $n (i32.sub (i32.const 0) $n))))
+
+   (if (i32.and $n (i32.const 0x0ffffe00))
+       (then
+        (set! $result (f64.const +inf)))
+
+     (else
+
+      (set! $result (if (result f64) (i32.and $n (i32.const 0x01))
+                      (then (f64.const 10.0))
+                      (else (f64.const 1.0))))
+
+      ;; unrolled loop
+      (if (i32.and $n (i32.const 0x02))
+          (then
+           (set! $result (f64.mul $result (f64.const 100.0)))))
+
+      (if (i32.and $n (i32.const 0x04))
+          (then
+           (set! $result (f64.mul $result (f64.const 1.0e4)))))
+
+      (if (i32.and $n (i32.const 0x08))
+          (then
+           (set! $result (f64.mul $result (f64.const 1.0e8)))))
+
+      (if (i32.and $n (i32.const 0x10))
+          (then
+           (set! $result (f64.mul $result (f64.const 1.0e16)))))
+
+      (if (i32.and $n (i32.const 0x20))
+          (then
+           (set! $result (f64.mul $result (f64.const 1.0e32)))))
+
+      (if (i32.and $n (i32.const 0x40))
+          (then
+           (set! $result (f64.mul $result (f64.const 1.0e64)))))
+
+      (if (i32.and $n (i32.const 0x80))
+          (then
+           (set! $result (f64.mul $result (f64.const 1.0e128)))))
+
+      (if (i32.and $n (i32.const 0x100))
+          (then
+           (set! $result (f64.mul $result (f64.const 1.0e256)))))))
+
+   (if $is-negative
+       (then
+        (set! $result (f64.div (f64.const 1.0) $result))))
+
+   $result)
 
  (func $negate-number (export "negate-number")
    (param $x i32)
@@ -513,6 +781,10 @@
    (i64.store $addr (i64.sub (i64.const 0) (i64.load $addr))))
 
  (func $negate-integer (export "negate-integer")
+   (param $int i32)
+   (%set-box-type $int (i32.xor _integer-sign-flag (%get-box-type $int))))
+
+ (func $negate-integer-digits (debug (export "negate-integer-digits"))
    (param $int i32)
 
    (local $addr i32)
