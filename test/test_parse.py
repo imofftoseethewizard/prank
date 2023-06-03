@@ -29,6 +29,7 @@ def parse_test(src):
 def init_test():
     init_pairs()
     init_blockset_manager()
+    init_numbers()
     init_strings()
     init_lex_r7rs()
     init_symbols()
@@ -229,34 +230,70 @@ def test_parse_infnan(radix, fmt):
             else:
                 assert f64 == float(f'{sign}inf')
 
+decimal_test_cases = [
+    '1e0',
+    '1.',
+    '1.0',
+    '1.00',
+    '0.1',
+    '.3333',
+    '6553.6',
+    str(math.pi),
+    '6.02e+23',
+    '95e-201',
+    '1e-400',
+    '1e+400',
+    '29e6',
+    '-10000000000000000000000000000000000000000000.0',
+    '1.0e310',
+    '1.0e-310',
+    '-1.0e310',
+    '-1.0e-310',
+    '10000e307'
+]
+
+exact_decimal_test_values = [
+    1,
+    1,
+    10,
+    1,
+    (1, 10),
+    (3333, 10000)
+    (65536, 100000)
+    math.pi,
+    (602000000000000000000000),
+    '95e-201',
+    '1e-400',
+    '1e+400',
+    '29e6',
+    '-10000000000000000000000000000000000000000000.0',
+    '1.0e310',
+    '1.0e-310',
+    '-1.0e310',
+    '-1.0e-310',
+    '10000e307'
+]
+
+def test_parse_exact_decimal():
+
+    init_test()
+
+    for src, value in zip(decimal_test_cases, exact_decimal_test_values):
+        init_parser()
+        src = '#e' + src
+        print(src)
+        value = parse_test(src)
+
+        assert not is_inexact(value)
+
+
 def test_parse_decimal():
 
     init_test()
 
-    test_cases = [
-        '1e0',
-        '1.',
-        '1.0',
-        '1.00',
-        '0.1',
-        '.3333',
-        '6553.6',
-        str(math.pi),
-        '6.02e+23',
-        '95e-201',
-        '1e-400',
-        '1e+400',
-        '29e6',
-        '-10000000000000000000000000000000000000000000.0',
-        '1.0e310',
-        '1.0e-310',
-        '-1.0e310',
-        '-1.0e-310',
-        '10000e307'
-    ]
-
-    for src in test_cases:
+    for src in decimal_test_cases:
         init_parser()
+        print(src)
         value = parse_test(src)
 
         assert is_inexact(value)

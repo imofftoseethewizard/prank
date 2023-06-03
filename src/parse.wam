@@ -55,6 +55,7 @@
  (import "numbers" "make-small-integer"              (func $make-small-integer             (param i32)         (result i32)))
  (import "numbers" "multiply-add-integer-i32"        (func $multiply-add-integer-i32       (param i32 i32 i32)))
  (import "numbers" "multiply-integers/dealloc"       (func $multiply-integers/dealloc      (param i32 i32)     (result i32)))
+ (import "numbers" "normalize-rational"              (func $normalize-rational             (param i32)         (result i32)))
  (import "numbers" "pow-10-integer"                  (func $pow-10-integer                 (param i32)         (result i32)))
  (import "numbers" "negate-number"                   (func $negate-number                  (param i32)         (result i32)))
  (import "numbers" "set-integer-i64-digit"           (func $set-integer-i64-digit          (param i32 i32 i64)))
@@ -2028,9 +2029,13 @@
    (param $exactness i32)
    (result i32)
 
+   (local $value i32)
+
+   (set! $value ($parse-exact-decimal-value $text $end))
+
    (if (result i32) (i32.eq $exactness _exact)
-     (then ($parse-exact-decimal-value $text $end))
-     (else ($parse-inexact-decimal-value $text $end))))
+     (then ($normalize-rational $value))
+     (else ($make-boxed-f64 ($coerce-f64 $value)))))
 
  (func $parse-exact-decimal-value (debug (export "parse-exact-decimal-value"))
    (param $text i32)
@@ -2048,7 +2053,6 @@
    (local $frac-start i32)
    (local $fractional-digits i32)
    (local $numerator i32)
-   (local $pow-10-exp i32)
    (local $rule-id i32)
    (local $scan i32)
 
@@ -2090,7 +2094,7 @@
 
    (if (i32.eq $end $end-significand)
        (then
-        (set! $denominator ($pow-10-integer (i32.sub (i32.const 0) $fractional-digits))))
+        (set! $denominator ($pow-10-integer $fractional-digits)))
 
      (else
       ;; parse suffix: e+25, for example
@@ -2111,16 +2115,16 @@
       (if (%is-small-integer $exp-value)
           (then
            (set! $exp (i32.sub (%get-small-integer-value $exp-value) $fractional-digits))
-           (set! $pow-10-exp ($pow-10-integer $exp))
 
            (if (i32.lt_s $exp (i32.const 0))
              (then
-              (set! $denominator $pow-10-exp))
+              (set! $denominator ($pow-10-integer (i32.sub (i32.const 0) $exp))))
              (else
               (set! $denominator ($make-small-integer (i32.const 1)))
               (if (i32.gt_s $exp (i32.const 0))
                 (then
-                 (set! $numerator ($multiply-integers/dealloc $numerator $pow-10-exp)))))))
+                 (set! $numerator ($multiply-integers/dealloc $numerator
+                                                              ($pow-10-integer $exp))))))))
         (else
          ($dealloc-number $numerator)
          (if ($is-negative $exp)

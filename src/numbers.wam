@@ -902,7 +902,7 @@
         (f64.div ($coerce-f64 ($get-pair-car $value))
                  ($coerce-f64 ($get-pair-cdr $value)))
         ($dealloc-pair (%get-value-data $value))
-        ($dealloc-pair (%get-value-data $x))
+        (%dealloc-box $x)
         (return)))
 
    (if (i32.eq $type _number-type-integer)
@@ -945,11 +945,6 @@
                         (i32.shl (i32.sub $size (i32.const 1))
                                  (i32.const #i64-size-bits))))
 
-   (set! $is-negative (i64.lt_s (i64.load $addr) (i64.const 0)))
-
-   (if $is-negative
-       (then ($negate-integer $int)))
-
    (loop $again
      (set! $digit (i64.load $addr))
 
@@ -963,7 +958,7 @@
                       (then
                        (i32.const 0))
                       (else
-                       (i32.add (i32.sub (i32.const 64 (i32.wrap_i64 (i64.clz $digit))))
+                       (i32.add (i32.sub (i32.const 64) (i32.wrap_i64 (i64.clz $digit)))
                                 (i32.shl (i32.sub $addr $end-addr)
                                          (i32.const 3))))))
 
@@ -979,7 +974,7 @@
                           (else
                            (f64.const +inf))))))
 
-   (if (result f64) $is-negative
+   (if (result f64) (%is-negative-integer $int)
      (then (f64.neg $abs-result))
      (else $abs-result)))
 
@@ -1015,6 +1010,176 @@
                                (i64.shr_u $next-digit (i64.sub (i64.const 64) $shift)))))))
 
    (f64.reinterpret_i64 (i64.or $abcissa $mantissa)))
+
+ (func $normalize-number (export "normalize-number")
+   (param $x i32)
+   (result i32)
+
+   (local $type i32)
+   (local $value i32)
+
+   (if (i32.eq (%get-value-tag $x) _tag-small-integer)
+       (then
+        (return $x)))
+
+   (set! $type (%get-number-type $x))
+   (set! $value (%get-box-value $x))
+
+   (if (i32.eq $type _number-type-f64)
+       (then
+        (return $x)))
+
+   (if (i32.eq $type _number-type-i64)
+       (then
+        (return ($normalize-i64 $x))))
+
+   (if (i32.eq $type _number-type-complex)
+       (then
+        ;; ;; re
+        ;; ($set-pair-car $value ($normalize-number ($get-pair-car $value)))
+        ;; ;; im
+        ;; ($set-pair-cdr $value ($normalize-number ($get-pair-cdr $value)))
+        ;; check for im == 0
+        (return ($normalize-complex $x))))
+
+   (if (i32.eq $type _number-type-rational)
+       (then
+        (return ($normalize-rational $x))))
+
+   (if (i32.eq $type _number-type-integer)
+       (then
+        ($normalize-integer $x)
+        (return $x)))
+
+   ($invalid-number-type)
+   $x)
+
+ (define _i64-small-integer-mask         (i64.const 0xffffffffe0000000))
+ (define _i64-small-integer-overflow-bit (i64.const 0x0000000020000000))
+
+ (macro %is-small-value-i64
+   (expr ,v)
+   (i64.le_u (i64.add (i64.and ,v _i64-small-integer-mask)
+                      _i64-small-integer-overflow-bit)
+             _i64-small-integer-overflow-bit))
+
+ (func $normalize-i64 (export "normalize-i64")
+   (param $x i32)
+   (result i32)
+
+   (local $high-bits i64)
+   (local $value i64)
+
+   ;; mask out lower 29 bits. If the upper bits are all 1 or all 0,
+   ;; then the number can be stored in a small integer.
+
+   (set! $value (i64.load (%get-box-value $x)))
+
+   (if (%is-small-value-i64 $value)
+       (then
+        ($dealloc-x64 $x)
+        (return ($make-small-integer (i32.wrap_i64 $value)))))
+
+   $x)
+
+ (func $normalize-rational (export "normalize-rational")
+   (param $x i32)
+   (result i32)
+
+   (local $denom i32)
+   (local $num i32)
+   (local $value i32)
+
+   (set! $value (%get-box-value $x))
+
+   (set! $num ($normalize-number ($get-pair-car $value)))
+   (set! $denom ($normalize-number ($get-pair-cdr $value)))
+
+   (if ($is-negative $denom)
+       (then
+        (set! $num ($negate-number $num))
+        (set! $denom ($negate-number $denom))))
+
+   (if (i32.eqz $denom)
+       (then
+        (unreachable)))
+
+   (if (i32.eq (%get-value-tag $denom) _tag-small-integer)
+       (then
+        (if (i32.eq (%get-small-integer-value $denom) (i32.const 1))
+            (then
+             ($dealloc-pair $value)
+             (%dealloc-box $x)
+             (return $num)))))
+
+   ;; todo: euclid's algorithm
+
+   ($set-pair-car $value $num)
+   ($set-pair-cdr $value $denom)
+
+   $x)
+
+ (func $normalize-complex (export "normalize-complex")
+   (param $x i32)
+   (result i32)
+
+   (local $im i32)
+   (local $re i32)
+   (local $value i32)
+
+   (set! $value (%get-box-value $x))
+
+   (set! $re ($normalize-number ($get-pair-car $value)))
+   (set! $im ($normalize-number ($get-pair-cdr $value)))
+
+   (if (i32.eqz $im)
+       (then
+        ($dealloc-pair $value)
+        (%dealloc-box $x)
+        (return $re)))
+
+   $x)
+
+ (func $normalize-integer (export "normalize-integer")
+   (param $x i32)
+   (result i32)
+
+   (local $addr i32)
+   (local $base-addr i32)
+   (local $size i32)
+   (local $value i64)
+
+   (set! $base-addr (%get-integer-addr $x))
+   (set! $size (%get-integer-size $x))
+
+   (set! $addr (i32.add $base-addr (i32.shl (i32.sub $size (i32.const 1))
+                                            (i32.const 6))))
+
+   (loop $again
+     (if (i32.gt_u $addr $base-addr)
+         (then
+          (if (i64.eqz (i64.load $addr))
+              (then
+               (%decr-n i32 $addr 8)
+               (br $again))))))
+
+   (if (i32.eq $addr $base-addr)
+       (then
+        (set! $value (i64.load $addr))
+
+        (if (%get-integer-sign-flag $x)
+            (then
+             (set! $value (i64.sub (i64.const 0) $value))))
+
+        ($dealloc-number $x)
+
+        (if (%is-small-value-i64 $value)
+            (then
+             (return ($make-small-integer (i32.wrap_i64 $value))))
+          (else
+           (return ($make-boxed-i64 $value))))))
+
+   $x)
 
 
  ;;-----------------------------------------------------------------------------

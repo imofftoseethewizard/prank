@@ -157,3 +157,22 @@ def test_make_boxed_f64():
         n = make_boxed_f64(1.0 * i)
         assert is_inexact(n)
         assert get_boxed_f64(n) == 1.0 * i
+
+def test_coerce_integer_f64():
+
+    init_test()
+
+    assert coerce_integer_f64(make_integer(0, 1)) == 0.0
+
+    for i in range(0, 63):
+        x = make_integer(2**i, 1)
+        assert coerce_integer_f64(x) == pow(2, i)
+
+    for i in range(0, 18):
+        x = make_integer(10**i, 1)
+        assert coerce_integer_f64(x) == pow(10, i)
+
+    for i in range(0, 18):
+        x = make_integer(10**i, 1)
+        negate_integer(x)
+        assert coerce_integer_f64(x) == -pow(10, i)
