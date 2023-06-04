@@ -129,6 +129,9 @@
  (global $integer-1e128 (debug (export "integer-1e128")) (mut i32) (i32.const 0))
  (global $integer-1e256 (debug (export "integer-1e256")) (mut i32) (i32.const 0))
 
+ (define _small-integer-0 (i32.const 0))
+ (define _small-integer-1 (i32.const 8))
+
  (define _i32-1e4  (i32.const 10000))
  (define _i32-1e8  (i32.const 100000000))
  (define _i64-1e16 (i64.const 10000000000000000))
@@ -499,8 +502,7 @@
    (local $z-base-addr i32)
    (local $z-j i64)
 
-   ;;  ($trim-integer-size $z) ;; todo trim integer size
-   ;; calc-product-integer-size
+   ;; todo: calc-product-integer-size
    (set! $z ($alloc-integer (i32.add (%get-integer-size $x) (%get-integer-size $y))))
 
    (set! $x-addr      (%get-integer-addr $x))
@@ -812,6 +814,163 @@
           (%incr-n i32 $addr #i64-size)
           (br $again)))))
 
+ (func $gcd (debug (export "gcd"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (if (i32.eq (%get-value-tag $a) _tag-small-integer)
+       (then
+        (set! $a-is-small (i32.const 1)))
+     (else
+      (set! $a-type (%get-number-type $a))
+      (set! $a-value (%get-box-value $a))))
+
+   (if (i32.eq (%get-value-tag $b) _tag-small-integer)
+       (then
+        (set! $b-is-small (i32.const 1)))
+     (else
+      (set! $b-type (%get-number-type $b))
+      (set! $b-value (%get-box-value $b))))
+
+   (if (i32.and $a-is-small $b-is-small)
+       (then
+        (return ($gcd-small-integer $a $b))))
+
+   (if $a-is-small
+       (then
+        (if (i32.eq $b-type _number-type-i64)
+            (then
+             (return ($gcd-i64 (i64.extend_i32_s (%get-small-integer-value $a))
+                               (i64.load $b-value)))))
+
+        (if (i32.eq $b-type _number-type-integer)
+            (then
+             (set! $a-int ($make-integer-i64 (i64.extend_i32_s (%get-small-integer-value $a))))
+             (return ($gcd-integer $a-int $b)
+                     ($dealloc-number $a-int))))
+
+        (unreachable)))
+
+   (if $b-is-small
+       (then
+        (if (i32.eq $a-type _number-type-i64)
+            (then
+             (return ($gcd-i64 (i64.extend_i32_s (%get-small-integer-value $b))
+                               (i64.load $a-value)))))
+
+        (if (i32.eq $a-type _number-type-integer)
+            (then
+             (set! $b-int ($make-integer-i64 (i64.extend_i32_s (%get-small-integer-value $b))))
+             (return ($gcd-integer $a $b-int)
+                     ($dealloc-number $b-int))))
+
+        (unreachable)))
+
+   (if (i32.and (i32.eq $a-type _number-type-i64)
+                (i32.eq $b-type _number-type-i64))
+       (then
+        (return ($gcd-i64 (i64.load $a-value) (i64.load $b-value)))))
+
+   (if (i32.and (i32.eq $a-type _number-type-i64)
+                (i32.eq $b-type _number-type-integer))
+       (then
+        (set! $a-int ($make-integer-i64 (i64.load $a-value)))
+        (return ($gcd-integer $a-int $b)
+                ($dealloc-number $a-int))))
+
+   (if (i32.and (i32.eq $b-type _number-type-i64)
+                (i32.eq $a-type _number-type-integer))
+       (then
+        (set! $b-int ($make-integer-i64 (i64.load $b-value)))
+        (return ($gcd-integer $a $b-int)
+                ($dealloc-number $b-int))))
+
+   (if (i32.or (i32.ne $a-type _number-type-integer)
+               (i32.ne $b-type _number-type-integer))
+       (then
+        (uneachable)))
+
+   ($gcd-integer $a $b))
+
+ (macro %gcd
+   (class Int)
+   (label $a)
+   (label $b)
+   (label $t)
+
+   (if (Int.lt_s $a (Int.const 0))
+       (then
+        (set! $a (Int.sub (Int.const 0) $a))))
+
+   (if (Int.lt_s $b (Int.const 0))
+       (then
+        (set! $b (Int.sub (Int.const 0) $b))))
+
+   (if (Int.lt_u $a $b)
+       (then
+        (set! $t $a)
+        (set! $a $b)
+        (set! $b $t)))
+
+   (loop $again
+     (if $b
+         (then
+          (set! $t $b)
+          (set! $b (Int.rem_u $a $b))
+          (set! $a $t)
+          (br $again))))
+
+   $a)
+
+ (func $gcd-small-integer (debug (export "gcd-small-integer"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (local $t i32)
+
+   (set! $a (%get-small-integer-value $a))
+   (set! $b (%get-small-integer-value $b))
+
+   ($make-small-integer (%gcd i32 $a $b $t)))
+
+ (func $gcd-i64 (debug (export "gcd-i64"))
+   (param $a i64)
+   (param $b i64)
+   (result i64)
+
+   (local $t i64)
+
+   ($make-boxed-i64 (%gcd i64 $a $b $t)))
+
+ (func $gcd-integer (debug (export "gcd-integer"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (local $t i32)
+
+   (set! $a ($copy-integer $a)) ;; todo
+   (set! $b ($copy-integer $b))
+
+   (if ($lt-integer $a $b) ;; todo
+       (then
+        (set! $t $a)
+        (set! $a $b)
+        (set! $b $t)))
+
+   (loop $again
+     (if ($nz-integer $b) ;; todo
+         (then
+          (set! $t $b)
+          (set! $b ($mod-integer/dealloc-1 $a $b)) ;; todo
+          (set! $a $t)
+          (br $again))))
+
+   ($dealloc-number $b)
+   $a)
+
  (func $get-integer-size (export "get-integer-size")
    (param $int i32)
    (result i32)
@@ -1035,11 +1194,6 @@
 
    (if (i32.eq $type _number-type-complex)
        (then
-        ;; ;; re
-        ;; ($set-pair-car $value ($normalize-number ($get-pair-car $value)))
-        ;; ;; im
-        ;; ($set-pair-cdr $value ($normalize-number ($get-pair-cdr $value)))
-        ;; check for im == 0
         (return ($normalize-complex $x))))
 
    (if (i32.eq $type _number-type-rational)
@@ -1087,6 +1241,7 @@
    (result i32)
 
    (local $denom i32)
+   (local $div i32)
    (local $num i32)
    (local $value i32)
 
@@ -1100,19 +1255,23 @@
         (set! $num ($negate-number $num))
         (set! $denom ($negate-number $denom))))
 
-   (if (i32.eqz $denom)
+   (if (i32.eq $denom _small-integer-0)
        (then
         (unreachable)))
 
-   (if (i32.eq (%get-value-tag $denom) _tag-small-integer)
-       (then
-        (if (i32.eq (%get-small-integer-value $denom) (i32.const 1))
-            (then
-             ($dealloc-pair $value)
-             (%dealloc-box $x)
-             (return $num)))))
+   (set! $div ($gcd $num $denom))
 
-   ;; todo: euclid's algorithm
+   (if (i32.ne $div _small-integer-1)
+       (then
+        (set! $num ($divide/dealloc-1 $num $div)) ;; todo
+        (set! $denom ($divide/dealloc-1 $denom $div))
+        ($dealloc-number $div)))
+
+   (if (i32.eq $denom _small-integer-1)
+       (then
+        ($dealloc-pair $value)
+        (%dealloc-box $x)
+        (return $num)))
 
    ($set-pair-car $value $num)
    ($set-pair-cdr $value $denom)
@@ -1132,7 +1291,7 @@
    (set! $re ($normalize-number ($get-pair-car $value)))
    (set! $im ($normalize-number ($get-pair-cdr $value)))
 
-   (if (i32.eqz $im)
+   (if (i32.eq $im _small-integer-0)
        (then
         ($dealloc-pair $value)
         (%dealloc-box $x)
