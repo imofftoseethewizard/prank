@@ -174,6 +174,10 @@
    (%set-box-type $int (i32.or (i32.and (%get-box-type $int) _integer-sign-flag-mask)
                                ,v)))
 
+ (macro %clear-integer-sign-flag
+   (label $int)
+   (%set-integer-sign-flag $int (i32.const 0)))
+
  (macro %is-negative-integer
    (expr ,int)
    (i32.eq (%get-integer-sign-flag ,int) _integer-sign-flag))
@@ -186,11 +190,20 @@
    (expr ,int)
    ($get-block-addr (%get-box-value ,int)))
 
+ (macro %get-integer-digit-addr
+   (expr ,int)
+   (expr ,n)
+   (i32.add (%get-integer-addr ,int) (i32.shl ,n (i32.const 3))))
+
  (macro %get-integer-size
    (expr ,int)
    (i32.shr_u (i32.and (%get-box-type ,int)
                        (i32.xor _number-type-mask (i32.const -1)))
               (i32.const 12)))
+
+ (macro %get-integer-byte-size
+   (expr ,int)
+   (i32.shl (%get-integer-size ,int) (i32.const 3)))
 
  (macro %get-i64-digit-addr
    (expr ,int)
@@ -232,6 +245,25 @@
    (memory.fill $addr (i32.const 0) $size)
 
    (%make-box (%make-integer-number-type $i64-digits) $block))
+
+ (func $resize-integer (export "resize-integer")
+   (param $x i32)
+   (param $i64-digits i32)
+
+   (local $new-size i32)
+   (local $old-size i32)
+
+   (set! $old-size (%get-integer-byte-size $x))
+   (set! $new-size (i32.shl $i64-digits (i32.const #i64-size-bits)))
+
+   (%set-box-type (%make-integer-number-type $i64-digits))
+   (%set-box-value $x ($resize-block _numbers-blockset (%get-box-value $x) $new-size))
+
+   (if (i32.gt_u $new-size $old-size)
+       (then
+        (memory.fill (i32.add (%get-integer-addr $x) $old-size)
+                     (i32.const 0)
+                     (i32.sub $new-size $old-size)))))
 
  (func $alloc-x64 (debug (export "alloc-x64"))
    (result i32)
@@ -419,9 +451,7 @@
    (set! $c (i64.extend_i32_u $k))
 
    (set! $addr (%get-integer-addr $int))
-   (set! $end-addr (i32.add $addr
-                            (i32.shl (%get-integer-size $int)
-                                     (i32.const #i64-size-bits))))
+   (set! $end-addr (i32.add $addr (%get-integer-byte-size $int)))
 
    (loop $again
      (if (i32.lt_u $addr $end-addr)
@@ -502,15 +532,15 @@
    (local $z-base-addr i32)
    (local $z-j i64)
 
-   ;; todo: calc-product-integer-size
-   (set! $z ($alloc-integer (i32.add (%get-integer-size $x) (%get-integer-size $y))))
+   (set! $z ($alloc-integer ($calc-product-integer-size $x $y)))
 
    (set! $x-addr      (%get-integer-addr $x))
    (set! $y-base-addr (%get-integer-addr $y))
    (set! $z-base-addr (%get-integer-addr $z))
 
-   (set! $x-end (i32.add $x-addr      (i32.shl (%get-integer-size $x) (i32.const 6))))
-   (set! $y-end (i32.add $y-base-addr (i32.shl (%get-integer-size $y) (i32.const 6))))
+   (set! $x-end (i32.add $x-addr      (%get-integer-byte-size $x)))
+   (set! $y-end (i32.add $y-base-addr (%get-integer-byte-size $y)))
+   (set! $z-end (i32.add $z-base-addr (%get-integer-byte-size $z)))
 
    (loop $x-digits
      (if (i32.lt_u $x-addr $x-end)
@@ -522,7 +552,8 @@
           (set! $z-addr $z-base-addr)
 
           (loop $y-digits
-            (if (i32.lt_u $y-addr $y-end)
+            (if (i32.and (i32.lt_u $y-addr $y-end)
+                         (i32.lt_u $z-addr $z-end))
                 (then
                  (set! $z-j (i64.add (i64.add (i64.load32_u $z-addr)
                                               (i64.mul $x-i (i64.load32_u $y-addr)))
@@ -546,11 +577,486 @@
 
    $z)
 
+ (func $calc-product-integer-size (debug (export "calc-product-integer-size"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (i32.shr_u (i32.add (i32.add ($get-integer-bit-size $a) ($get-integer-bit-size $b))
+                       (i32.const 0x1f))
+              (i32.const 6)))
+
+ (func $get-integer-bit-size (debug (export "get-integer-bit-size"))
+   (param $x i32)
+   (result i32)
+
+   (local $digit i64)
+   (local $offset i32)
+
+   (set! $digit
+         (set! $offset ($find-integer-leading-digit $x)))
+
+   (i32.add (i32.sub (i32.const 64) (i32.wrap_i64 (i64.clz $digit)))
+            (i32.shl $offset (i32.const 3))))
+
+ (func $get-integer-digit-size (debug (export "get-integer-digit-size"))
+   (param $x i32)
+   (result i32)
+
+   (local $digit i64)
+   (local $offset i32)
+
+   (set! $digit
+         (set! $offset ($find-integer-leading-digit $x)))
+
+   (i32.add (i32.shr_u $offset (i32.const 3)) (i32.const 1)))
+
+ (func $find-integer-leading-digit (debug (export "find-integer-leading-digit"))
+   (param $x i32)
+   (result i32)
+
+   (local $addr i32)
+   (local $base-addr i32)
+   (local $digit i64)
+
+   (set! $base-addr (%get-integer-addr $x))
+   (set! $addr (i32.add $base-addr (%get-integer-byte-size $x)))
+
+   (loop $again
+     (if (i32.gt_u $addr $base-addr)
+         (then
+          (%decr i32 $addr 8)
+          (set! $digit (i64.load $addr))
+          (if (i64.eqz $digit)
+              (then
+               (br $again))))))
+
+   $digit
+   (i32.sub $addr $base-addr))
+
+ (func $divide/truncated/dealloc-1 (debug (export "divide/truncated/dealloc-1"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   ($divide/truncated $a $b)
+   ($dealloc-number $a))
+
+ (func $divide/truncated (debug (export "divide/truncated"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (if (i32.eq (%get-value-tag $a) _tag-small-integer)
+       (then
+        (set! $a-is-small (i32.const 1)))
+     (else
+      (set! $a-type (%get-number-type $a))
+      (set! $a-value (%get-box-value $a))))
+
+   (if (i32.eq (%get-value-tag $b) _tag-small-integer)
+       (then
+        (set! $b-is-small (i32.const 1)))
+     (else
+      (set! $b-type (%get-number-type $b))
+      (set! $b-value (%get-box-value $b))))
+
+   (if (i32.and $a-is-small $b-is-small)
+       (then
+        (return (%make-small-integer (i32.div_s $a $b)))))
+
+   (if $a-is-small
+       (then
+        (if (i32.eq $b-type _number-type-i64)
+            (then
+             (return ($make-boxed-i64 (i64.div_s (i64.extend_i32_s (%get-small-integer-value $a))
+                                                 (i64.load $b-value))))))
+
+        (if (i32.eq $b-type _number-type-integer)
+            (then
+             (set! $a-int ($make-integer-i64 (i64.extend_i32_s (%get-small-integer-value $a))))
+             (return ($integer-division/truncated $a-int $b)
+                     ($dealloc-number $a-int))))
+
+        (unreachable)))
+
+   (if $b-is-small
+       (then
+        (if (i32.eq $a-type _number-type-i64)
+            (then
+             (return
+              ($make-boxed-i64 (i64.div_s (i64.load $a-value)
+                                          (i64.extend_i32_s (%get-small-integer-value $b)))))))
+
+        (if (i32.eq $a-type _number-type-integer)
+            (then
+             (set! $b-int ($make-integer-i64 (i64.extend_i32_s (%get-small-integer-value $b))))
+             (return ($integer-division/truncated $a $b-int)
+                     ($dealloc-number $b-int))))
+
+        (unreachable)))
+
+   (if (i32.and (i32.eq $a-type _number-type-i64)
+                (i32.eq $b-type _number-type-i64))
+       (then
+        (return ($make-boxed-i64 (i64.div_s (i64.load $a-value) (i64.load $b-value))))))
+
+   (if (i32.and (i32.eq $a-type _number-type-i64)
+                (i32.eq $b-type _number-type-integer))
+       (then
+        (set! $a-int ($make-integer-i64 (i64.load $a-value)))
+        (return ($integer-division/truncated $a-int $b)
+                ($dealloc-number $a-int))))
+
+   (if (i32.and (i32.eq $b-type _number-type-i64)
+                (i32.eq $a-type _number-type-integer))
+       (then
+        (set! $b-int ($make-integer-i64 (i64.load $b-value)))
+        (return ($integer-division/truncated $a $b-int)
+                ($dealloc-number $b-int))))
+
+   (if (i32.or (i32.ne $a-type _number-type-integer)
+               (i32.ne $b-type _number-type-integer))
+       (then
+        (uneachable)))
+
+   ($integer-division/truncated $a $b))
+
+ (func $modulo/dealloc-1 (debug (export "modulo/dealloc-1"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   ($modulo $a $b)
+   ($dealloc-number $a))
+
+ (func $modulo (debug (export "modulo"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (if (i32.eq (%get-value-tag $a) _tag-small-integer)
+       (then
+        (set! $a-is-small (i32.const 1)))
+     (else
+      (set! $a-type (%get-number-type $a))
+      (set! $a-value (%get-box-value $a))))
+
+   (if (i32.eq (%get-value-tag $b) _tag-small-integer)
+       (then
+        (set! $b-is-small (i32.const 1)))
+     (else
+      (set! $b-type (%get-number-type $b))
+      (set! $b-value (%get-box-value $b))))
+
+   (if (i32.and $a-is-small $b-is-small)
+       (then
+        (return (%make-small-integer (i32.rem_s $a $b)))))
+
+   (if $a-is-small
+       (then
+        (if (i32.eq $b-type _number-type-i64)
+            (then
+             (return ($make-boxed-i64 (i64.rem_s (i64.extend_i32_s (%get-small-integer-value $a))
+                                                 (i64.load $b-value))))))
+
+        (if (i32.eq $b-type _number-type-integer)
+            (then
+             (set! $a-int ($make-integer-i64 (i64.extend_i32_s (%get-small-integer-value $a))))
+             (return ($integer-remainder $a-int $b)
+                     ($dealloc-number $a-int))))
+
+        (unreachable)))
+
+   (if $b-is-small
+       (then
+        (if (i32.eq $a-type _number-type-i64)
+            (then
+             (return
+              ($make-boxed-i64 (i64.rem_s (i64.load $a-value)
+                                          (i64.extend_i32_s (%get-small-integer-value $b)))))))
+
+        (if (i32.eq $a-type _number-type-integer)
+            (then
+             (set! $b-int ($make-integer-i64 (i64.extend_i32_s (%get-small-integer-value $b))))
+             (return ($integer-remainder $a $b-int)
+                     ($dealloc-number $b-int))))
+
+        (unreachable)))
+
+   (if (i32.and (i32.eq $a-type _number-type-i64)
+                (i32.eq $b-type _number-type-i64))
+       (then
+        (return ($make-boxed-i64 (i64.rem_s (i64.load $a-value) (i64.load $b-value))))))
+
+   (if (i32.and (i32.eq $a-type _number-type-i64)
+                (i32.eq $b-type _number-type-integer))
+       (then
+        (set! $a-int ($make-integer-i64 (i64.load $a-value)))
+        (return ($integer-remainder $a-int $b)
+                ($dealloc-number $a-int))))
+
+   (if (i32.and (i32.eq $b-type _number-type-i64)
+                (i32.eq $a-type _number-type-integer))
+       (then
+        (set! $b-int ($make-integer-i64 (i64.load $b-value)))
+        (return ($integer-remainder $a $b-int)
+                ($dealloc-number $b-int))))
+
+   (if (i32.or (i32.ne $a-type _number-type-integer)
+               (i32.ne $b-type _number-type-integer))
+       (then
+        (uneachable)))
+
+   ($integer-division/truncated $a $b))
+
+ (func $integer-division/truncated (debug (export "integer-division/truncated"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (local $quot i32)
+   (local $rem i32)
+
+   (set! $quot
+         (set! $rem ($div-rem-integer $a $b)))
+
+   ($dealloc-number $rem)
+   $quot)
+
+ (func $integer-remainder/dealloc-1 (debug (export "integer-remainder/dealloc-1"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   ($integer-remainder $a $b)
+   ($dealloc-number $a))
+
+ (func $integer-remainder (debug (export "integer-remainder"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (local $quot i32)
+   (local $rem i32)
+
+   (set! $quot
+         (set! $rem ($div-rem-integer $a $b)))
+
+   ($dealloc-number $quot)
+   $rem)
+
+ (func $div-rem-integer (debug (export "div-rem-integer"))
+   (param $a i32)
+   (param $b i32)
+   (result i32 i32)
+
+   (local $quot i32)
+   (local $rem i32)
+
+   (set! $quot
+         (set! $rem ($div-rem-integer-digits $a $b)))
+
+   (if (%is-negative-integer $a)
+       (then
+        (%set-integer-sign-flag $rem)
+        (if (i32.eqz (%is-negative-integer $b))
+            (then
+             (%set-integer-sign-flag $quot))))
+     (else
+      (if (%is-negative-integer $b)
+          (then
+           (%set-integer-sign-flag $quot)))))
+
+   $quot
+   $rem)
+
+ (func $div-rem-integer-digits (debug (export "div-rem-integer-digits"))
+   (param $a i32)
+   (param $b i32)
+   (result i32 i32)
+
+   (local $bit-place i32)
+   (local $div i32)
+   (local $div-bits i32)
+   (local $quot i32)
+   (local $quot-size i32)
+   (local $rem i32)
+   (local $rem-bits i32)
+   (local $shift-bits i32)
+
+   (set! $div ($copy-integer $b))
+   (set! $rem ($copy-integer $a))
+
+   (%clear-integer-sign-flag $div)
+   (%clear-integer-sign-flag $rem)
+
+   ;; This calculation depends on $copy-integer omitting leading
+   ;; zero digits in the copy.
+   (set! $quot-size (i32.add (i32.sub (%get-integer-size $rem)
+                                      (%get-integer-size $div))
+                             (i32.const 1)))
+
+   (if (i32.le_s $quot-size (i32.const 0))
+       (then
+        ;; div size > rem size => div > rem => quot = 0
+        (set $quot ($alloc-integer (i32.const 1))))
+
+     (else
+      (set! $quot ($alloc-integer $quot-size))
+
+      (set! $rem-bits ($get-integer-bit-size $rem))
+      (set! $div-bits $rem-bits)
+
+      (set! $bit-place (i32.sub $rem-bits ($get-integer-bit-size $div)))
+      ($shift-integer $div $bit-place)
+
+      (loop $again
+        (if (i32.gt_s $bit-place (i32.const 0))
+            (then
+             (if ($lt-integer $rem $div)
+                 (then
+                  (%decr i32 $bit-place)
+                  (%decr i32 $div-bits)
+                  ($shift-integer $div (i32.const -1))
+                  (br $again)))
+
+             (set! $rem ($sub-integer $rem $div))
+             ($set-integer-bit $quot $bit-place)
+
+             (set! $rem-bits ($get-integer-bit-size $rem)) ;; todo: track digit, offset here
+             (set! $shift-bits (i32.sub $rem-bits $div-bits)) ;; NB: shift-bits is always <= 0
+             (set! $bit-place (i32.add $bit-place $shift-bits))
+
+             (set! $div-bits $rem-bits)
+             ($shift-integer $div $shift-bits)
+
+             (br $again))))))
+
+   ($dealloc-number $div)
+   $rem
+   $quot)
+
+ (func $shift-integer (debug (export "shift-integer"))
+   (param $x i32)
+   (param $n i32)
+   (result i32)
+
+   (if (i32.gt_s $n (i32.const 0))
+       (then
+        (return ($shift-integer-left $x $n))))
+
+   (if (i32.lt_s $n (i32.const 0))
+       (then
+        (return ($shift-integer-right $x (i32.sub (i32.const 0) $n)))))
+
+   $x)
+
+ (func $shift-integer-left (debug (export "shift-integer-left"))
+   (param $x i32)
+   (param $n i32)
+   (result i32)
+
+   (local $bit-size i32)
+   (local $new-bit-size i32)
+   (local $new-size i32)
+
+   (set! $bit-size ($get-integer-bit-size $x))
+   (set! $new-bit-size (i32.add $bit-size $n))
+   (set! $new-size (i32.shl (i32.add $new-bit-size 0x1f) (i32.const 6)))
+
+   (set! $digit-shift (i64.extend_i32_u (i32.and $n (i32.const 0x1f))))
+   (set! $carry-shift (i64.sub (i64.const 32) $digit-shift))
+
+   (set! $old-byte-size (%get-integer-byte-size $x))
+
+   (if (i32.gt_u $new-size (%get-integer-size $x))
+       (then
+        ($resize-integer $x $new-size)))
+
+   (set! $base-addr (%get-integer-addr $x))
+   (set! $dest-addr (i32.add $base-addr (%get-integer-byte-size $x)))
+   (set! $src-addr (i32.sub (i32.add $base-addr $old-byte-size) (i32.const 8)))
+   (set! $next-digit (i64.load $src-addr))
+
+   (loop $again
+     (%decr-n i32 $dest-addr 8)
+     (if (i32.gt_u $src-addr $base-addr)
+         (then
+          (%decr-n i32 $src-addr 8)
+          (set! $digit $next-digit)
+          (set! $next-digit (i64.load $src-addr))
+          (i64.store $dest-addr (i64.or (i64.shl $digit $digit-shift)
+                                        (i64.shr_u $next-digit $carry-shift)))
+          (br $again))))
+
+   (i64.store $dest-addr (i64.shl $next-digit $digit-shift))
+   (if (i32.gt_u $dest-addr $base-addr)
+       (then
+        (memory.fill $base-addr
+                     (i32.const 0)
+                     (i32.sub $dest-addr $base-addr))))
+
+   $x)
+
+ (func $shift-integer-right (debug (export "shift-integer-right"))
+   (param $x i32)
+   (param $n i32)
+   (result i32)
+
+   (local $bit-size i32)
+   (local $new-bit-size i32)
+
+   (set! $bit-size ($get-integer-bit-size $x))
+   (set! $new-bit-size (i32.add $bit-size $n))
+   (set! $new-size (i32.shl (i32.add $new-bit-size 0x1f) (i32.const 6)))
+
+   (set! $digit-shift (i64.extend_i32_u (i32.and $n (i32.const 0x1f))))
+   (set! $carry-shift (i64.sub (i64.const 32) $digit-shift))
+
+   (set! $base-addr (%get-integer-addr $x))
+   (set! $dest-addr $base-addr)
+   (set! $end-addr (i32.add $base-addr (%get-integer-byte-size $x)))
+   (set! $src-addr (i32.sub $end-addr $new-size))
+   (set! $next-digit (i64.load $src-addr))
+
+   (loop $shift-right
+     (%incr-n i32 $src-addr 8)
+     (if (i32.lt_u $src-addr $end-addr)
+         (then
+          (set! $digit $next-digit)
+          (set! $next-digit (i64.load $src-addr))
+          (i64.store $dest-addr (i64.or (i64.shr_u $digit $digit-shift)
+                                        (i64.shl $next-digit $carry-shift)))
+          (%incr-n i32 $dest-addr 8)
+          (br $shift-right))))
+
+   (i64.store $dest-addr (i64.shr_u $next-digit $digit-shift))
+
+   (if (i32.lt_u $new-size (%get-integer-byte-size $x))
+       (then
+        ($resize-integer $x $new-size)))
+
+   $x)
+
+ (func $set-integer-bit (debug (export "set-integer-bit"))
+   (param $x i32)
+   (param $n i32)
+
+   (local $addr i32)
+
+   (set! $addr (%get-integer-digit-addr $x (i32.shr_u $n (i32.const 6))))
+
+   (i64.store $addr (i64.or (i64.load $addr)
+                            (i64.shl (i64.const 1)
+                                     (i64.extend_i32_u (i32.and $n (i32.const 0x1f)))))))
+
  (func $is-negative (export "is-negative")
    (param $x i32)
    (result i32)
 
    (local $type i32)
+
    (local $value i32)
 
    (if (i32.eq (%get-value-tag $x) _tag-small-integer)
@@ -795,7 +1301,7 @@
    (local $v i64)
 
    (set! $addr (%get-integer-addr $int))
-   (set! $end-addr (i32.add $addr (%get-integer-size $int)))
+   (set! $end-addr (i32.add $addr (%get-integer-byte-size $int)))
 
    (set! $c (i64.const 1))
 
@@ -951,25 +1457,169 @@
 
    (local $t i32)
 
-   (set! $a ($copy-integer $a)) ;; todo
+   (set! $a ($copy-integer $a))
    (set! $b ($copy-integer $b))
 
-   (if ($lt-integer $a $b) ;; todo
+   (if ($lt-integer $a $b)
        (then
         (set! $t $a)
         (set! $a $b)
         (set! $b $t)))
 
    (loop $again
-     (if ($nz-integer $b) ;; todo
+     (if (i32.eqz ($is-zero-integer $b))
          (then
           (set! $t $b)
-          (set! $b ($mod-integer/dealloc-1 $a $b)) ;; todo
+          (set! $b ($integer-remainder/dealloc-1 $a $b))
           (set! $a $t)
+          (if (i32.and (i32.eq (%get-integer-size $a) (i32.const 1))
+                       (i32.eq (%get-integer-size $b) (i32.const 1)))
+              (then
+               (return ($gcd-i64 (i64.load (%get-integer-addr $a))
+                                 (i64.load (%get-integer-addr $b)))
+                       ($dealloc-number $a)
+                       ($dealloc-number $b))))
           (br $again))))
 
    ($dealloc-number $b)
    $a)
+
+ (func $copy-integer (export "copy-integer")
+   (param $a i32)
+
+   (local $b i32)
+   (local $size i32)
+
+   (set! $size ($get-integer-digit-size $a))
+   (set! $b ($alloc-integer $size))
+
+   (memory.move (%get-integer-addr $b)
+                (%get-integer-addr $a)
+                (i32.shl $size (i32.const 3)))
+
+   $b)
+
+ (func $is-zero-integer (debug (export "is-zero-integer"))
+   (param $x i32)
+   (result i32)
+   (local $digit i64)
+   (local $offset i32)
+
+   (set! $digit
+         (set! $offset ($find-integer-leading-digit $x)))
+
+   (i32.and (i64.eqz $digit) (i32.eqz $offset)))
+
+ (func $lt-integer (debug (export "lt-integer"))
+   (param i32 $a)
+   (param i32 $b)
+   (result i32)
+
+   (if (%is-negative-integer $a)
+       (then
+        (if (%is-negative-integer $b)
+            (then
+             (set! $a-digit
+                   (set! $a-offset ($find-integer-leading-digit $a)))
+
+             (set! $b-digit
+                   (set! $b-offset ($find-integer-leading-digit $b)))
+
+             (if (i32.lt_u $a-offset $b-offset)
+                 (then
+                  (return (i32.const 0))))
+
+             (if (i32.gt_u $a-offset $b-offset)
+                 (then
+                  (return (i32.const 1))))
+
+             (if (i32.lt_u $a-digit $b-digit)
+                 (then
+                  (return (i32.const 0))))
+
+             (if (i32.gt_u $a-digit $b-digit)
+                 (then
+                  (return (i32.const 1))))
+
+             (if (i32.eqz $a-offset)
+                 (then
+                  (return (i32.const 0)))
+               (else
+                (return (i32.gt_u ($compare-integer-digits $a $b $a-offset) (i32.const 0))))))
+
+          (else
+           (return (i32.const 1))))))
+
+   (if (%is-negative-integer $b)
+       (then
+        (return (i32.const 0)))
+
+     (else
+      (set! $a-digit
+            (set! $a-offset ($find-integer-leading-digit $a)))
+
+      (set! $b-digit
+            (set! $b-offset ($find-integer-leading-digit $b)))
+
+      (if (i32.lt_u $a-offset $b-offset)
+          (then
+           (return (i32.const 1))))
+
+      (if (i32.gt_u $a-offset $b-offset)
+          (then
+           (return (i32.const 0))))
+
+      (if (i32.lt_u $a-digit $b-digit)
+          (then
+           (return (i32.const 1))))
+
+      (if (i32.gt_u $a-digit $b-digit)
+          (then
+           (return (i32.const 0))))
+
+      (if (i32.eqz $a-offset)
+          (then
+           (return (i32.const 0)))
+        (else
+         (return (i32.lt_u ($compare-integer-digits $a $b $a-offset) (i32.const 0))))))))
+
+ (func $compare-integer-digits (debug (export "compare-integer-digits"))
+   (param $a i32)
+   (param $b i32)
+   (param $offset i32)
+   (result i32)
+
+   (local $a-addr i32)
+   (local $a-base-addr i32)
+   (local $a-value i64)
+   (local $b-addr i32)
+   (local $b-value i64)
+
+   (set! $a-base-addr (%get-integer-addr $a))
+
+   (set! $a-addr (i32.add $a-base-addr $offset))
+   (set! $b-addr (i32.add (%get-integer-addr $b) $offset))
+
+   (loop $again
+     (if (i32.gt_u $a-addr $a-base-addr)
+         (then
+          (%decr-n i32 $a-addr 8)
+          (%decr-n i32 $b-addr 8)
+
+          (set! $a-value (i64.load $a-addr))
+          (set! $b-value (i64.load $b-addr))
+
+          (if (i64.eq $a-value $b-value)
+              (then
+               (br $again))))
+       (else
+        (return (i32.const 0)))))
+
+   (if (i64.lt_u $a-value $b-value)
+       (then
+        (return (i32.const -1)))
+     (else
+      (return (i32.const 1)))))
 
  (func $get-integer-size (export "get-integer-size")
    (param $int i32)
@@ -1263,7 +1913,7 @@
 
    (if (i32.ne $div _small-integer-1)
        (then
-        (set! $num ($divide/dealloc-1 $num $div)) ;; todo
+        (set! $num ($divide/dealloc-1 $num $div))
         (set! $denom ($divide/dealloc-1 $denom $div))
         ($dealloc-number $div)))
 
@@ -1309,10 +1959,9 @@
    (local $value i64)
 
    (set! $base-addr (%get-integer-addr $x))
-   (set! $size (%get-integer-size $x))
+   (set! $size (%get-integer-byte-size $x))
 
-   (set! $addr (i32.add $base-addr (i32.shl (i32.sub $size (i32.const 1))
-                                            (i32.const 6))))
+   (set! $addr (i32.add $base-addr (i32.sub $size (i32.const 8))))
 
    (loop $again
      (if (i32.gt_u $addr $base-addr)
