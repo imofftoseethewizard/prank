@@ -1289,7 +1289,7 @@
                   (%get-block-addr $new-block)
                   (%get-block-addr $block)
                   $size
-                  $blockset)
+                  (%get-blockset-id $blockset))
 
    ($dealloc-block $blockset $block)
 

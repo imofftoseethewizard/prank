@@ -15,7 +15,23 @@ from modules.debug.strings import *
 from modules.debug.symbols import *
 from modules.debug.parse import *
 
+from modules.debug import parse as parse_mod
+
 NULL = NULL.value
+
+def integer_to_int(x):
+    v = 0
+
+    for i in range(get_integer_size(x)):
+
+        digit = get_integer_digit_i64(x, i)
+
+        if digit < 0:
+            digit += 1<<64
+
+        v += digit << (64*i)
+
+    return v
 
 def parse_test(src):
 
@@ -237,9 +253,11 @@ decimal_test_cases = [
     '1.00',
     '0.1',
     '.3333',
-    '6553.6',
-    str(math.pi),
+    '101.101',
+    '655.36',
+    '3.141592653589793',
     '6.02e+23',
+    '95e-8',
     '95e-201',
     '1e-400',
     '1e+400',
@@ -255,14 +273,16 @@ decimal_test_cases = [
 exact_decimal_test_values = [
     1,
     1,
-    10,
+    1,
     1,
     (1, 10),
-    (3333, 10000)
-    (65536, 100000)
-    math.pi,
-    (602000000000000000000000),
-    '95e-201',
+    (3333, 10000),
+    (101101, 1000),
+    (16384, 25),
+    (3141592653589793, 1000000000000000),
+    602000000000000000000000,
+    (19, 20000000),
+    (19, 200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000),
     '1e-400',
     '1e+400',
     '29e6',
@@ -282,10 +302,60 @@ def test_parse_exact_decimal():
         init_parser()
         src = '#e' + src
         print(src)
-        value = parse_test(src)
+        try:
+            result = parse_test(src)
+            if type(value) == int:
 
-        assert not is_inexact(value)
+                if is_small_integer(result):
+                    assert result >> 3 == value
 
+                elif is_boxed_i64(result):
+                    assert get_boxed_i64(result) == value
+
+                else:
+                    i = 0
+                    while value:
+                        assert value & ((1<<64)-1) == get_integer_digit_i64(result, i)
+                        i += 1
+                        value >>= 64
+
+            else:
+                n, d = value
+                assert is_rational(result)
+
+                denom = denominator(result)
+                num = numerator(result)
+
+                if is_small_integer(num):
+                    assert num >> 3 == n
+
+                elif is_boxed_i64(num):
+                    assert get_boxed_i64(num) == n
+
+                else:
+                    assert integer_to_int(num) == n
+
+                if is_small_integer(denom):
+                    assert denom >> 3 == d
+
+                elif is_boxed_i64(denom):
+                    assert get_boxed_i64(denom) == d
+
+                else:
+                    assert integer_to_int(denom) == d
+
+        except:
+            print('numbers:')
+            print(hex(numbers.p1.value))
+            print(hex(numbers.p2.value))
+            print(hex(numbers.p3.value))
+            print(hex(numbers.p4.value))
+            print('parse:')
+            print(hex(parse_mod.p1.value))
+            print(hex(parse_mod.p2.value))
+            print(hex(parse_mod.p3.value))
+            print(hex(parse_mod.p4.value))
+            raise
 
 def test_parse_decimal():
 
@@ -301,6 +371,15 @@ def test_parse_decimal():
         # accurate.  See parse-decimal in parse.wam
         # assert get_boxed_f64(value) == float(src)
         assert get_boxed_f64(value) == pytest.approx(float(src), rel=1e-15)
+
+
+def test_pow_10_integer():
+
+    init_test()
+
+    for i in range(5):
+        x = pow_10_integer(i)
+        assert get_integer_digit_i32(x, 0) == 10**i
 
 
 # todo: test exact/inexact
