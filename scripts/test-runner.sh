@@ -7,4 +7,4 @@ cd $ROOT_DIR
 . ./setup.rc
 
 cd test
-pytest
+pytest $1

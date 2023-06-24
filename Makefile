@@ -1,5 +1,8 @@
 .DEFAULT_GOAL := all
 
+TEST_SCOPE=
+export TEST_SCOPE
+
 obj/debug/%.wasm: obj/debug/src/%.wat
 	${WAT2WASM} obj/debug/src/$*.wat -o $@ --debug-names
 
@@ -155,6 +158,6 @@ clean:
 wasm: ${OBJECTS}
 
 test: dirs wasm ${TOOLS}
-	scripts/test-runner.sh
+	scripts/test-runner.sh ${TEST_SCOPE}
 
 .PHONY: all objects test clean
