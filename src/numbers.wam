@@ -1158,7 +1158,7 @@
       (global.set $p3 _null)
 
       (loop $again
-        (if (i32.gt_s $bit-place (i32.const 0))
+        (if (i32.ge_s $bit-place (i32.const 0))
             (then
              (global.set $p1 ($make-pair $bit-place (global.get $p1)))
              (global.set $p2 ($make-pair $rem (global.get $p2)))
@@ -1177,9 +1177,6 @@
              (set! $rem-bits ($get-integer-bit-size $rem)) ;; todo: track digit, offset here
              (set! $shift-bits (i32.sub $rem-bits ($get-integer-bit-size $div)))
              ;;(set! $shift-bits (i32.sub $rem-bits $div-bits)) ;; NB: shift-bits is always < 0
-
-             (if (i32.eq $bit-place (i32.const 633))
-                 (then (unreachable)))
 
              (set! $bit-place (i32.add $bit-place $shift-bits))
 
@@ -1761,13 +1758,13 @@
           (set! $t $b)
           (set! $b ($integer-remainder/dealloc-1 $a $b))
           (set! $a $t)
-          (if (i32.and (i32.eq (%get-integer-size $a) (i32.const 1))
-                       (i32.eq (%get-integer-size $b) (i32.const 1)))
-              (then
-               (return ($gcd-i64 (i64.load (%get-integer-addr $a))
-                                 (i64.load (%get-integer-addr $b)))
-                       ($dealloc-number $a)
-                       ($dealloc-number $b))))
+          ;; (if (i32.and (i32.eq (%get-integer-size $a) (i32.const 1))
+          ;;              (i32.eq (%get-integer-size $b) (i32.const 1)))
+          ;;     (then
+          ;;      (return ($gcd-i64 (i64.load (%get-integer-addr $a))
+          ;;                        (i64.load (%get-integer-addr $b)))
+          ;;              ($dealloc-number $a)
+          ;;              ($dealloc-number $b))))
           (br $again))))
 
    ($dealloc-number $b)

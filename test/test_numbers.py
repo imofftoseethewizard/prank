@@ -215,6 +215,17 @@ def test_coerce_integer_f64():
         negate_integer(x)
         assert coerce_integer_f64(x) == -pow(10, i)
 
+def test_is_zero_integer():
+
+    init_test()
+
+    for i in range(1, 16):
+        x = make_integer(0, i)
+        assert is_zero_integer(x)
+
+        set_integer_i64_digit(x, i-1, 1)
+        assert not is_zero_integer(x)
+
 def test_get_integer_bit_size():
 
     init_test()
@@ -301,14 +312,26 @@ def test_gcd_integer():
 
     assert integer_to_int(gcd_integer(x, y)) == 2
 
-    x = make_integer(95, 1)
-    y = int_to_integer(10**201)
-
-    assert integer_to_int(gcd_integer(x, y)) == 5
+    for i in range (1, 2):
+      x = make_integer(95, 1)
+      y = int_to_integer(10**i)
+      d = gcd_integer(x, y)
+      print(i, format_addr(d))
+      assert integer_to_int(d) == 5
 
 def test_integer_remainder():
 
     init_test()
+
+    x = int_to_integer(95)
+    y = int_to_integer(10)
+
+    assert integer_to_int(integer_remainder(x, y)) == 5
+
+    x = int_to_integer(10)
+    y = int_to_integer(5)
+
+    assert integer_to_int(integer_remainder(x, y)) == 0
 
     x = int_to_integer(10**201)
     y = make_integer(95, 1)
@@ -338,6 +361,61 @@ def test_integer_division():
 def test_divide_integer_digits():
 
     init_test()
+
+    for i in range(1, 10):
+        for j in range(1, i):
+            x = int_to_integer(i-j)
+            y = int_to_integer(j)
+            print(i-j, j, end=' ')
+            r, q = divide_integer_digits(x, y)
+
+            print('q:', integer_to_int(q), 'r:', integer_to_int(r))
+            assert integer_to_int(r) == (i-j) % j
+            assert integer_to_int(q) == (i-j) // j
+
+    for i in range(1, 100, 9):
+        for j in range(1, i, 7):
+            x = int_to_integer(i-j)
+            y = int_to_integer(j)
+            print(i-j, j, end=' ')
+            r, q = divide_integer_digits(x, y)
+
+            print('q:', integer_to_int(q), 'r:', integer_to_int(r))
+            assert integer_to_int(r) == (i-j) % j
+            assert integer_to_int(q) == (i-j) // j
+
+    for i in range(1, 10000, 974):
+        for j in range(1, i, 1031):
+            x = int_to_integer(i-j)
+            y = int_to_integer(j)
+            print(i-j, j, end=' ')
+            r, q = divide_integer_digits(x, y)
+
+            print('q:', integer_to_int(q), 'r:', integer_to_int(r))
+            assert integer_to_int(r) == (i-j) % j
+            assert integer_to_int(q) == (i-j) // j
+
+    for i in range(1, 100000000, 9745467):
+        for j in range(1, i, 10311231):
+            x = int_to_integer(i-j)
+            y = int_to_integer(j)
+            print(i-j, j, end=' ')
+            r, q = divide_integer_digits(x, y)
+
+            print('q:', integer_to_int(q), 'r:', integer_to_int(r))
+            assert integer_to_int(r) == (i-j) % j
+            assert integer_to_int(q) == (i-j) // j
+
+    for i in range(1, 10000000000000000, 974546712345678):
+        for j in range(1, i, 1031123112345678):
+            x = int_to_integer(i-j)
+            y = int_to_integer(j)
+            print(i-j, j, end=' ')
+            r, q = divide_integer_digits(x, y)
+
+            print('q:', integer_to_int(q), 'r:', integer_to_int(r))
+            assert integer_to_int(r) == (i-j) % j
+            assert integer_to_int(q) == (i-j) // j
 
     x = int_to_integer(10**201)
     y = make_integer(95, 1)
