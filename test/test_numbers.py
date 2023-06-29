@@ -1,3 +1,5 @@
+import pytest
+
 from util import format_addr
 from modules.debug.block_mgr import *
 from modules.debug.numbers import *
@@ -371,6 +373,7 @@ def test_integer_division():
     assert integer_to_int(r) == 10**201 % 95
     assert integer_to_int(q) == 10**201 // 95
 
+@pytest.mark.slow
 def test_divide_integer_digits():
 
     init_test()
@@ -526,6 +529,7 @@ def test_shift_integer():
     shift_integer(x, -2)
     assert integer_to_int(x) == 20
 
+@pytest.mark.slow
 def test_shift_integer_left():
 
     init_test()
@@ -537,6 +541,7 @@ def test_shift_integer_left():
                 shift_integer_left(x, k)
                 assert integer_to_int(x) == (1<<n) + (1<<j)
 
+@pytest.mark.slow
 def test_shift_integer_right():
 
     init_test()
