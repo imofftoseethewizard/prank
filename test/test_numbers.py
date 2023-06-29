@@ -24,7 +24,10 @@ def integer_to_int(x, log=False):
 
 def int_to_integer(v):
 
-    assert v >= 0, 'not implemented'
+    is_negative = v < 0
+
+    if is_negative:
+        v = -v
 
     size = 0
     w = v
@@ -40,6 +43,9 @@ def int_to_integer(v):
         digit = set_integer_i64_digit(x, i, v & ((1<<64)-1))
 
         v >>= 64
+
+    if is_negative:
+        negate_integer(x)
 
     return x
 
@@ -211,9 +217,16 @@ def test_coerce_integer_f64():
         assert coerce_integer_f64(x) == pow(10, i)
 
     for i in range(0, 18):
-        x = make_integer(10**i, 1)
-        negate_integer(x)
-        assert coerce_integer_f64(x) == -pow(10, i)
+        x = int_to_integer(-(10**i))
+        assert is_negative(x)
+        f64 = coerce_integer_f64(x)
+        assert f64 == -pow(10, i)
+
+    for i in range(300):
+        v = 10**i
+        x = int_to_integer(v)
+        f64 = coerce_integer_f64(x)
+        assert f64 == float(v)
 
 def test_is_zero_integer():
 

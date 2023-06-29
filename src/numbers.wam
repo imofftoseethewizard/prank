@@ -279,12 +279,15 @@
 
    (local $new-size i32)
    (local $old-size i32)
+   (local $sign-flag i32)
 
    (set! $old-size (%get-integer-byte-size $x))
    (set! $new-size (i32.shl $i64-digits (i32.const #i64-size-bits)))
+   (set! $sign-flag (%get-integer-sign-flag $x))
 
    (%set-box-type $x (%make-integer-number-type $i64-digits))
    (%set-box-value $x ($resize-block _numbers-blockset (%get-box-value $x) $new-size))
+   (%set-integer-sign-flag $x $sign-flag)
 
    (if (i32.gt_u $new-size $old-size)
        (then
@@ -1547,6 +1550,7 @@
    $x)
 
  (func $invalid-number-type (unreachable))
+ (func $not-implemented (unreachable))
 
  (func $negate-f64 (export "negate-f64")
    (param $x i32)
@@ -2009,20 +2013,12 @@
 
    (if (i32.eq $type _number-type-rational)
        (then
-        ;; Where the rational contains an integer of sufficient size,
-        ;; this may produce an inf or 0 where it might otherwise have
-        ;; a finite non-zero value.  Once extended integer division is
-        ;; implemented, this can be addressed more simply. todo
-        (f64.div ($coerce-f64 ($get-pair-car $value))
-                 ($coerce-f64 ($get-pair-cdr $value)))
-        ($dealloc-pair (%get-value-data $value))
-        (%dealloc-box $x)
+        ($coerce-rational-f64 $x)
         (return)))
 
    (if (i32.eq $type _number-type-integer)
        (then
         ($coerce-integer-f64 $x)
-        ($dealloc-number $x)
         (return)))
 
    (if (i32.eq $type _number-type-complex)
@@ -2036,94 +2032,180 @@
    ;; needed for type check
    (f64.const 0))
 
- (func $coerce-integer-f64 (debug (export "coerce-integer-f64"))
-   (param $int i32)
+ (func $coerce-rational-f64 (debug (export "coerce-rational-f64"))
+   (param $x i32)
    (result f64)
 
-   (local $abs-result f64)
-   (local $addr i32)
-   (local $digit i64)
-   (local $end-addr i32)
-   (local $is-negative i32)
-   (local $precision i32)
-   (local $sign i32)
-   (local $size i32)
+   (local $d i32)
+   (local $d-bits i32)
+   (local $n i32)
+   (local $n-bits i32)
+   (local $mantissa-adj i32)
 
-   (set! $size (%get-integer-size $int))
+   (set! $n ($promote-to-integer ($numerator $x)))
+   (set! $d ($promote-to-integer ($denominator $x)))
 
-   ;; size is the number of 64 bit digits so multiply by 64.
-   (set! $precision (i32.shl $size (i32.const 6)))
+   ($dealloc-number $x)
 
-   (set! $end-addr (%get-integer-addr $int))
-   (set! $addr (i32.add $end-addr
-                        (i32.shl (i32.sub $size (i32.const 1))
-                                 (i32.const #i64-size-bits))))
+   (set! $d-bits ($get-integer-bit-size $d))
+   (set! $n-bits ($get-integer-bit-size $n))
 
-   (loop $again
-     (set! $digit (i64.load $addr))
+   ;; ensure the quotient has at least 63 bits to allow a precise
+   ;; conversion to f64. See $coerce-integer-f64 below.
 
-     (if (i32.and (i64.eqz $digit)
-                  (i32.ne $addr $end-addr))
-         (then
-          (%decr-n i32 $addr 8)
-          (br $again))))
+   (set! $mantissa-adj (i32.sub (i32.add $d-bits (i32.const 63)) $n-bits))
+   (if (i32.lt_s $mantissa-adj (i32.const 0))
+       (then
+        (set! $mantissa-adj (i32.const 0)))
+     (else
+      ($shift-integer $n $mantissa-adj)))
 
-   (set! $precision (if (result i32) (i64.eqz $digit)
-                      (then
-                       (i32.const 0))
-                      (else
-                       (i32.add (i32.sub (i32.const 64) (i32.wrap_i64 (i64.clz $digit)))
-                                (i32.shl (i32.sub $addr $end-addr)
-                                         (i32.const 3))))))
+   ;; return value
+   ($adjust-mantissa ($coerce-integer-f64 ($integer-quotient $n $d))
+                     $mantissa-adj)
 
-   (set! $abs-result (if (result f64) (i32.lt_u $precision (i32.const 64))
-                       (then
-                        (f64.convert_i64_u $digit))
-                       (else
-                        (if (result f64) (i32.le_u $precision (i32.const 1024))
-                          (then
-                           ($build-f64 $digit
-                                       (i64.load (i32.sub $addr (i32.const 8)))
-                                       $precision))
-                          (else
-                           (f64.const +inf))))))
+   ($dealloc-number $n)
+   ($dealloc-number $d))
 
-   (if (result f64) (%is-negative-integer $int)
-     (then (f64.neg $abs-result))
-     (else $abs-result)))
+ (func $promote-to-integer (debug (export "promote-to-integer"))
+   (param $x i32)
+   (result i32)
 
- (func $build-f64 (debug (export "build-f64"))
-   (param $leading-digit i64)
-   (param $next-digit i64)
-   (param $precision i32)
+   (local $type i32)
+   (local $value i32)
+
+   (if (i32.eq (%get-value-tag $x) _tag-small-integer)
+       (then
+        (return ($make-integer-i64 (i64.extend_i32_s (%get-small-integer-value $x))))))
+
+   (set! $type (%get-number-type $x))
+   (set! $value (%get-box-value $x))
+
+   (if (i32.eq $type _number-type-f64)
+       (then
+        ($not-implemented)))
+
+   (if (i32.eq $type _number-type-i64)
+       (then
+        (return
+         ($make-integer-i64 (i64.load $value))
+         ($dealloc-number $x))))
+
+   (if (i32.eq $type _number-type-complex)
+       (then
+        ($not-implemented)))
+
+   (if (i32.eq $type _number-type-rational)
+       (then
+        ($not-implemented)))
+
+   (if (i32.eq $type _number-type-integer)
+       (then
+        (return ($copy-integer $x))))
+
+   ($invalid-number-type)
+   $x)
+
+ (macro %get-f64-mantissa
+   (expr ,x)
+   (i64.and (i64.reinterpret_f64 ,x) (i64.const 0x7ff0000000000000)))
+
+ (macro %get-f64-sign
+   (expr ,x)
+   (i64.and (i64.reinterpret_f64 ,x) (i64.const 0x8000000000000000)))
+
+ (macro %get-f64-significand
+   (expr ,x)
+   (i64.and (i64.reinterpret_f64 ,x) (i64.const 0x000fffffffffffff)))
+
+ (macro %build-f64
+   (expr ,sign)
+   (expr ,mantissa)
+   (expr ,significand)
+   (f64.reinterpret_i64 (i64.or (i64.or ,sign ,mantissa) ,significand)))
+
+ (func $adjust-mantissa (debug (export "adjust-mantissa"))
+   (param $x f64)
+   (param $n i32)
    (result f64)
 
-   (local $abcissa i64)
    (local $mantissa i64)
-   (local $prec-rem i32)
-   (local $shift i64)
+   (local $significand i64)
 
-   (set! $abcissa (i64.shl (i64.extend_i32_u (i32.add (i32.sub $precision (i32.const 1))
-                                                      (i32.const 1023)))
-                           (i64.const 53)))
+   (set! $mantissa (i64.sub (i64.shr_u (%get-f64-mantissa $x) (i64.const 52))
+                            (i64.extend_i32_s $n)))
 
-   ;; remainder of $precision when divided by 64
-   (set! $prec-rem (i32.and $precision (i32.const 0x3f)))
+   (set! $significand (%get-f64-significand $x))
 
-   (set! $mantissa (i64.and
-                    (i64.const 0x001fffffffffffff) ;; trim to 53 bits
-                    ;; collect the most significant 54 bits of the integer
-                    (if (result i64) (i32.ge_u $prec-rem (i32.const 54))
-                      (then
-                       (i64.shr_u $leading-digit
-                                  (i64.sub (i64.extend_i32_u $prec-rem)
-                                           (i64.const 54))))
-                      (else
-                       (set! $shift (i64.sub (i64.const 54) (i64.extend_i32_u $prec-rem)))
-                       (i64.or (i64.shl $leading-digit $shift)
-                               (i64.shr_u $next-digit (i64.sub (i64.const 64) $shift)))))))
+   ;; check for overflow
+   (if (i64.ge_s $mantissa (i64.const 0x7ff))
+       (then
+        (set! $mantissa (i64.const 0x7ff))
+        (set! $significand (i64.const 0)))
+     (else
+      ;; check for underflow
+      (if (i64.le_s $mantissa (i64.const 0))
+          (then
+           (if (i64.le_s $mantissa (i64.const -53))
+               (then
+                (set! $significand (i64.const 0)))
+             (else
+              ;; attempt to express as a subnormal number
+              (set! $significand (i64.shr_u (i64.or $significand (i64.const 0x0010000000000000))
+                                            (i64.sub (i64.const 1) $mantissa)))))
 
-   (f64.reinterpret_i64 (i64.or $abcissa $mantissa)))
+           (set! $mantissa (i64.const 0))))))
+
+   (%build-f64 (%get-f64-sign $x)
+               (i64.shl $mantissa (i64.const 52))
+               $significand))
+
+ (func $coerce-integer-f64 (debug (export "coerce-integer-f64"))
+   (param $x i32)
+   (result f64)
+
+   (local $bit-size i32)
+   (local $mantissa i64)
+   (local $mantissa-adj i32)
+   (local $result f64)
+   (local $result-i64 i64)
+
+   (set! $bit-size ($get-integer-bit-size $x))
+
+   (if (i32.eqz $bit-size)
+       (then
+        ($dealloc-number $x)
+        (return (f64.const 0.0))))
+
+   (set! $mantissa-adj (i32.sub (i32.const 63) $bit-size))
+
+   ($shift-integer $x $mantissa-adj)
+
+   (set! $result (f64.convert_i64_u (i64.load (%get-integer-addr $x))))
+
+   (if $mantissa-adj
+       (then
+        (set! $result-i64 (i64.reinterpret_f64 $result))
+        (set! $mantissa (i64.sub (i64.shr_u $result-i64 (i64.const 52))
+                                 (i64.extend_i32_s $mantissa-adj)))
+        (if (i64.ge_s $mantissa (i64.const 0x7ff))
+            (then
+             (set! $mantissa (i64.const 0x7ff))))
+        (set! $result (f64.reinterpret_i64
+                       (i64.or (i64.shl $mantissa (i64.const 52))
+                               (i64.and $result-i64 (i64.const 0x000fffffffffffff)))))))
+
+   (if (result f64) (%is-negative-integer $x)
+     (then (f64.neg $result))
+     (else $result))
+
+   ($dealloc-number $x))
+
+ (debug
+  (func $f64-to-i64 (export "f64-to-i64")
+    (param $x f64)
+    (result i64)
+    (i64.reinterpret_f64 $x)))
 
  (func $normalize-number (export "normalize-number")
    (param $x i32)

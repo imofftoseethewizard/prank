@@ -385,8 +385,8 @@ def test_parse_decimal():
         assert is_inexact(value)
         # todo: (big) integer multiplication and division will make this more
         # accurate.  See parse-decimal in parse.wam
-        # assert get_boxed_f64(value) == float(src)
-        assert get_boxed_f64(value) == pytest.approx(float(src), rel=1e-15)
+        assert get_boxed_f64(value) == float(src)
+        # assert get_boxed_f64(value) == pytest.approx(float(src), rel=1e-15)
 
 
 def test_pow_10_integer():
