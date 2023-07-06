@@ -20,6 +20,20 @@ from modules.debug import parse as parse_mod
 
 NULL = NULL.value
 
+def to_int(x):
+
+    if is_small_integer(x):
+        return x >> 3
+
+    elif is_boxed_i64(x):
+        return get_boxed_i64(x)
+
+    elif is_rational(x) or is_complex(x) or is_boxed_f64(x):
+        assert False
+
+    else:
+        return integer_to_int(x)
+
 def integer_to_int(x):
     v = 0
 
@@ -318,7 +332,6 @@ def test_parse_exact_decimal():
                 else:
                     i = 0
 
-
                     if value < 0:
                         assert is_negative(result)
                         value = -value
@@ -395,5 +408,41 @@ def test_pow_10_integer():
         assert get_integer_digit_i32(x, 0) == 10**i
 
 
-# todo: test exact/inexact
+def check_octal_integer(src_base):
+
+    src = f'#o{src_base}'
+    py_src = f'0o{src_base}'
+    value = eval(py_src)
+    init_parser()
+
+    result = parse_test(src)
+
+    try:
+        assert to_int(result) == value
+
+    except:
+        print(src)
+        print(py_src)
+        print(format_addr(result))
+        print(value)
+
+        raise
+
+def test_octal_integer():
+
+    init_test()
+
+    for i in range(1, 80):
+        for d in range(8):
+            check_octal_integer(str(d)*i)
+            check_octal_integer(str(d)+'0'*(i-1))
+
+def test_octal_number_forms():
+
+    init_test()
+
+    init_parser()
+    result = parse_test('#i#o26/7')
+    assert get_boxed_f64(result) == 0o26/7
+
 # todo: test small integer vs i64 vs integer

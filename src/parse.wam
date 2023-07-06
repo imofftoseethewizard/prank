@@ -1690,15 +1690,16 @@
    (local $length i32)
    (set! $length (i32.sub $end $text))
 
-   (if (i32.lt_u $length (i32.const 10))
+   (if (i32.le_u $length (i32.const 9))
        (then
         ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
+        ;; 9 octal digits is 27 bits
         (return ($parse-small-uinteger-8-value $text $end))))
 
-   ;; todo
-   (if (i32.lt_u $length (i32.const 64))
+   (if (i32.le_u $length (i32.const 21))
        (then
         ;; 29-63 bits will fit in an i64
+        ;; 21 octal digits is 63 bits
         (return ($parse-i64-uinteger-8-value $text $end))))
 
    ;; >= 64 bits
@@ -1754,33 +1755,54 @@
 
    (local $accum i64)
    (local $bit-length i32)
+   (local $carry-bits i64)
    (local $char i32)
+   (local $char-value i64)
+   (local $digit-bits i64)
+   (local $digit-idx i32)
+   (local $size i32)
    (local $value i32)
 
    (set! $bit-length (i32.mul (i32.sub $end $text) (i32.const 3)))
+   (set! $size (i32.shr_u (i32.add $bit-length (i32.const 0x3f))
+                          (i32.const 6)))
 
-   ;; normally, we'd have (x + 63) >> 6, but here we need to allow for a sign
-   ;; bit as well, so it becomes (x + 64) >> 6 = (x >> 6) + 1.
-   (set! $value ($alloc-integer (i32.add (i32.shr_u $bit-length (i32.const 6))
-                                         (i32.const 1))))
+   (set! $value ($alloc-integer $size))
+   (set! $digit-idx (i32.sub $size (i32.const 1)))
 
    (set! $accum (i64.const 0))
+   (set! $carry-bits (i64.const 0))
+   (set! $digit-bits (i64.and (i64.sub (i64.const 0) (i64.extend_i32_u $bit-length))
+                              (i64.const 0x3f)))
 
    (loop $again
      (if (i32.ne $text $end)
          (then
           (set! $char ($get-string-char $text))
-          (set! $accum (i64.add (i64.shl $accum (i64.const 3))
-                                (i64.extend_i32_u (i32.sub $char _char-0))))
-
-          ;; todo
-          (if (i32.eqz (i32.and $bit-length (i32.const 0x3f)))
+          (set! $char-value (i64.extend_i32_u (i32.sub $char _char-0)))
+          (%incr-n i64 $digit-bits 3)
+          (if (i64.le_u $digit-bits (i64.const 0x40))
               (then
-               ($set-integer-i64-digit $value (i32.shr_u $bit-length (i32.const 6)) $accum)
-               (set! $accum (i64.const 0))))
+               (set! $accum (i64.add (i64.shl $accum (i64.const 3))
+                                     $char-value)))
+            (else
+             (set! $carry-bits (i64.sub $digit-bits (i64.const 0x40)))
+             (set! $accum (i64.add (i64.shl $accum (i64.sub (i64.const 3) $carry-bits))
+             	                   (i64.shr_u $char-value $carry-bits)))
+             (set! $digit-bits (i64.const 0x40))))
+
+          (if (i64.eq $digit-bits (i64.const 0x40))
+              (then
+               ($set-integer-i64-digit $value $digit-idx $accum)
+               (%decr i32 $digit-idx)
+
+               (set! $accum (i64.and $char-value
+                                     (i64.sub (i64.shl (i64.const 1) $carry-bits)
+                                              (i64.const 1))))
+               (set! $digit-bits $carry-bits)
+               (set! $carry-bits (i64.const 0))))
 
           (%incr i32 $text)
-          (%decr-n i32 $bit-length 3)
           (br $again))))
 
    $value)
@@ -2155,105 +2177,6 @@
          ($dealloc-number $exp)))))
 
    ($make-rational $numerator $denominator))
-
- ;; max positive i64 divided by 10.
- (define _max-significand (i64.const 0x0ccccccccccccccc))
-
- (func $parse-inexact-decimal-value (debug (export "parse-inexact-decimal-value"))
-   (param $text i32)
-   (param $end i32)
-   (result i32)
-
-   (local $char i32)
-   (local $decimal-point i32)
-   (local $end-match i32)
-   (local $end-significand i32)
-   (local $exp i32)
-   (local $exp-digits i32)
-   (local $exp-pow-10 f64)
-   (local $exp-start i32)
-   (local $exp-value i32)
-   (local $fractional-digits i32)
-   (local $scan i32)
-   (local $significand i64)
-
-   (drop ;; rule-id
-    (set! $end-match
-          ($lex-match-significand-forms $text $end)))
-
-   (set! $scan $text)
-   (set! $significand (i64.const 0))
-   (set! $decimal-point _null)
-
-   (loop $scan-significand
-     (if (i32.and (i32.lt_u $scan $end-match)
-                  (i64.lt_u $significand _max-significand))
-         (then
-          (set! $char ($get-string-char $scan))
-          (if (i32.eq $char _char-dot)
-              (then
-               (set! $decimal-point $scan))
-            (else
-             (set! $significand (i64.add (i64.mul $significand (i64.const 10))
-                                         (i64.extend_i32_u (i32.sub $char _char-0))))))
-
-          (%incr i32 $scan)
-          (br $scan-significand))))
-
-   (set! $end-significand $scan)
-
-   (if (i32.eq $decimal-point _null)
-       (then
-        (loop $scan-decimal-point
-          (if (i32.lt_u $scan $end-match)
-              (then
-               (set! $char ($get-string-char $scan))
-               (if (i32.eq $char _char-dot)
-                   (then
-                    (set! $decimal-point (i32.sub $scan (i32.const 1))))
-                 (else
-                  (%incr i32 $scan)
-                  (br $scan-decimal-point))))))))
-
-   (set! $fractional-digits (if (result i32) (i32.eq $decimal-point _null)
-                              (then (i32.const 0))
-                              (else (i32.sub (i32.sub $end-significand $decimal-point)
-                                             (i32.const 1)))))
-
-   (if (i32.eq $end $end-match)
-       (then
-        (set! $exp-pow-10 ($pow-10-f64 (i32.sub (i32.const 0) $fractional-digits))))
-
-     (else
-      ;; parse suffix: e+25, for example
-
-      (set! $exp-start (i32.add $end-match (i32.const 1)))
-
-      (drop ;; rule-id
-       (set! $exp-digits
-             ($lex-match-sign $exp-start $end)))
-
-      (set! $exp-value ($parse-uinteger-10-value $exp-digits $end))
-
-      (if (i32.and (i32.gt_u $exp-digits $exp-start)
-                   (i32.eq ($get-string-char $exp-start) _char-minus))
-          (then
-           (set! $exp-value ($negate-number $exp-value))))
-
-      (if (%is-small-integer $exp-value)
-          (then
-
-           (set! $exp-pow-10 ($pow-10-f64 (i32.sub (%get-small-integer-value $exp-value)
-                                                   $fractional-digits))))
-        (else
-         ($dealloc-number $exp)
-         ;; todo handle negative
-         (set! $exp-pow-10 (f64.const +inf))))))
-
-   ;; todo: (big) integer multiplication and division will make this more
-   ;; accurate.
-
-   ($make-boxed-f64 (f64.mul (f64.convert_i64_u $significand) $exp-pow-10)))
 
  (func $pow-10-f64 (debug (export "pow-10-f64"))
    (param $n i32)

@@ -2402,6 +2402,17 @@
      (else
       (i32.eq (%get-number-type $n) _number-type-i64))))
 
+ (func $is-boxed-f64 (debug (export "is-boxed-f64"))
+   (param $n i32)
+   (result i32)
+
+   (if (result i32) (i32.ne (%get-value-tag $n) _tag-box)
+     (then
+      (i32.const 0))
+
+     (else
+      (i32.eq (%get-number-type $n) _number-type-f64))))
+
  (func $real-part (export "real-part")
    (param $n i32)
    (result i32)
