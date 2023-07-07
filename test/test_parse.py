@@ -445,4 +445,66 @@ def test_octal_number_forms():
     result = parse_test('#i#o26/7')
     assert get_boxed_f64(result) == 0o26/7
 
+def check_hexidecimal_integer(src_base):
+
+    src = f'#x{src_base}'
+    py_src = f'0x{src_base}'
+    value = eval(py_src)
+    init_parser()
+
+    result = parse_test(src)
+
+    try:
+        assert to_int(result) == value
+
+    except:
+        print(src)
+        print(py_src)
+        print(format_addr(result))
+        print(format_addr(to_int(result)))
+        print(value)
+
+        raise
+
+def test_hexidecimal_integer():
+
+    init_test()
+
+    for i in range(1, 80):
+        for d in range(16):
+            check_hexidecimal_integer(('%x' % d)*i)
+            check_hexidecimal_integer(('%x' % d)+'0'*(i-1))
+            check_hexidecimal_integer(('%X' % d)*i)
+            check_hexidecimal_integer(('%X' % d)+'0'*(i-1))
+
+def check_binary_integer(src_base):
+
+    src = f'#b{src_base}'
+    py_src = f'0b{src_base}'
+    value = eval(py_src)
+    init_parser()
+
+    result = parse_test(src)
+
+    try:
+        assert to_int(result) == value
+
+    except:
+        print(src)
+        print(py_src)
+        print(format_addr(result))
+        print(format_addr(to_int(result)))
+        print(value)
+
+        raise
+
+def test_binary_integer():
+
+    init_test()
+
+    for i in range(1, 200):
+        for d in ('0', '1'):
+            check_binary_integer(d*i)
+            check_binary_integer(d+'0'*(i-1))
+
 # todo: test small integer vs i64 vs integer

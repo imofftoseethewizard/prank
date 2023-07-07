@@ -1366,7 +1366,7 @@
         (return ($parse-i64-uinteger-2-value $text $end))))
 
    ;; >= 64 bits
-   ($parse-integer-uintger-2-value $text $end))
+   ($parse-integer-uinteger-2-value $text $end))
 
  (func $parse-small-uinteger-2-value (debug (export "parse-small-uinteger-2-value"))
    (param $text i32)
@@ -1411,7 +1411,7 @@
 
    ($make-boxed-i64 $value))
 
- (func $parse-integer-uintger-2-value (debug (export "parse-integer-uinteger-2-value"))
+ (func $parse-integer-uinteger-2-value (debug (export "parse-integer-uinteger-2-value"))
    (param $text i32)
    (param $end i32)
    (result i32)
@@ -1423,10 +1423,8 @@
 
    (set! $bit-length (i32.sub $end $text))
 
-   ;; normally, we'd have (x + 63) >> 6, but here we need to allow for a sign
-   ;; bit as well, so it becomes (x + 64) >> 6 = (x >> 6) + 1.
-   (set! $value ($alloc-integer (i32.add (i32.shr_u $bit-length (i32.const 6))
-                                         (i32.const 1))))
+   (set! $value ($alloc-integer (i32.shr_u (i32.add $bit-length (i32.const 0x3f))
+                                           (i32.const 6))))
 
    (set! $accum (i64.const 0))
 
@@ -1437,13 +1435,14 @@
           (set! $accum (i64.add (i64.shl $accum (i64.const 1))
                                 (i64.extend_i32_u (i32.eq $char _char-1))))
 
+          (%decr i32 $bit-length)
+
           (if (i32.eqz (i32.and $bit-length (i32.const 0x3f)))
               (then
                ($set-integer-i64-digit $value (i32.shr_u $bit-length (i32.const 6)) $accum)
                (set! $accum (i64.const 0))))
 
           (%incr i32 $text)
-          (%decr i32 $bit-length)
           (br $again))))
 
    $value)
@@ -1703,7 +1702,7 @@
         (return ($parse-i64-uinteger-8-value $text $end))))
 
    ;; >= 64 bits
-   ($parse-integer-uintger-8-value $text $end))
+   ($parse-integer-uinteger-8-value $text $end))
 
  (func $parse-small-uinteger-8-value (debug (export "parse-small-uinteger-8-value"))
    (param $text i32)
@@ -1748,7 +1747,7 @@
 
    ($make-boxed-i64 $value))
 
- (func $parse-integer-uintger-8-value (debug (export "parse-integer-uinteger-8-value"))
+ (func $parse-integer-uinteger-8-value (debug (export "parse-integer-uinteger-8-value"))
    (param $text i32)
    (param $end i32)
    (result i32)
@@ -2247,19 +2246,20 @@
    (local $length i32)
    (set! $length (i32.sub $end $text))
 
+   ;; 28/log2(10) ~= 8.428839878591473
    (if (i32.lt_u $length (i32.const 9))
        (then
         ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
         (return ($parse-small-uinteger-10-value $text $end))))
 
-   ;; todo
-   (if (i32.lt_u $length (i32.const 64))
+   ;; 63/log2(10) ~= 18.964889726830815
+   (if (i32.lt_u $length (i32.const 19))
        (then
         ;; 29-63 bits will fit in an i64
         (return ($parse-i64-uinteger-10-value $text $end))))
 
    ;; >= 64 bits
-   ($parse-integer-uintger-10-value $text $end))
+   ($parse-integer-uinteger-10-value $text $end))
 
  (func $parse-small-uinteger-10-value (debug (export "parse-small-uinteger-10-value"))
    (param $text i32)
@@ -2307,7 +2307,7 @@
 
    ($make-boxed-i64 $value))
 
- (func $parse-integer-uintger-10-value (debug (export "parse-integer-uinteger-10-value"))
+ (func $parse-integer-uinteger-10-value (debug (export "parse-integer-uinteger-10-value"))
    (param $text i32)
    (param $end i32)
    (result i32)
@@ -2625,14 +2625,13 @@
         ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
         (return ($parse-small-uinteger-16-value $text $end))))
 
-   ;; todo
-   (if (i32.lt_u $length (i32.const 64))
+   (if (i32.lt_u $length (i32.const 16))
        (then
         ;; 29-63 bits will fit in an i64
         (return ($parse-i64-uinteger-16-value $text $end))))
 
    ;; >= 64 bits
-   ($parse-integer-uintger-16-value $text $end))
+   ($parse-integer-uinteger-16-value $text $end))
 
  (func $parse-small-uinteger-16-value (debug (export "parse-small-uinteger-16-value"))
    (param $text i32)
@@ -2677,7 +2676,7 @@
 
    ($make-boxed-i64 $value))
 
- (func $parse-integer-uintger-16-value (debug (export "parse-integer-uinteger-16-value"))
+ (func $parse-integer-uinteger-16-value (debug (export "parse-integer-uinteger-16-value"))
    (param $text i32)
    (param $end i32)
    (result i32)
@@ -2687,12 +2686,10 @@
    (local $char i32)
    (local $value i32)
 
-   (set! $bit-length (i32.sub $end $text))
+   (set! $bit-length (i32.shl (i32.sub $end $text) (i32.const 2)))
 
-   ;; normally, we'd have (x + 63) >> 6, but here we need to allow for a sign
-   ;; bit as well, so it becomes (x + 64) >> 6 = (x >> 6) + 1.
-   (set! $value ($alloc-integer (i32.add (i32.shr_u $bit-length (i32.const 6))
-                                         (i32.const 1))))
+   (set! $value ($alloc-integer (i32.shr_u (i32.add $bit-length (i32.const 0x3f))
+                                           (i32.const 6))))
 
    (set! $accum (i64.const 0))
 
@@ -2700,8 +2697,10 @@
      (if (i32.ne $text $end)
          (then
           (set! $char ($get-string-char $text))
-          (set! $accum (i64.add (i64.shl $accum (i64.const 4))
-                                (i64.extend_i32_u ($hex-digit-value $char))))
+          (set! $accum (i64.or (i64.shl $accum (i64.const 4))
+                               (i64.extend_i32_u ($hex-digit-value $char))))
+
+          (%decr-n i32 $bit-length 4)
 
           (if (i32.eqz (i32.and $bit-length (i32.const 0x3f)))
               (then
@@ -2709,7 +2708,6 @@
                (set! $accum (i64.const 0))))
 
           (%incr i32 $text)
-          (%decr i32 $bit-length)
           (br $again))))
 
    $value)
