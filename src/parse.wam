@@ -56,6 +56,7 @@
  (import "numbers" "make-small-integer"              (func $make-small-integer             (param i32)         (result i32)))
  (import "numbers" "multiply-add-integer-i32"        (func $multiply-add-integer-i32       (param i32 i32 i32)))
  (import "numbers" "multiply-integer-digits/dealloc" (func $multiply-integer-digits/dealloc (param i32 i32)     (result i32)))
+ (import "numbers" "normalize-number"                (func $normalize-number               (param i32)         (result i32)))
  (import "numbers" "normalize-rational"              (func $normalize-rational             (param i32)         (result i32)))
  (import "numbers" "pow-10-integer"                  (func $pow-10-integer                 (param i32)         (result i32)))
  (import "numbers" "negate-number"                   (func $negate-number                  (param i32)         (result i32)))
@@ -620,6 +621,7 @@
                (%set-parse-location $end-match)
                (return (%get-parse-result))))
 
+          (set! $text $end-match)
           (br $again)))
 
      ;; An undelimited token is anything else that isn't whitespace, a comment,
@@ -657,6 +659,7 @@
                (%set-parse-location $end-match)
                (return (%get-parse-result))))
 
+          (set! $text $end-match)
           (br $again)))
 
      ;; Datum comments are similar to quotes. Where ' indicates that
@@ -681,6 +684,7 @@
                (%set-parse-location $end-match)
                (return (%get-parse-result))))
 
+          (set! $text $end-match)
           (br $again))))
 
    (%set-parse-location $text)
@@ -1128,7 +1132,7 @@
 
    ($append-value (if (result i32) (i32.ne ($parse-exactness-value $text $number-start)
                                            _inexact)
-                    (then $value)
+                    (then ($normalize-number $value))
                     (else ($to-inexact $value)))))
 
  (func $parse-num-2-value (debug (export "parse-num-2-value"))
@@ -1462,7 +1466,7 @@
 
    ($append-value (if (result i32) (i32.ne ($parse-exactness-value $text $number-start)
                                            _inexact)
-                    (then $value)
+                    (then ($normalize-number $value))
                     (else ($to-inexact $value)))))
 
  (func $parse-num-8-value (debug (export "parse-num-8-value"))
@@ -1689,16 +1693,16 @@
    (local $length i32)
    (set! $length (i32.sub $end $text))
 
+   ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
+   ;; 9 octal digits is 27 bits
    (if (i32.le_u $length (i32.const 9))
        (then
-        ;; 1-28 bits will fit in a 29-bit (signed) tagged small integer
-        ;; 9 octal digits is 27 bits
         (return ($parse-small-uinteger-8-value $text $end))))
 
+   ;; 29-63 bits will fit in an i64
+   ;; 21 octal digits is 63 bits
    (if (i32.le_u $length (i32.const 21))
        (then
-        ;; 29-63 bits will fit in an i64
-        ;; 21 octal digits is 63 bits
         (return ($parse-i64-uinteger-8-value $text $end))))
 
    ;; >= 64 bits
@@ -1755,7 +1759,6 @@
    (local $accum i64)
    (local $bit-length i32)
    (local $carry-bits i64)
-   (local $char i32)
    (local $char-value i64)
    (local $digit-bits i64)
    (local $digit-idx i32)
@@ -1777,17 +1780,17 @@
    (loop $again
      (if (i32.ne $text $end)
          (then
-          (set! $char ($get-string-char $text))
-          (set! $char-value (i64.extend_i32_u (i32.sub $char _char-0)))
+          (set! $char-value (i64.extend_i32_u (i32.sub ($get-string-char $text) _char-0)))
+
           (%incr-n i64 $digit-bits 3)
           (if (i64.le_u $digit-bits (i64.const 0x40))
               (then
-               (set! $accum (i64.add (i64.shl $accum (i64.const 3))
-                                     $char-value)))
+               (set! $accum (i64.or (i64.shl $accum (i64.const 3))
+                                    $char-value)))
             (else
              (set! $carry-bits (i64.sub $digit-bits (i64.const 0x40)))
-             (set! $accum (i64.add (i64.shl $accum (i64.sub (i64.const 3) $carry-bits))
-             	                   (i64.shr_u $char-value $carry-bits)))
+             (set! $accum (i64.or (i64.shl $accum (i64.sub (i64.const 3) $carry-bits))
+             	                  (i64.shr_u $char-value $carry-bits)))
              (set! $digit-bits (i64.const 0x40))))
 
           (if (i64.eq $digit-bits (i64.const 0x40))
@@ -1823,7 +1826,7 @@
    (set! $value ($parse-num-10-value $number-start $end $exactness))
 
    ($append-value (if (result i32) (i32.ne $exactness _inexact)
-                    (then $value)
+                    (then ($normalize-number $value))
                     (else ($to-inexact $value)))))
 
  (func $parse-num-10-value (debug (export "parse-num-10-value"))
@@ -2395,7 +2398,7 @@
 
    ($append-value (if (result i32) (i32.ne ($parse-exactness-value $text $number-start)
                                            _inexact)
-                    (then $value)
+                    (then ($normalize-number $value))
                     (else ($to-inexact $value)))))
 
  (func $parse-num-16-value (debug (export "parse-num-16-value"))

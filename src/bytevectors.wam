@@ -78,7 +78,7 @@
    (loop $again
      (if (i32.ne $head _null)
          (then
-          ($set-bytevector-i8 $bv $idx (%get-small-integer ($get-pair-car $head)))
+          ($set-bytevector-i8 $bv $idx ($get-pair-car $head))
           (set! $head ($get-pair-cdr $head))
           (%incr i32 $idx)
           (br $again))))
@@ -101,6 +101,17 @@
  ;;
  ;; Accessessors
  ;;
+
+ (func $is-bytevector (debug (export "is-bytevector"))
+   (param $x i32)
+   (result i32)
+
+   (if (result i32) (i32.ne (%get-value-tag $x) _tag-box)
+     (then
+      (i32.const 0))
+
+     (else
+      (i32.eq _type-bytevector (%get-box-type $x)))))
 
  (func $get-bytevector-size (export "get-bytevector-size")
    (param $bv i32)

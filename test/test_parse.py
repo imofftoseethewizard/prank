@@ -23,10 +23,17 @@ NULL = NULL.value
 def to_int(x):
 
     if is_small_integer(x):
+
+        if x < 0:
+            x += 1<<32
+
         return x >> 3
 
     elif is_boxed_i64(x):
-        return get_boxed_i64(x)
+
+        v = get_boxed_i64(x)
+
+        return v
 
     elif is_rational(x) or is_complex(x) or is_boxed_f64(x):
         assert False
@@ -107,7 +114,7 @@ def test_parse_small_integer(radix, fmt):
         assert parse_test(src) >> tag_size_bits.value == i
 
 @pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
-def test_parse_rational_2(radix, fmt):
+def test_parse_rational(radix, fmt):
 
     init_test()
 
@@ -117,7 +124,11 @@ def test_parse_rational_2(radix, fmt):
             src = f'{radix}{{n:{fmt}}}/{{d:{fmt}}}'.format(n=n, d=d)
 
             value = parse_test(src)
-            assert is_rational(value)
+            if n % d == 0:
+                assert not is_rational(value)
+                assert value >> tag_size_bits.value == n / d
+            else:
+                assert is_rational(value)
 
 @pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
 def test_parse_full_complex(radix, fmt):
@@ -129,9 +140,13 @@ def test_parse_full_complex(radix, fmt):
             init_parser()
             src = f'{radix}{{re:{fmt}}}{{im:+{fmt}}}i'.format(re=re, im=im)
             value = parse_test(src)
-            assert is_complex(value)
-            assert real_part(value) >> tag_size_bits.value == re
-            assert imag_part(value) >> tag_size_bits.value == im
+            if im != 0:
+                assert is_complex(value)
+                assert real_part(value) >> tag_size_bits.value == re
+                assert imag_part(value) >> tag_size_bits.value == im
+            else:
+                assert value >> tag_size_bits.value == re
+
 
 @pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
 def test_parse_complex_polar(radix, fmt):
@@ -196,9 +211,12 @@ def test_parse_complex_im_only(radix, fmt):
         src = f'{radix}{{im:+{fmt}}}i'.format(im=im)
         print(src)
         value = parse_test(src)
-        assert is_complex(value)
-        assert real_part(value) == 0
-        assert imag_part(value) >> tag_size_bits.value == im
+        if im != 0:
+            assert is_complex(value)
+            assert real_part(value) == 0
+            assert imag_part(value) >> tag_size_bits.value == im
+        else:
+            assert value == 0
 
 @pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
 def test_parse_complex_infnan_im(radix, fmt):
@@ -423,7 +441,8 @@ def check_octal_integer(src_base):
     except:
         print(src)
         print(py_src)
-        print(format_addr(result))
+        print(format_addr(to_int(result)))
+        print(hex(value))
         print(value)
 
         raise
@@ -433,7 +452,7 @@ def test_octal_integer():
     init_test()
 
     for i in range(1, 80):
-        for d in range(8):
+        for d in range(0, 8):
             check_octal_integer(str(d)*i)
             check_octal_integer(str(d)+'0'*(i-1))
 
@@ -507,4 +526,86 @@ def test_binary_integer():
             check_binary_integer(d*i)
             check_binary_integer(d+'0'*(i-1))
 
-# todo: test small integer vs i64 vs integer
+def test_empty_bytevector():
+
+    init_test()
+
+    empty_bytevectors = (
+        '#u8()',
+        '  #u8(;a comment\n)',
+    )
+
+    for src in empty_bytevectors:
+        print(src)
+        init_parser()
+        value = parse_test(src)
+
+        assert is_bytevector(value)
+        assert get_bytevector_size(value) == 0
+
+def test_simple_bytevector():
+
+    init_test()
+
+    for b in range(0, 255):
+        src = f'#u8({b})'
+        print(src)
+        init_parser()
+        value = parse_test(src)
+
+        assert is_bytevector(value)
+        assert get_bytevector_size(value) == 1
+        assert get_bytevector_i8_u(value, 0) == b
+
+def test_bytevector_number_radixes():
+
+    init_test()
+
+    src = '#u8(#b1111 #o17 15 #d15 #xf)'
+    init_parser()
+    value = parse_test(src)
+
+    assert is_bytevector(value)
+    assert get_bytevector_size(value) == 5
+    for i in range(0, 5):
+        assert get_bytevector_i8_u(value, i) == 15
+
+def test_bytevector_number_normalization():
+
+    init_test()
+
+    src = '''
+    #u8(
+      #x0000000000000000f ; 17 digits will parse into a (large) integer
+      32768/256 ; = 128, check rationals
+      #e1.0e1 ; = 10, check exact decimals
+      25+0i ; = 25, check complex
+    )
+    '''
+    init_parser()
+    value = parse_test(src)
+
+    assert is_bytevector(value)
+    assert get_bytevector_size(value) == 4
+    assert get_bytevector_i8_u(value, 0) == 15
+    assert get_bytevector_i8_u(value, 1) == 128
+    assert get_bytevector_i8_u(value, 2) == 10
+    assert get_bytevector_i8_u(value, 3) == 25
+
+def test_invalid_bytevector_negative():
+    ...
+
+def test_invalid_bytevector_overflow():
+    ...
+
+def test_invalid_bytevector_rational():
+    ...
+
+def test_invalid_bytevector_float():
+    ...
+
+def test_invalid_bytevector_complex():
+    ...
+
+def test_invalid_bytevector_non_numeric():
+    ...

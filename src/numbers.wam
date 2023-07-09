@@ -2340,31 +2340,35 @@
    (set! $base-addr (%get-integer-addr $x))
    (set! $size (%get-integer-byte-size $x))
 
-   (set! $addr (i32.add $base-addr (i32.sub $size (i32.const 8))))
+   (set! $addr (i32.add $base-addr $size))
 
    (loop $again
+     (%decr-n i32 $addr 8)
      (if (i32.gt_u $addr $base-addr)
          (then
           (if (i64.eqz (i64.load $addr))
               (then
-               (%decr-n i32 $addr 8)
                (br $again))))))
 
    (if (i32.eq $addr $base-addr)
        (then
+
         (set! $value (i64.load $addr))
 
-        (if (%get-integer-sign-flag $x)
+        (if (i64.ge_s $value (i64.const 0))
             (then
-             (set! $value (i64.sub (i64.const 0) $value))))
 
-        ($dealloc-number $x)
+             (if (%get-integer-sign-flag $x)
+                 (then
+                  (set! $value (i64.sub (i64.const 0) $value))))
 
-        (if (%is-small-value-i64 $value)
-            (then
-             (return (%make-small-integer (i32.wrap_i64 $value))))
-          (else
-           (return ($make-boxed-i64 $value))))))
+             ($dealloc-number $x)
+
+             (if (%is-small-value-i64 $value)
+                 (then
+                  (return (%make-small-integer (i32.wrap_i64 $value))))
+               (else
+                (return ($make-boxed-i64 $value))))))))
 
    $x)
 
