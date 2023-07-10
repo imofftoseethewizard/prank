@@ -360,7 +360,8 @@
    (loop $fill
      (if (i32.ne $head _null)
          (then
-          (set! $c (%get-character ($get-pair-car $head)))
+          (set! $c ($get-pair-car $head))
+
           (set! $width ($calc-char-width $c))
           ($set-string-bytes $addr $c $width)
           (set! $addr (i32.add $addr $width))
@@ -539,6 +540,16 @@
  ;;
  ;; Data Access
  ;;
+
+ (func $is-string (export "is-string")
+   (param $x i32)
+   (result i32)
+   (if (result i32) (i32.ne (%get-value-tag $x) _tag-box)
+     (then
+      (i32.const 0))
+
+     (else
+      (i32.eq (i32.and (%get-box-type $x) _box-type-mask) _type-string))))
 
  (func $get-next-char-addr (export "get-next-char-addr")
    (param $addr i32)

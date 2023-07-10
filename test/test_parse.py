@@ -593,19 +593,76 @@ def test_bytevector_number_normalization():
     assert get_bytevector_i8_u(value, 3) == 25
 
 def test_invalid_bytevector_negative():
-    ...
+
+    init_test()
+    src = '#u8(-1)'
+    init_parser()
+    value = parse_test(src)
+    assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_overflow():
-    ...
+    init_test()
+    src = '#u8(256)'
+    init_parser()
+    value = parse_test(src)
+    assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_rational():
-    ...
+    init_test()
+    src = '#u8(1/2)'
+    init_parser()
+    value = parse_test(src)
+    assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_float():
-    ...
+    init_test()
+    src = '#u8(#i#b1)'
+    init_parser()
+    value = parse_test(src)
+    assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_complex():
-    ...
+    init_test()
+    src = '#u8(1+2i)'
+    init_parser()
+    value = parse_test(src)
+    assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_non_numeric():
-    ...
+    init_test()
+    src = '#u8(#u8(0))'
+    init_parser()
+    value = parse_test(src)
+    assert value == error_illegal_bytevector_element.value
+
+def test_empty_string():
+    init_test()
+    src = '""'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 0
+    assert get_string_size(value) == 0
+
+def test_one_char_string():
+    init_test()
+    src = '"a"'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 1
+    assert get_string_size(value) == 1
+    assert get_string_char(get_string_addr(value)) == ord('a')
+
+def test_string_mnemonic_escapes():
+
+    init_test()
+
+    for m, c in ('a\a', 'b\b', 'n\n', 'r\r', 't\t'):
+        src = f'"\\{m}"'
+        init_parser()
+        value = parse_test(src)
+        assert is_string(value)
+        assert get_string_length(value) == 1
+        assert get_string_size(value) == 1
+        assert get_string_char(get_string_addr(value)) == ord(c)

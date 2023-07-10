@@ -998,8 +998,11 @@
    (set! $char-list ($make-pair _null _null))
    (set! $tail $char-list)
 
-   ;; skip over initial double quote
+   ;; initial double quote
    (set! $text (i32.add $text (i32.const 1)))
+
+   ;; final double quote
+   (set! $end (i32.sub $end (i32.const 1)))
 
    (loop $again
 

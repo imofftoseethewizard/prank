@@ -19,6 +19,7 @@
 (define _tag-unused            (i32.const 0x05))
 (define _tag-symbol            (i32.const 0x06))
 (define _tag-singleton         (i32.const 0x07))
+(define _tag-mask              (i32.const 0x07))
 
 (define _singleton-type-mask (i32.const 0x00000f07))
 
@@ -79,6 +80,7 @@
  (global $tag-unused           (export "tag-unused")           i32 _tag-unused)
  (global $tag-symbol           (export "tag-symbol")           i32 _tag-symbol)
  (global $tag-singleton        (export "tag-singleton")        i32 _tag-singleton)
+ (global $tag-mask             (export "tag-mask")             i32 _tag-mask)
 
  (global $singleton-type-mask  (export "singleton-type-mask")  i32 _singleton-type-mask)
 
