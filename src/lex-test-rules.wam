@@ -2,7 +2,6 @@
 
 
  (import "lex" "lex-match-any-char"                       (func $lex-match-any-char                       (param i32 i32 i32)                 (result i32 i32)))
- (import "lex" "lex-match-char-complement/ascii/set-of-2" (func $lex-match-char-complement/ascii/set-of-2 (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-char-range/ascii"               (func $lex-match-char-range/ascii               (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-char"                           (func $lex-match-char                           (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-char/ascii-ci"                  (func $lex-match-char/ascii-ci                  (param i32 i32 i32 i32)             (result i32 i32)))

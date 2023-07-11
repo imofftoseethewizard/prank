@@ -679,6 +679,8 @@ def test_lex_match_string_element_character():
         else:
             check_match(lex_match_string_element_character, c, lex_rule_string_element_character)
 
+    check_match(lex_match_string_element_character, 'λ', lex_rule_string_element_character)
+
 def test_lex_match_string_element_character_escape():
     init_test()
 

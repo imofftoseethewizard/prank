@@ -1,5 +1,6 @@
 (module
 
+ (import "chars" "calc-encoded-length"     (func $calc-encoded-length   (param i32)         (result i32)))
  (import "chars" "char-eq/ascii-ci"        (func $char-eq/ascii-ci      (param i32 i32)     (result i32)))
  (import "strings" "get-string-char"       (func $get-string-char       (param i32)         (result i32)))
  (import "strings" "match-charset/ascii"   (func $match-charset/ascii   (param i32 i32 i32) (result i32)))
@@ -90,7 +91,7 @@
       $rule-id
       _null)))
 
- (func $lex-match-char-complement/ascii/set-of-2 (export "lex-match-char-complement/ascii/set-of-2")
+ (func $lex-match-char-complement/set-of-2 (export "lex-match-char-complement/set-of-2")
    (param $rule-id i32)
    (param $first-char i32)
    (param $second-char i32)
@@ -112,7 +113,7 @@
        (i32.and (i32.ne $first-char $c) (i32.ne $second-char $c))
      (then
       $rule-id
-      (i32.add (i32.const 1) $text))
+      (i32.add ($calc-encoded-length $c) $text))
      (else
       $rule-id
       _null)))

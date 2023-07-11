@@ -1,6 +1,7 @@
 import pytest
 
 import math
+import struct
 
 from util import create_test_string, format_addr
 
@@ -666,3 +667,58 @@ def test_string_mnemonic_escapes():
         assert get_string_length(value) == 1
         assert get_string_size(value) == 1
         assert get_string_char(get_string_addr(value)) == ord(c)
+
+def test_string_escaped_backslash():
+
+    init_test()
+
+    src = r'"\\"'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 1
+    assert get_string_size(value) == 1
+    assert get_string_char(get_string_addr(value)) == ord('\\')
+
+def test_string_escaped_double_quote():
+
+    init_test()
+
+    src = r'"\""'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 1
+    assert get_string_size(value) == 1
+    assert get_string_char(get_string_addr(value)) == ord('"')
+
+def test_string_escaped_line_ending():
+
+    init_test()
+
+    src = '"a\\ \n b"'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 2
+    assert get_string_size(value) == 2
+    addr = get_string_addr(value)
+    assert get_string_char(addr) == ord('a')
+    assert get_string_char(addr+1) == ord('b')
+
+def test_string_2byte_character():
+    init_test()
+    src = '"λ"'
+    init_parser()
+    t = create_test_string(src)
+    assert get_string_length(t) == 3
+    assert get_string_size(t) == 4
+    addr = get_string_addr(t)
+    assert get_string_char(addr) == ord('"')
+    assert struct.pack('<H', get_string_char(addr+1)).decode() =='λ'
+    assert get_string_char(addr+3) == ord('"')
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 1
+    assert get_string_size(value) == 2
+    assert struct.pack('<H', get_string_char(get_string_addr(value))).decode() == 'λ'

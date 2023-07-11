@@ -1,33 +1,33 @@
 (module
 
- (import "lex" "lex-match-any-char"                       (func $lex-match-any-char                       (param i32 i32 i32)                 (result i32 i32)))
- (import "lex" "lex-match-char"                           (func $lex-match-char                           (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-char-complement/ascii/set-of-2" (func $lex-match-char-complement/ascii/set-of-2 (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-char-range/ascii"               (func $lex-match-char-range/ascii               (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-char/ascii-ci"                  (func $lex-match-char/ascii-ci                  (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-charset/ascii"                  (func $lex-match-charset/ascii                  (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-rule/one-or-more"               (func $lex-match-rule/one-or-more               (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-rule/zero-or-more"              (func $lex-match-rule/zero-or-more              (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-rule?"                          (func $lex-match-rule?                          (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-rules/longest-of-2"             (func $lex-match-rules/longest-of-2             (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-rules/longest-of-3"             (func $lex-match-rules/longest-of-3             (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
- (import "lex" "lex-match-rules/longest-of-4"             (func $lex-match-rules/longest-of-4             (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
- (import "lex" "lex-match-rules/sequence-of-2"            (func $lex-match-rules/sequence-of-2            (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-rules/sequence-of-3"            (func $lex-match-rules/sequence-of-3            (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
- (import "lex" "lex-match-rules/sequence-of-4"            (func $lex-match-rules/sequence-of-4            (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
- (import "lex" "lex-match-rules/set-of-2"                 (func $lex-match-rules/set-of-2                 (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-string"                         (func $lex-match-string                         (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-string/ascii-ci"                (func $lex-match-string/ascii-ci                (param i32 i32 i32 i32)             (result i32 i32)))
- (import "lex" "lex-match-strings/ascii-ci/longest-of-2"  (func $lex-match-strings/ascii-ci/longest-of-2  (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-strings/ascii-ci/longest-of-3"  (func $lex-match-strings/ascii-ci/longest-of-3  (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
- (import "lex" "lex-match-strings/ascii-ci/one-of-2"      (func $lex-match-strings/ascii-ci/one-of-2      (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-strings/longest-of-4"           (func $lex-match-strings/longest-of-4           (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
- (import "lex" "lex-match-strings/one-of-2"               (func $lex-match-strings/one-of-2               (param i32 i32 i32 i32 i32)         (result i32 i32)))
- (import "lex" "lex-match-strings/one-of-3"               (func $lex-match-strings/one-of-3               (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
- (import "lex" "lex-match-until-rule"                     (func $lex-match-until-rule                     (param i32 i32 i32 i32)             (result i32 i32)))
- (import "strings" "alloc-string"                         (func $alloc-string                             (param i32 i32)                     (result i32)))
- (import "strings" "get-string-addr"                      (func $get-string-addr                          (param i32)                         (result i32)))
- (import "strings" "set-string-bytes"                     (func $set-string-bytes                         (param i32 i32 i32)))
+ (import "lex" "lex-match-any-char"                      (func $lex-match-any-char                      (param i32 i32 i32)                 (result i32 i32)))
+ (import "lex" "lex-match-char"                          (func $lex-match-char                          (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-char-complement/set-of-2"      (func $lex-match-char-complement/set-of-2      (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-char-range/ascii"              (func $lex-match-char-range/ascii              (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-char/ascii-ci"                 (func $lex-match-char/ascii-ci                 (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-charset/ascii"                 (func $lex-match-charset/ascii                 (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rule/one-or-more"              (func $lex-match-rule/one-or-more              (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rule/zero-or-more"             (func $lex-match-rule/zero-or-more             (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rule?"                         (func $lex-match-rule?                         (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-rules/longest-of-2"            (func $lex-match-rules/longest-of-2            (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-rules/longest-of-3"            (func $lex-match-rules/longest-of-3            (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-rules/longest-of-4"            (func $lex-match-rules/longest-of-4            (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-rules/sequence-of-2"           (func $lex-match-rules/sequence-of-2           (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-rules/sequence-of-3"           (func $lex-match-rules/sequence-of-3           (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-rules/sequence-of-4"           (func $lex-match-rules/sequence-of-4           (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-rules/set-of-2"                (func $lex-match-rules/set-of-2                (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-string"                        (func $lex-match-string                        (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-string/ascii-ci"               (func $lex-match-string/ascii-ci               (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "lex" "lex-match-strings/ascii-ci/longest-of-2" (func $lex-match-strings/ascii-ci/longest-of-2 (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-strings/ascii-ci/longest-of-3" (func $lex-match-strings/ascii-ci/longest-of-3 (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-strings/ascii-ci/one-of-2"     (func $lex-match-strings/ascii-ci/one-of-2     (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-strings/longest-of-4"          (func $lex-match-strings/longest-of-4          (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
+ (import "lex" "lex-match-strings/one-of-2"              (func $lex-match-strings/one-of-2              (param i32 i32 i32 i32 i32)         (result i32 i32)))
+ (import "lex" "lex-match-strings/one-of-3"              (func $lex-match-strings/one-of-3              (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-until-rule"                    (func $lex-match-until-rule                    (param i32 i32 i32 i32)             (result i32 i32)))
+ (import "strings" "alloc-string"                        (func $alloc-string                            (param i32 i32)                     (result i32)))
+ (import "strings" "get-string-addr"                     (func $get-string-addr                         (param i32)                         (result i32)))
+ (import "strings" "set-string-bytes"                    (func $set-string-bytes                        (param i32 i32 i32)))
 
  (include "./constants.wam")
 
@@ -1265,11 +1265,11 @@
 
    (result i32 i32)
 
-   ($lex-match-char-complement/ascii/set-of-2 _lex-rule-symbol-element/character
-                                              _char-vertical-line
-                                              _char-backslash
-                                              $text
-                                              $end))
+   ($lex-match-char-complement/set-of-2 _lex-rule-symbol-element/character
+                                        _char-vertical-line
+                                        _char-backslash
+                                        $text
+                                        $end))
 
  (elem funcref (ref.func $lex-match-symbol-element/character))
 
@@ -1550,11 +1550,11 @@
 
    (result i32 i32)
 
-   ($lex-match-char-complement/ascii/set-of-2 _lex-rule-string-element/character
-                                              _char-double-quote
-                                              _char-backslash
-                                              $text
-                                              $end))
+   ($lex-match-char-complement/set-of-2 _lex-rule-string-element/character
+                                        _char-double-quote
+                                        _char-backslash
+                                        $text
+                                        $end))
 
  (elem funcref (ref.func $lex-match-string-element/character))
 

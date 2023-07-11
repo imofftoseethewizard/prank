@@ -102,33 +102,33 @@ def test_lex_match_char_ascii_ci():
     assert matched_rule_id == rule_id
     assert match_end == end
 
-def test_lex_match_char_complement_ascii_set_of_2():
+def test_lex_match_char_complement_set_of_2():
     init_test()
 
     rule_id = 200
     text = end = get_string_addr(empty_string.value)
-    matched_rule_id, match_end = lex_match_char_complement_ascii_set_of_2(rule_id, ord('0'), ord('1'), text, end)
+    matched_rule_id, match_end = lex_match_char_complement_set_of_2(rule_id, ord('0'), ord('1'), text, end)
     assert matched_rule_id == rule_id
     assert match_end == -1
 
     rule_id = 200
     text = get_string_addr(single_char_string.value)
     end = text + get_string_size(single_char_string.value)
-    matched_rule_id, match_end = lex_match_char_complement_ascii_set_of_2(rule_id, ord('0'), ord('1'), text, end)
+    matched_rule_id, match_end = lex_match_char_complement_set_of_2(rule_id, ord('0'), ord('1'), text, end)
     assert matched_rule_id == rule_id
     assert match_end == end
 
     rule_id = 200
     text = get_string_addr(single_char_string.value)
     end = text + get_string_size(single_char_string.value)
-    matched_rule_id, match_end = lex_match_char_complement_ascii_set_of_2(rule_id, ord('a'), ord('1'), text, end)
+    matched_rule_id, match_end = lex_match_char_complement_set_of_2(rule_id, ord('a'), ord('1'), text, end)
     assert matched_rule_id == rule_id
     assert match_end == -1
 
     rule_id = 200
     text = get_string_addr(single_char_string.value)
     end = text + get_string_size(single_char_string.value)
-    matched_rule_id, match_end = lex_match_char_complement_ascii_set_of_2(rule_id, ord('1'), ord('a'), text, end)
+    matched_rule_id, match_end = lex_match_char_complement_set_of_2(rule_id, ord('1'), ord('a'), text, end)
     assert matched_rule_id == rule_id
     assert match_end == -1
 

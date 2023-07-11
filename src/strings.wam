@@ -15,7 +15,6 @@
  (import "block-mgr" "get-block-addr"  (func $get-block-addr      (param i32)     (result i32)))
  (import "block-mgr" "init-blockset"   (func $init-blockset       (param i32 i32)))
  (import "chars" "char-eq/ascii-ci"    (func $char-eq/ascii-ci    (param i32 i32) (result i32)))
- (import "chars" "calc-char-width"     (func $calc-char-width     (param i32)     (result i32)))
  (import "chars" "calc-encoded-length" (func $calc-encoded-length (param i32)     (result i32)))
  (import "chars" "encode-char"         (func $encode-char         (param i32)     (result i32)))
  (import "pairs" "get-pair-car"        (func $get-pair-car        (param i32)     (result i32)))
@@ -347,7 +346,7 @@
    (loop $count
      (if (i32.ne $head _null)
          (then
-          (set! $size (i32.add $size ($calc-char-width (%get-character ($get-pair-car $head)))))
+          (set! $size (i32.add $size ($calc-encoded-length ($get-pair-car $head))))
           (%incr i32 $length)
           (set! $head ($get-pair-cdr $head))
           (br $count))))
@@ -362,7 +361,7 @@
          (then
           (set! $c ($get-pair-car $head))
 
-          (set! $width ($calc-char-width $c))
+          (set! $width ($calc-encoded-length $c))
           ($set-string-bytes $addr $c $width)
           (set! $addr (i32.add $addr $width))
           (set! $head ($get-pair-cdr $head))
