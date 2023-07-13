@@ -6,7 +6,8 @@
  (import "bytevectors" "get-bytevector-i32"          (func $get-bytevector-i32             (param i32 i32)     (result i32)))
  (import "bytevectors" "set-bytevector-i32"          (func $set-bytevector-i32             (param i32 i32 i32)))
  (import "chars" "ascii-lower"                       (func $ascii-lower                    (param i32)         (result i32)))
- (import "chars" "calc-encoded-length"               (func $calc-encoded-length            (param i32)         (result i32)))
+ (import "chars" "calc-char-width"                   (func $calc-char-width                (param i32)         (result i32)))
+ (import "chars" "encode-code-point"                 (func $encode-code-point              (param i32)         (result i32)))
  (import "lex-r7rs" "lex-match-atmosphere"           (func $lex-match-atmosphere           (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-complex-2"            (func $lex-match-complex-2            (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-complex-infnan-im-2"  (func $lex-match-complex-infnan-im-2  (param i32 i32)     (result i32 i32)))
@@ -972,7 +973,7 @@
                               (then
                                (unreachable))))
 
-                         ($parse-hex-escape $text $end-match))))))))
+                         ($encode-code-point ($parse-hex-escape $text $end-match)))))))))
 
           (set! $next ($make-pair $char _null))
           ($set-pair-cdr $tail $next)
@@ -1035,7 +1036,7 @@
                                    (then
                                     (unreachable))))
 
-                              ($parse-hex-escape $text $end-match))))))))
+                              ($encode-code-point ($parse-hex-escape $text $end-match)))))))))
 
                (set! $next ($make-pair $char _null))
                ($set-pair-cdr $tail $next)
@@ -1076,10 +1077,7 @@
    (param $end i32)
    (result i32)
 
-   (local $accum i32)
-   (local $char i32)
    (local $code-point i32)
-   (local $value i32)
 
    ;; move text forward 2 to skip over \x
    (set! $text (i32.add $text (i32.const 2)))
@@ -1095,17 +1093,8 @@
           ;; todo: inline hex overflow error
           (return _char-null)))
 
-     (set! $char ($get-string-char $text))
-
-     (set! $value (i32.sub $char
-                           (if (result i32) (i32.le_u $char _char-9)
-                             (then _char-0)
-                             (else
-                              (if (result i32) (i32.le_u $char _char-F)
-                                (then _char-A)
-                                (else _char-a))))))
-
-     (set! $code-point (i32.or (i32.shl $code-point (i32.const 4)) $value))
+     (set! $code-point (i32.or (i32.shl $code-point (i32.const 4))
+                               ($hex-digit-value ($get-string-char $text))))
 
      (set! $text (i32.add $text (i32.const 1)))
 
@@ -1113,7 +1102,7 @@
          (then
           (br $again))))
 
-   (if (i32.eq ($calc-encoded-length $code-point) (i32.const -1))
+   (if (i32.eq ($calc-char-width $code-point) (i32.const -1))
        (then
         ;; todo: invalid code point
         (return _char-null)))

@@ -710,15 +710,95 @@ def test_string_2byte_character():
     init_test()
     src = '"λ"'
     init_parser()
-    t = create_test_string(src)
-    assert get_string_length(t) == 3
-    assert get_string_size(t) == 4
-    addr = get_string_addr(t)
-    assert get_string_char(addr) == ord('"')
-    assert struct.pack('<H', get_string_char(addr+1)).decode() =='λ'
-    assert get_string_char(addr+3) == ord('"')
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
     assert get_string_size(value) == 2
     assert struct.pack('<H', get_string_char(get_string_addr(value))).decode() == 'λ'
+
+def test_string_3byte_character():
+    init_test()
+    src = '"ᴁ"'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 1
+    assert get_string_size(value) == 3
+    assert struct.pack('<I', get_string_char(get_string_addr(value)))[:3].decode() == 'ᴁ'
+
+def test_string_4byte_character():
+    init_test()
+    src = '"𝅘𝅥𝅮"'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 1
+    assert get_string_size(value) == 4
+    assert struct.pack('<I', get_string_char(get_string_addr(value))+(1<<32)).decode() == '𝅘𝅥𝅮'
+
+def test_simple_strings():
+
+    init_test()
+
+    s = ''
+    for i in range(1, 300):
+        init_parser()
+        c = chr(i%96+32)
+        if c in '"\\':
+            s += '\\'
+
+        s += c
+        src = f'"{s}"'
+        value = parse_test(src)
+        assert is_string(value)
+        assert get_string_length(value) == i
+        assert get_string_size(value) == i
+
+def test_long_strings():
+
+    init_test()
+
+    base = 'λᴁ 𝅘𝅥𝅮'
+
+    for i in range(9):
+        init_parser()
+        base = base + base + base
+        src = f'"{base}"'
+        value = parse_test(src)
+        assert is_string(value)
+        assert get_string_length(value) == len(base)
+        assert get_string_size(value) == len(base.encode())
+
+def test_hex_escape():
+
+    init_test()
+    src = '"\\x20;"'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 1
+    assert get_string_size(value) == 1
+    assert get_string_char(get_string_addr(value)) == ord(' ')
+
+    src = '"λ"'
+    init_parser()
+    value = parse_test(src)
+    print(format_addr(get_string_char(get_string_addr(value))))
+
+    src = '"\\x3bb;"'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 1
+    assert get_string_size(value) == 2
+    print(format_addr(get_string_char(get_string_addr(value))))
+    assert struct.pack('<H', get_string_char(get_string_addr(value))).decode() == 'λ'
+
+
+    src = '"\\x1d11e;"'
+    init_parser()
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 1
+    assert get_string_size(value) == 4
+    assert struct.pack('<I', get_string_char(get_string_addr(value))+(1<<32)).decode() == '𝄞'

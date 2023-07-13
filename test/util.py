@@ -5,6 +5,10 @@ from modules.debug.strings import *
 
 NULL = -1
 
+def u32(x):
+    if x < 0:
+        return x + (1<<32)
+
 def format_addr(addr):
     if addr == NULL:
         return 'NULL'
