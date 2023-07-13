@@ -330,6 +330,7 @@ exact_decimal_test_values = [
     100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,
 ]
 
+@pytest.mark.slow
 def test_parse_exact_decimal():
 
     init_test()
@@ -405,6 +406,7 @@ def test_parse_exact_decimal():
             print(hex(parse_mod.p4.value))
             raise
 
+@pytest.mark.slow
 def test_parse_decimal():
 
     init_test()
@@ -794,7 +796,6 @@ def test_hex_escape():
     print(format_addr(get_string_char(get_string_addr(value))))
     assert struct.pack('<H', get_string_char(get_string_addr(value))).decode() == 'λ'
 
-
     src = '"\\x1d11e;"'
     init_parser()
     value = parse_test(src)
@@ -802,3 +803,37 @@ def test_hex_escape():
     assert get_string_length(value) == 1
     assert get_string_size(value) == 4
     assert struct.pack('<I', get_string_char(get_string_addr(value))+(1<<32)).decode() == '𝄞'
+
+def test_string_integration():
+
+    init_test()
+
+    # chars
+    #   | length
+    #   |    | description
+    # --------------------------------------------------------------------------
+    # 4 |  4 | four single-byte characters
+    # 1 |  4 | a four-byte character expressed as a hex inline escape
+    # 1 |  2 | a two-byte character
+    # 0 |  0 | an escaped line ending, including surrounding whitespace
+    # 3 |  3 | three more single-byte characters
+    # --------------------------------------------------------------------------
+    # 9 | 13 | totals
+
+    src = '"0123\\x1d11e;λ\\ \n\t\t 456"'
+
+    value = parse_test(src)
+    assert is_string(value)
+    assert get_string_length(value) == 9
+    assert get_string_size(value) == 13
+    addr = get_string_addr(value)
+
+    assert get_string_char(addr) == ord('0')
+    assert get_string_char(addr+1) == ord('1')
+    assert get_string_char(addr+2) == ord('2')
+    assert get_string_char(addr+3) == ord('3')
+    assert struct.pack('<I', get_string_char(addr+4)+(1<<32)).decode() == '𝄞'
+    assert struct.pack('<H', get_string_char(addr+8)).decode() == 'λ'
+    assert get_string_char(addr+10) == ord('4')
+    assert get_string_char(addr+11) == ord('5')
+    assert get_string_char(addr+12) == ord('6')
