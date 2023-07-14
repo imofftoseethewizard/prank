@@ -868,8 +868,8 @@
    (param $text i32)
    (param $end i32)
 
-   ;; "#true" has length 5, "#false" has length 6
-   ($append-value (if (result i32) (i32.eq (i32.const 5) (i32.sub $end $text))
+   ($append-value (if (result i32) (i32.eq ($get-string-char (i32.add $text (i32.const 1)))
+                                           _char-t)
                     (then _true)
                     (else _false))))
 

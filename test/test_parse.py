@@ -20,6 +20,8 @@ from modules.debug.vectors import *
 from modules.debug import parse as parse_mod
 
 NULL = NULL.value
+TRUE = TRUE.value
+FALSE = FALSE.value
 
 def to_int(x):
 
@@ -891,3 +893,27 @@ def test_character_hex_escape():
     value = parse_test(src)
     assert is_char(value)
     assert get_char_code_point(value) == ord('𝄞')
+
+def test_booleans():
+
+    init_test()
+
+    src = '#t'
+    init_parser()
+    value = parse_test(src)
+    assert value == TRUE
+
+    src = '#true'
+    init_parser()
+    value = parse_test(src)
+    assert value == TRUE
+
+    src = '#f'
+    init_parser()
+    value = parse_test(src)
+    assert value == FALSE
+
+    src = '#false'
+    init_parser()
+    value = parse_test(src)
+    assert value == FALSE
