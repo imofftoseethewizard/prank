@@ -1386,9 +1386,10 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/sequence-of-2 _lex-rule-escaped-character-hex
+   ($lex-match-rules/sequence-of-3 _lex-rule-escaped-character-hex
                                    _lex-rule-character-hex-prefix
                                    _lex-rule-hex-scalar-value
+                                   _lex-rule-semicolon
                                    $text
                                    $end))
 

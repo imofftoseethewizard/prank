@@ -1,4 +1,5 @@
-from util import format_addr
+from util import create_test_string, format_addr
+
 from modules.debug.block_mgr import *
 from modules.debug.strings import *
 from modules.debug.pairs import *
@@ -102,3 +103,18 @@ def test_string_equal():
     assert get_string_bytes(s2_addr, 1) == ord('a')
 
     assert string_equal(s1, s2)
+
+def test_match_string():
+
+    init_test()
+
+    s = create_test_string('#\\escape')
+
+    s1 = create_test_string('delete')
+    s2 = create_test_string('escape')
+
+    addr = get_string_addr(s)
+    end = addr + get_string_size(s)
+
+    assert match_string(s1, addr+2, end) == NULL
+    assert match_string(s2, addr+2, end) == end

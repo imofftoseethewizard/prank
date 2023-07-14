@@ -771,7 +771,7 @@ def test_long_strings():
         assert get_string_length(value) == len(base)
         assert get_string_size(value) == len(base.encode())
 
-def test_hex_escape():
+def test_string_hex_escape():
 
     init_test()
     src = '"\\x20;"'
@@ -837,3 +837,57 @@ def test_string_integration():
     assert get_string_char(addr+10) == ord('4')
     assert get_string_char(addr+11) == ord('5')
     assert get_string_char(addr+12) == ord('6')
+
+def test_simple_char():
+
+    init_test()
+
+    for i in range(32, 128):
+        init_parser()
+        src = f'#\\{chr(i)}'
+        value = parse_test(src)
+        assert is_char(value)
+        assert get_char_code_point(value) == i
+
+def test_named_char():
+
+    init_test()
+
+    for name, c in (('alarm',     '\u0007'),
+                    ('backspace', '\u0008'),
+                    ('delete',    '\u007f'),
+                    ('escape',    '\u001b'),
+                    ('newline',   '\u000a'),
+                    ('null',      '\u0000'),
+                    ('return',    '\u000d'),
+                    ('space',     ' '),
+                    ('tab',       '\u0009')):
+
+        init_parser()
+        print(name, c)
+        src = f'#\\{name}'
+        value = parse_test(src)
+        assert is_char(value)
+        assert get_char_code_point(value) == ord(c)
+
+def test_character_hex_escape():
+
+    init_test()
+
+    src = '#\\x20;'
+    init_parser()
+    value = parse_test(src)
+    assert is_char(value)
+    assert get_char_code_point(value) == ord(' ')
+
+    src = '#\\x3bb;'
+    init_parser()
+    value = parse_test(src)
+    assert is_char(value)
+    assert get_char_code_point(value) == ord('λ')
+
+    src = '#\\x1d11e;'
+    init_parser()
+    value = parse_test(src)
+    assert is_char(value)
+    assert get_char_code_point(value) == ord('𝄞')

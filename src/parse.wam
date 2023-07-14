@@ -877,7 +877,9 @@
    (param $text i32)
    (param $end i32)
 
-   ($append-value (%make-value _tag-char ($get-string-char (i32.add $text (i32.const 2))))))
+   ($append-value (%make-value _tag-char
+                               (i32.shl ($get-string-char (i32.add $text (i32.const 2)))
+                                        _tag-size-bits))))
 
  (func $parse-named-character (debug (export "parse-named-character"))
    (param $text i32)
@@ -892,16 +894,16 @@
    (set! $char
          (if (result i32) (i32.eq $length (i32.const 5))
            (then
-            (if (result i32) ($match-string (%string-alarm) $text $end)
+            (if (result i32) (i32.eq ($match-string (%string-alarm) $text $end) $end)
               (then _char-bell)
               (else _char-space)))
            (else
             (if (result i32) (i32.eq $length (i32.const 6))
               (then
-               (if (result i32) ($match-string (%string-delete) $text $end)
+               (if (result i32) (i32.eq ($match-string (%string-delete) $text $end) $end)
                  (then _char-delete)
                  (else
-                  (if (result i32) ($match-string (%string-escape) $text $end)
+                  (if (result i32) (i32.eq ($match-string (%string-escape) $text $end) $end)
                     (then _char-escape)
                     (else _char-carriage-return))))) ;; return
               (else
@@ -919,14 +921,16 @@
                            (then _char-backspace)
                            (else (unreachable) _null))))))))))))))
 
-   ($append-value (%make-value _tag-char $char)))
+   ($append-value (%make-value _tag-char (i32.shl $char _tag-size-bits))))
 
  (func $parse-escaped-character-hex (debug (export "parse-escaped-character-hex"))
    (param $text i32)
    (param $end i32)
 
    ;; add 1 to skip over the #
-   ($append-value (%make-value _tag-char ($parse-hex-escape (i32.add $text (i32.const 1)) $end))))
+   ($append-value (%make-value _tag-char
+                               (i32.shl ($parse-hex-escape (i32.add $text (i32.const 1)) $end)
+                                        _tag-size-bits))))
 
  (func $parse-vertical-line-quoted-symbol (debug (export "parse-vertical-line-quoted-symbol"))
    (param $text i32)

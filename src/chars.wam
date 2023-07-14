@@ -164,5 +164,11 @@
                                              (i32.const 6))
                                     (i32.shr_u (i32.and $utf-8 (i32.const 0x3f000000))
                                                (i32.const 24))))))))))))
+
+ (func $is-char (export "is-char")
+   (param $x i32)
+   (result i32)
+   (i32.eq (%get-value-tag $x) _tag-char))
+
  ;; end of module
  )
