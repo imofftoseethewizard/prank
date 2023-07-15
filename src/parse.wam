@@ -946,8 +946,9 @@
    (set! $char-list ($make-pair _null _null))
    (set! $tail $char-list)
 
-   ;; skip over initial vertical line
+   ;; account for vertical line delimiters
    (set! $text (i32.add $text (i32.const 1)))
+   (set! $end (i32.sub $end (i32.const 1)))
 
    (loop $again
 

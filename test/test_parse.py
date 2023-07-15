@@ -917,3 +917,42 @@ def test_booleans():
     init_parser()
     value = parse_test(src)
     assert value == FALSE
+
+def test_identifiers():
+
+    init_test()
+    init_parser()
+
+    src = 'foo'
+    assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
+
+    src = 'foo-1z3'
+    assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
+
+    special_initials = '!$%&*/:<=>?^_~'
+
+    for c in special_initials:
+        src = c + 'foo'
+        assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
+
+    vertical_line_quoted_identifier_cases = (
+        ('||', ''),
+        (r'|\||', '|'),
+        (r'|\a\b\n\r\t|', '\a\b\n\r\t'),
+        (r'|\xbeef;|', '\ubeef'),
+        ('|foo \n bar|', 'foo \n bar'),
+        ('|dos foo \r\n bar|', 'dos foo \r\n bar'),
+    )
+
+    for src, result in vertical_line_quoted_identifier_cases:
+        assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(result))
+
+    peculiar_identifiers = (
+        '+',
+        '-',
+        '-?!A',
+        '...',
+    )
+
+    for src in peculiar_identifiers:
+        assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
