@@ -132,9 +132,6 @@ obj/src/strings.wat obj/debug/src/strings.wat: \
 	src/values.wam
 
 obj/src/symbols.wat obj/debug/src/symbols.wat: \
-	src/block-mgr-memory-proxies.wam \
-	src/block-mgr-memory-proxy-imports.wam \
-	src/boxes.wam \
 	src/constants.wam \
 	src/globals.wam \
 	src/values.wam
@@ -142,8 +139,11 @@ obj/src/symbols.wat obj/debug/src/symbols.wat: \
 obj/src/vectors.wat obj/debug/src/vectors.wat: \
 	src/block-mgr-memory-proxies.wam \
 	src/block-mgr-memory-proxy-imports.wam \
+	src/boxes.wam \
 	src/constants.wam \
-	src/globals.wam
+	src/gc-client.wam \
+	src/globals.wam \
+	src/values.wam
 
 dirs:
 	mkdir -p obj/debug/src

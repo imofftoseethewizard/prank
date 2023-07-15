@@ -956,3 +956,30 @@ def test_identifiers():
 
     for src in peculiar_identifiers:
         assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
+
+def test_vectors():
+
+    init_test()
+
+    init_parser()
+
+    src = '#(#\\space "foo" bar 3.14 42)'
+    value = parse_test(src)
+    print(format_addr(value))
+    assert is_vector(value)
+    for i in range(5):
+        print(format_addr(get_vector_element(value, i)))
+    assert get_vector_length(value) == 5
+    assert get_vector_element(value, 0) == tag_char.value | (ord(' ')<<3)
+    assert is_string(get_vector_element(value, 1))
+    assert string_equal(get_vector_element(value, 1), create_test_string('foo'))
+    assert get_vector_element(value, 2) == tag_symbol.value | inter_symbol(create_test_string('bar'))
+    assert is_boxed_f64(get_vector_element(value, 3))
+    assert get_boxed_f64(get_vector_element(value, 3)) == 3.14
+    assert get_vector_element(value, 4) >> 3 == 42
+
+    src = '#()'
+    value = parse_test(src)
+    print(format_addr(value))
+    assert is_vector(value)
+    assert get_vector_length(value) == 0

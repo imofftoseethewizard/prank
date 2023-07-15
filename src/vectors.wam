@@ -76,6 +76,17 @@
 
    (%dealloc-box $v))
 
+ (func $is-vector (debug (export "is-vector"))
+   (param $x i32)
+   (result i32)
+
+   (if (result i32) (i32.ne (%get-value-tag $x) _tag-box)
+     (then
+      (i32.const 0))
+
+     (else
+      (i32.eq _type-vector (%get-box-type $x)))))
+
  (func $get-vector-addr (export "get-vector-addr")
    (param $v i32)
    (result i32)
@@ -115,7 +126,7 @@
    (loop $again
      (if (i32.ne (local.get $head) (global.get $null))
          (then
-          (local.set $value (call $get-pair-car (local.get $list)))
+          (local.set $value (call $get-pair-car (local.get $head)))
           (i32.store (local.get $addr) (local.get $value))
           (call $add-ref (local.get $v) (local.get $value))
           (%incr-n i32 $addr 4)
