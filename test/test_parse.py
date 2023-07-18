@@ -10,6 +10,7 @@ from modules.debug.bytevectors import *
 from modules.debug.chars import *
 from modules.debug.lex import *
 from modules.debug.lex_r7rs import *
+from modules.debug.lists import *
 from modules.debug.numbers import *
 from modules.debug.pairs import *
 from modules.debug.parse import *
@@ -18,6 +19,7 @@ from modules.debug.symbols import *
 from modules.debug.vectors import *
 
 from modules.debug import parse as parse_mod
+from modules.debug import strings, symbols
 
 NULL = NULL.value
 TRUE = TRUE.value
@@ -81,6 +83,11 @@ def init_test():
 def test_init():
     init_test()
 
+    name = get_symbol_name(quote_symbol.value&~7)
+    assert is_string(name)
+    assert get_string_length(name) == 5
+    assert string_equal(get_symbol_name(quote_symbol.value&~7), create_test_string('quote'))
+
 def test_init_parser():
     init_test()
     init_parser()
@@ -103,7 +110,7 @@ def test_parse_symbol():
     init_parser()
 
     src = 'a'
-    assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
+    assert parse_test(src) == make_symbol(create_test_string(src))
 
 @pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
 def test_parse_small_integer(radix, fmt):
@@ -541,10 +548,8 @@ def test_empty_bytevector():
     )
 
     for src in empty_bytevectors:
-        print(src)
         init_parser()
         value = parse_test(src)
-
         assert is_bytevector(value)
         assert get_bytevector_size(value) == 0
 
@@ -554,7 +559,6 @@ def test_simple_bytevector():
 
     for b in range(0, 255):
         src = f'#u8({b})'
-        print(src)
         init_parser()
         value = parse_test(src)
 
@@ -924,16 +928,16 @@ def test_identifiers():
     init_parser()
 
     src = 'foo'
-    assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
+    assert parse_test(src) == make_symbol(create_test_string(src))
 
     src = 'foo-1z3'
-    assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
+    assert parse_test(src) == make_symbol(create_test_string(src))
 
     special_initials = '!$%&*/:<=>?^_~'
 
     for c in special_initials:
         src = c + 'foo'
-        assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
+        assert parse_test(src) == make_symbol(create_test_string(src))
 
     vertical_line_quoted_identifier_cases = (
         ('||', ''),
@@ -945,7 +949,7 @@ def test_identifiers():
     )
 
     for src, result in vertical_line_quoted_identifier_cases:
-        assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(result))
+        assert parse_test(src) == make_symbol(create_test_string(result))
 
     peculiar_identifiers = (
         '+',
@@ -955,7 +959,7 @@ def test_identifiers():
     )
 
     for src in peculiar_identifiers:
-        assert parse_test(src) == tag_symbol.value | inter_symbol(create_test_string(src))
+        assert parse_test(src) == make_symbol(create_test_string(src))
 
 def test_vectors():
 
@@ -965,21 +969,88 @@ def test_vectors():
 
     src = '#(#\\space "foo" bar 3.14 42)'
     value = parse_test(src)
-    print(format_addr(value))
+
     assert is_vector(value)
-    for i in range(5):
-        print(format_addr(get_vector_element(value, i)))
     assert get_vector_length(value) == 5
-    assert get_vector_element(value, 0) == tag_char.value | (ord(' ')<<3)
+    assert get_char_code_point(get_vector_element(value, 0)) == ord(' ')
     assert is_string(get_vector_element(value, 1))
     assert string_equal(get_vector_element(value, 1), create_test_string('foo'))
-    assert get_vector_element(value, 2) == tag_symbol.value | inter_symbol(create_test_string('bar'))
+    assert get_vector_element(value, 2) == make_symbol(create_test_string('bar'))
     assert is_boxed_f64(get_vector_element(value, 3))
     assert get_boxed_f64(get_vector_element(value, 3)) == 3.14
     assert get_vector_element(value, 4) >> 3 == 42
 
     src = '#()'
     value = parse_test(src)
-    print(format_addr(value))
     assert is_vector(value)
     assert get_vector_length(value) == 0
+
+
+def test_quasiquote():
+
+    init_test()
+    init_parser()
+
+    src = "`foo"
+    value = parse_test(src)
+    assert is_pair(value)
+    assert get_list_length(value) == 2
+    e1 = get_tpair_car(value)
+    e2 = get_tpair_cdar(value)
+    print(format_addr(e1), format_addr(parse_mod.p1.value))
+    assert is_symbol(e1)
+    assert e1 == quasiquote_symbol.value
+    assert is_symbol(e2)
+    assert e2 == make_symbol(create_test_string('foo'))
+
+def test_quote():
+
+    init_test()
+    init_parser()
+
+    src = "'foo"
+    value = parse_test(src)
+    assert is_pair(value)
+    assert get_list_length(value) == 2
+    e1 = get_tpair_car(value)
+    e2 = get_tpair_cdar(value)
+    print(format_addr(e1), format_addr(parse_mod.p1.value))
+    assert is_symbol(e1)
+    assert e1 == quote_symbol.value
+    assert is_symbol(e2)
+    assert e2 == make_symbol(create_test_string('foo'))
+
+def test_unquote():
+
+    init_test()
+    init_parser()
+
+    src = ",foo"
+    value = parse_test(src)
+    assert is_pair(value)
+    assert get_list_length(value) == 2
+    e1 = get_tpair_car(value)
+    e2 = get_tpair_cdar(value)
+    print(format_addr(e1), format_addr(parse_mod.p1.value))
+    assert is_symbol(e1)
+    assert e1 == unquote_symbol.value
+    assert is_symbol(e2)
+    assert e2 == make_symbol(create_test_string('foo'))
+
+def test_unquote_splicing():
+
+    init_test()
+    init_parser()
+
+    src = ",@foo"
+    value = parse_test(src)
+    print(format_addr(value))
+    assert is_pair(value)
+    assert get_list_length(value) == 2
+    e1 = get_tpair_car(value)
+    e2 = get_tpair_cdar(value)
+    print(format_addr(e1), format_addr(parse_mod.p1.value))
+    assert is_symbol(e1)
+    assert e1 == unquote_splicing_symbol.value
+    assert is_symbol(e2)
+    assert e2 == make_symbol(create_test_string('foo'))

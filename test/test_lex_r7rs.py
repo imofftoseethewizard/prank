@@ -83,9 +83,13 @@ def test_lex_match_delimited_token():
 
     check_match(lex_match_delimited_token, '#(',   lex_rule_delimited_token_string)
     check_match(lex_match_delimited_token, '#u8(', lex_rule_delimited_token_string)
+    check_match(lex_match_delimited_token, ',@',   lex_rule_delimited_token_string)
 
-    check_match(lex_match_delimited_token, '(', lex_rule_paren_char)
-    check_match(lex_match_delimited_token, ')', lex_rule_paren_char)
+    check_match(lex_match_delimited_token, '(', lex_rule_token_char)
+    check_match(lex_match_delimited_token, ')', lex_rule_token_char)
+    check_match(lex_match_delimited_token, "'", lex_rule_token_char)
+    check_match(lex_match_delimited_token, '`', lex_rule_token_char)
+    check_match(lex_match_delimited_token, ',', lex_rule_token_char)
 
     check_match(lex_match_delimited_token, '||',                 lex_rule_vertical_line_quoted_symbol)
     check_match(lex_match_delimited_token, r'|\||',              lex_rule_vertical_line_quoted_symbol)
@@ -100,18 +104,6 @@ def test_lex_match_delimited_token():
     check_match(lex_match_delimited_token, r'"\xbeef;"',         lex_rule_quoted_string)
     check_match(lex_match_delimited_token, '"foo \\ \n bar"',    lex_rule_quoted_string)
     check_match(lex_match_delimited_token, '"dos foo \r\n bar"', lex_rule_quoted_string)
-
-def test_lex_match_paren_char():
-    init_test()
-
-    check_match_fail(lex_match_paren_char, '', lex_rule_paren_char)
-
-    for b in range(32, 128):
-        c = chr(b)
-        if c in '()':
-            check_match(lex_match_paren_char, c, lex_rule_paren_char)
-        else:
-            check_match_fail(lex_match_paren_char, c, lex_rule_paren_char)
 
 def test_lex_match_undelimited_token():
     init_test()
@@ -138,12 +130,7 @@ def test_lex_match_undelimited_token():
     check_match(lex_match_undelimited_token, '#t',     lex_rule_boolean)
     check_match(lex_match_undelimited_token, '#true',  lex_rule_boolean)
 
-    check_match(lex_match_undelimited_token, "'", lex_rule_token_char)
-    check_match(lex_match_undelimited_token, '`', lex_rule_token_char)
-    check_match(lex_match_undelimited_token, ',', lex_rule_token_char)
-    check_match(lex_match_undelimited_token, '.', lex_rule_token_char)
-
-    check_match(lex_match_undelimited_token, ',@', lex_rule_unquote_splicing)
+    check_match(lex_match_undelimited_token, '.', lex_rule_dot)
 
     check_match(lex_match_undelimited_token, 'a',    lex_rule_ordinary_identifier)
     check_match(lex_match_undelimited_token, 'Z',    lex_rule_ordinary_identifier)
@@ -156,13 +143,12 @@ def test_lex_match_undelimited_token():
     check_match(lex_match_undelimited_token, '...',  lex_rule_peculiar_identifier)
 
 def test_lex_match_token_char():
-    init_test()
 
     check_match_fail(lex_match_token_char, '', lex_rule_token_char)
 
     for b in range(32, 128):
         c = chr(b)
-        if c in "'`,.":
+        if c in "()'`,":
             check_match(lex_match_token_char, c, lex_rule_token_char)
         else:
             check_match_fail(lex_match_token_char, c, lex_rule_token_char)

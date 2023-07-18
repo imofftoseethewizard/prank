@@ -40,11 +40,17 @@
 
  (memory (debug (export "memory")) 1)
 
+ (debug
+  (global $debug (export "#debug") (mut i32) (i32.const 0))
+  (global $p1 (export "p1") (mut i32) (i32.const 0))
+  (global $p2 (export "p2") (mut i32) (i32.const 0))
+  (global $p3 (export "p3") (mut i32) (i32.const 0))
+  (global $p4 (export "p4") (mut i32) (i32.const 0)))
+
  ;; <token> -> <identifier> | <boolean> | <number>
  ;;            | <character> | <string>
  ;;            | ( | ) | # ( | #u8( | ’ | ` | , | ,@ | .
 
- (global $string-paren-charset              (export "string-paren-charset")              (mut i32) (i32.const 0))
  (global $string-token-charset              (export "string-token-charset")              (mut i32) (i32.const 0))
  (global $string-begin-vector               (export "string-begin-vector")               (mut i32) (i32.const 0))
  (global $string-begin-bytevector           (export "string-begin-bytevector")           (mut i32) (i32.const 0))
@@ -88,8 +94,7 @@
  (global $string-radix-10                   (export "string-radix-10")                   (mut i32) (i32.const 0))
  (global $string-radix-16                   (export "string-radix-16")                   (mut i32) (i32.const 0))
 
- (string _string-paren-charset-data              (export "string-paren-charset-data")               "()")
- (string _string-token-charset-data              (export "string-token-charset-data")               "'`,.")
+ (string _string-token-charset-data              (export "string-token-charset-data")               "()'`,")
  (string _string-begin-vector-data               (export "string-begin-vector-data")                "#(")
  (string _string-begin-bytevector-data           (export "string-begin-bytevector-data")            "#u8(")
  (string _string-unquote-splicing-data           (export "string-unquote-splicing-data")            ",@")
@@ -135,7 +140,6 @@
  (start $init-lex-r7rs)
  (func $init-lex-r7rs (debug (export "init-lex-r7rs"))
 
-   (global.set $string-paren-charset              ($load-string _string-paren-charset-data))
    (global.set $string-token-charset              ($load-string _string-token-charset-data))
    (global.set $string-begin-vector               ($load-string _string-begin-vector-data))
    (global.set $string-begin-bytevector           ($load-string _string-begin-bytevector-data))
@@ -182,7 +186,6 @@
    (table.set $lexical-rules _lex-rule-delimited-token                 (ref.func $lex-match-delimited-token))
    (table.set $lexical-rules _lex-rule-delimited-token-string          (ref.func $lex-match-delimited-token-string))
    (table.set $lexical-rules _lex-rule-unquote-splicing                (ref.func $lex-match-unquote-splicing))
-   (table.set $lexical-rules _lex-rule-paren-char                      (ref.func $lex-match-paren-char))
    (table.set $lexical-rules _lex-rule-undelimited-token               (ref.func $lex-match-undelimited-token))
    (table.set $lexical-rules _lex-rule-token/group-1                   (ref.func $lex-match-token/group-1))
    (table.set $lexical-rules _lex-rule-token/group-2                   (ref.func $lex-match-token/group-2))
@@ -358,7 +361,7 @@
    (result i32 i32)
 
    ($lex-match-rules/longest-of-4 _lex-rule-delimited-token
-                                  _lex-rule-paren-char
+                                  _lex-rule-token-char
                                   _lex-rule-quoted-string
                                   _lex-rule-delimited-token-string
                                   _lex-rule-vertical-line-quoted-symbol
@@ -367,18 +370,18 @@
 
  (elem funcref (ref.func $lex-match-delimited-token))
 
- (func $lex-match-paren-char (export "lex-match-paren-char")
+ (func $lex-match-token-char (export "lex-match-token-char")
    (param $text i32)
    (param $end i32)
 
    (result i32 i32)
 
-   ($lex-match-charset/ascii _lex-rule-paren-char
-                             _string-paren-charset
+   ($lex-match-charset/ascii _lex-rule-token-char
+                             _string-token-charset
                              $text
                              $end))
 
- (elem funcref (ref.func $lex-match-paren-char))
+ (elem funcref (ref.func $lex-match-token-char))
 
  (func $lex-match-undelimited-token (export "lex-match-undelimited-token")
    (param $text i32)
@@ -400,7 +403,7 @@
 
    (result i32 i32)
 
-   ($lex-match-rules/longest-of-4 _lex-rule-token/group-1
+   ($lex-match-rules/longest-of-3 _lex-rule-token/group-1
                                   ;; $lex-rule-number appears before $lex-rule-identifier
                                   ;; so that +i, -1, and <infnan> are categorized as numbers
                                   ;; in the lexer, rather than needing special handling further
@@ -408,7 +411,6 @@
                                   _lex-rule-number
                                   _lex-rule-ordinary-identifier
                                   _lex-rule-peculiar-identifier
-                                  _lex-rule-boolean
                                   $text
                                   $end))
 
@@ -421,26 +423,13 @@
    (result i32 i32)
 
    ($lex-match-rules/longest-of-3 _lex-rule-token/group-2
+                                  _lex-rule-boolean
                                   _lex-rule-character
-                                  _lex-rule-token-char
-                                  _lex-rule-unquote-splicing
+                                  _lex-rule-dot
                                   $text
                                   $end))
 
  (elem funcref (ref.func $lex-match-token/group-2))
-
- (func $lex-match-token-char (export "lex-match-token-char")
-   (param $text i32)
-   (param $end i32)
-
-   (result i32 i32)
-
-   ($lex-match-charset/ascii _lex-rule-token-char
-                             _string-token-charset
-                             $text
-                             $end))
-
- (elem funcref (ref.func $lex-match-token-char))
 
  (func $lex-match-delimited-token-string (export "lex-match-delimited-token-string")
    (param $text i32)
@@ -448,9 +437,10 @@
 
    (result i32 i32)
 
-   ($lex-match-strings/one-of-2 _lex-rule-delimited-token-string
+   ($lex-match-strings/one-of-3 _lex-rule-delimited-token-string
                                 _string-begin-vector
                                 _string-begin-bytevector
+                                _string-unquote-splicing
                                 $text
                                 $end))
 

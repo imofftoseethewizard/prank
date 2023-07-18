@@ -13,6 +13,13 @@
 
  (memory (debug (export "memory")) 1)
 
+ (debug
+  (global $debug (export "#debug") (mut i32) (i32.const 0))
+  (global $p1 (export "p1") (mut i32) (i32.const 0))
+  (global $p2 (export "p2") (mut i32) (i32.const 0))
+  (global $p3 (export "p3") (mut i32) (i32.const 0))
+  (global $p4 (export "p4") (mut i32) (i32.const 0)))
+
  (const #entry-size      8)
  (const #entry-size-bits 3)
 
@@ -266,24 +273,29 @@
    (set! $symbol-hash-addr (i32.add $symbol _value-size))
 
    (loop $symbols
-     (set! $h (i32.load $symbol-hash-addr))
-
-     (loop $hashes
-       (set! $addr (%get-hash-addr $h))
-
-       (if (i32.eq (i32.load $addr) _null)
-           (then
-            (i32.store $addr $symbol))
-
-         (else
-          (%next-hash $h)
-          (br $hashes))))
-
      (if (i32.lt_u $symbol $end-symbol)
          (then
+          (set! $h (i32.load $symbol-hash-addr))
+
+          (loop $hashes
+            (set! $addr (%get-hash-addr $h))
+
+            (if (i32.eq (i32.load $addr) _null)
+                (then
+                 (i32.store $addr $symbol))
+
+              (else
+               (%next-hash $h)
+               (br $hashes))))
+
           (%incr-n i32 $symbol #entry-size)
           (%incr-n i32 $symbol-hash-addr #entry-size)
           (br $symbols)))))
+
+ (func $is-symbol (export "is-symbol")
+   (param $x i32)
+   (result i32)
+   (i32.eq (%get-value-tag $x) _tag-symbol))
 
  ;; end of module
  )

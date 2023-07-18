@@ -1,9 +1,11 @@
 (module
  (import "pairs" "dealloc-pair" (func $dealloc-pair (param i32)))
  (import "pairs" "get-pair-cdr" (func $get-pair-cdr (param i32) (result i32)))
+ (import "pairs" "set-pair-cdr" (func $set-pair-cdr (param i32 i32)))
 
  (include "./constants.wam")
  (include "./globals.wam")
+ (include "./values.wam")
 
  (func $get-list-length (export "get-list-length")
    (param $list i32)
@@ -16,7 +18,7 @@
      (if (i32.ne $list _null)
          (then
           (set! $idx (i32.add $idx (i32.const 1)))
-          (set! $list ($get-pair-cdr $list))
+          (set! $list ($get-pair-cdr (%get-value-data $list)))
           (br $again))))
 
    $idx)
@@ -33,5 +35,27 @@
           ($dealloc-pair $head)
           (set! $head $next)
           (br $again)))))
+
+ (func $build-list (export "build-list")
+   (param $list i32)
+   (result i32)
+
+   (local $head i32)
+   (local $next i32)
+
+   (if (i32.eq $list _null)
+       (then
+        (return _null)))
+
+   (set! $head $list)
+   (loop $again
+     (set! $next ($get-pair-cdr $head))
+     (if (i32.ne $next _null)
+         (then
+          ($set-pair-cdr $head (i32.or _tag-pair $next))
+          (set! $head $next)
+          (br $again))))
+
+   (i32.or _tag-pair $list))
 
  )

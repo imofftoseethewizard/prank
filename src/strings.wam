@@ -32,6 +32,13 @@
 
  (memory $memory (debug (export "memory")) 1)
 
+ (debug
+  (global $debug (export "#debug") (mut i32) (i32.const 0))
+  (global $p1 (export "p1") (mut i32) (i32.const 0))
+  (global $p2 (export "p2") (mut i32) (i32.const 0))
+  (global $p3 (export "p3") (mut i32) (i32.const 0))
+  (global $p4 (export "p4") (mut i32) (i32.const 0)))
+
  ;; The string type constants not only identify the kind of string, but also
  ;; encode key bits of information which enables the code below to determine the
  ;; memory layout of the string's data block using just the box tag field.  The

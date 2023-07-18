@@ -100,7 +100,8 @@ obj/src/lex-test-rules.wat obj/debug/src/lex-test-rules.wat: \
 
 obj/src/lists.wat obj/debug/src/lists.wat: \
 	src/constants.wam \
-	src/globals.wam
+	src/globals.wam \
+	src/values.wam
 
 obj/src/numbers.wat obj/debug/src/numbers.wat: \
 	src/block-mgr-memory-proxies.wam \
@@ -113,7 +114,8 @@ obj/src/numbers.wat obj/debug/src/numbers.wat: \
 obj/src/pairs.wat obj/debug/src/pairs.wat: \
 	src/constants.wam \
 	src/gc-client.wam \
-	src/globals.wam
+	src/globals.wam \
+	src/values.wam
 
 obj/src/parse.wat obj/debug/src/parse.wat: \
 	src/ascii.wam \

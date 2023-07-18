@@ -42,9 +42,10 @@
  (import "lex-r7rs" "lex-match-ureal-10"             (func $lex-match-ureal-10             (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-ureal-16"             (func $lex-match-ureal-16             (param i32 i32)     (result i32 i32)))
  (import "lists" "dealloc-list"                      (func $dealloc-list                   (param i32)))
+ (import "lists" "build-list"                        (func $build-list                     (param i32)         (result i32)))
  (import "math" "cos"                                (func $cos                            (param f64)         (result f64)))
  (import "math" "sin"                                (func $sin                            (param f64)         (result f64)))
- (import "numbers" "get-integer-digit-i32"                      (func $get-integer-digit-i32                     (param i32 i32)         (result i32)))
+ (import "numbers" "get-integer-digit-i32"           (func $get-integer-digit-i32          (param i32 i32)         (result i32)))
  (import "numbers" "is-inexact"                      (func $is-inexact                     (param i32)         (result i32)))
  (import "numbers" "is-negative"                     (func $is-negative                    (param i32)         (result i32)))
  (import "numbers" "alloc-integer"                   (func $alloc-integer                  (param i32)         (result i32)))
@@ -84,25 +85,24 @@
  (import "vectors" "get-vector-element"              (func $get-vector-element             (param i32 i32)     (result i32)))
  (import "vectors" "get-vector-length"               (func $get-vector-length              (param i32)         (result i32)))
 
- (import "lex-r7rs" "string-alarm"          (global $string-alarm          (mut i32)))
- (import "lex-r7rs" "string-begin-vector"   (global $string-begin-vector   (mut i32)))
- (import "lex-r7rs" "string-delete"         (global $string-delete         (mut i32)))
- (import "lex-r7rs" "string-escape"         (global $string-escape         (mut i32)))
- (import "lex-r7rs" "string-exact-prefix"   (global $string-exact-prefix   (mut i32)))
- (import "lex-r7rs" "string-inexact-prefix" (global $string-inexact-prefix (mut i32)))
+ (import "lex-r7rs" "string-alarm"            (global $string-alarm            (mut i32)))
+ (import "lex-r7rs" "string-begin-bytevector" (global $string-begin-bytevector (mut i32)))
+ (import "lex-r7rs" "string-begin-vector"     (global $string-begin-vector     (mut i32)))
+ (import "lex-r7rs" "string-delete"           (global $string-delete           (mut i32)))
+ (import "lex-r7rs" "string-escape"           (global $string-escape           (mut i32)))
+ (import "lex-r7rs" "string-exact-prefix"     (global $string-exact-prefix     (mut i32)))
+ (import "lex-r7rs" "string-inexact-prefix"   (global $string-inexact-prefix   (mut i32)))
 
- (global $string-quasiquote-symbol       (export "string-quasiquote-symbol")       (mut i32) (i32.const 0))
- (global $string-quote-symbol            (export "string-quote-symbol")            (mut i32) (i32.const 0))
- (global $string-unquote-splicing-symbol (export "string-unquote-splicing-symbol") (mut i32) (i32.const 0))
- (global $string-unquote-symbol          (export "string-unquote-symbol")          (mut i32) (i32.const 0))
-
- (string _string-quasiquote-symbol-data       (export "string-quasiquote-symbol-data")       "quasiquote-symbol")
- (string _string-quote-symbol-data            (export "string-quote-symbol-data")            "quote-symbol")
- (string _string-unquote-splicing-symbol-data (export "string-unquote-splicing-symbol-data") "unquote-splicing-symbol")
- (string _string-unquote-symbol-data          (export "string-unquote-symbol-data")          "unquote-symbol")
+ (string _string-quasiquote-symbol       (export "string-quasiquote-symbol")       "quasiquote")
+ (string _string-quote-symbol            (export "string-quote-symbol")            "quote")
+ (string _string-unquote-splicing-symbol (export "string-unquote-splicing-symbol") "unquote-splicing")
+ (string _string-unquote-symbol          (export "string-unquote-symbol")          "unquote")
 
  (macro %string-alarm
    (global.get $string-alarm))
+
+ (macro %string-begin-bytevector
+   (global.get $string-begin-bytevector))
 
  (macro %string-begin-vector
    (global.get $string-begin-vector))
@@ -118,18 +118,6 @@
 
  (macro %string-inexact-prefix
    (global.get $string-inexact-prefix))
-
- (macro %string-quasiquote-symbol
-   (global.get $string-quasiquote-symbol))
-
- (macro %string-quote-symbol
-   (global.get $string-quote-symbol))
-
- (macro %string-unquote-splicing-symbol
-   (global.get $string-unquote-splicing-symbol))
-
- (macro %string-unquote-symbol
-   (global.get $string-unquote-symbol))
 
  (include "./constants.wam")
  (include "./globals.wam")
@@ -148,8 +136,8 @@
   (global $p3 (export "p3") (mut i32) (i32.const 0))
   (global $p4 (export "p4") (mut i32) (i32.const 0)))
 
- (define _powers-of-10-i32     (i32.const 0))
- (define _end-powers-of-10-i32 (i32.const 40)) ;; 10^9 fits in an i32, so reserve 10 i32s
+ (define _powers-of-10-i32     (i32.const 0x100)) ;; reserve space for strings: "quasiquote", etc
+ (define _end-powers-of-10-i32 (i32.const 0x128)) ;; 10^9 fits in an i32, so reserve 10 i32s
 
  ;; todo: belongs elsewhere
  (define _small-integer-1 (i32.const 8))
@@ -359,20 +347,19 @@
  (macro %unquote-symbol
    (global.get $unquote-symbol))
 
+ (macro %load-symbol
+   (expr ,data)
+   ($make-symbol ($load-string ,data)))
+
  (start $init-parse)
  (func $init-parse (debug (export "init-parse"))
    (local $addr i32)
    (local $x i32)
 
-   (global.set $string-quasiquote-symbol       ($load-string _string-quasiquote-symbol-data))
-   (global.set $string-quote-symbol            ($load-string _string-quote-symbol-data))
-   (global.set $string-unquote-symbol          ($load-string _string-unquote-symbol-data))
-   (global.set $string-unquote-splicing-symbol ($load-string _string-unquote-splicing-symbol-data))
-
-   (global.set $quasiquote-symbol       ($make-symbol (%string-quasiquote-symbol)))
-   (global.set $quote-symbol            ($make-symbol (%string-quote-symbol)))
-   (global.set $unquote-splicing-symbol ($make-symbol (%string-unquote-splicing-symbol)))
-   (global.set $unquote-symbol          ($make-symbol (%string-unquote-symbol)))
+   (global.set $quasiquote-symbol       (%load-symbol _string-quasiquote-symbol))
+   (global.set $quote-symbol            (%load-symbol _string-quote-symbol))
+   (global.set $unquote-splicing-symbol (%load-symbol _string-unquote-splicing-symbol))
+   (global.set $unquote-symbol          (%load-symbol _string-unquote-symbol))
 
    (set! $x (i32.const 1))
    (set! $addr _powers-of-10-i32)
@@ -434,7 +421,7 @@
         ($dealloc-value $value))
      (else
       ($append-value (if (result i32) (%is-list-ctx $ctx)
-                       (then (%make-value _tag-pair $value))
+                       (then ($build-list $value))
                        (else
                         (if (result i32) (%is-vector-ctx $ctx)
                           (then ($build-vector $value))
@@ -705,17 +692,10 @@
    (param $text i32)
    (param $end i32)
 
-   (if (i32.eq $rule-id _lex-rule-paren-char)
+   (if (i32.eq $rule-id _lex-rule-token-char)
        (then
-        (if (i32.eq ($get-string-char $text) _char-open-paren)
-            (then
-             ($nest))
-          (else
-           (if (i32.eq (%get-ctx-stack) _null)
-               (then
-                (%set-parse-error _error-unmatched-close-parenthesis))
-             (else
-              ($unnest)))))
+        ;; $lex-rule-token-char  '`,.
+        ($parse-token-char $text $end)
         (return)))
 
    (if (i32.eq $rule-id _lex-rule-quoted-string)
@@ -731,8 +711,13 @@
              ($nest)
              (%set-vector-ctx (%get-current-ctx)))
           (else
-           ($nest)
-           (%set-bytevector-ctx (%get-current-ctx))))
+           (if (i32.eq ($match-string (%string-begin-bytevector) $text $end)
+                       $end)
+               (then
+                ($nest)
+                (%set-bytevector-ctx (%get-current-ctx)))
+             (else
+              ($parse-unquote-splicing $text $end)))))
         (return)))
 
    (if (i32.eq $rule-id _lex-rule-vertical-line-quoted-symbol)
@@ -746,12 +731,6 @@
    (param $rule-id i32)
    (param $text i32)
    (param $end i32)
-
-   (if (i32.eq $rule-id _lex-rule-token-char)
-       (then
-        ;; $lex-rule-token-char  '`,.
-        ($parse-token-char $text $end)
-        (return)))
 
    (if (i32.eq $rule-id _lex-rule-ordinary-identifier)
        (then
@@ -798,11 +777,6 @@
         ($parse-num-8 $text $end)
         (return)))
 
-   (if (i32.eq $rule-id _lex-rule-unquote-splicing)
-       (then
-        ($parse-unquote-splicing $text $end)
-        (return)))
-
    (if (i32.eq $rule-id _lex-rule-peculiar-identifier)
        (then
         ($parse-simple-identifier $text $end)
@@ -830,6 +804,20 @@
    (if (i32.eq $char _char-dot)
        (then
         (%set-finalizing-ctx (%get-current-ctx))
+        (return)))
+
+   (if (i32.eq $char _char-open-paren)
+       (then
+        ($nest)
+        (return)))
+
+   (if (i32.eq $char _char-close-paren)
+       (then
+        (if (i32.eq (%get-ctx-stack) _null)
+            (then
+             (%set-parse-error _error-unmatched-close-parenthesis))
+          (else
+           ($unnest)))
         (return)))
 
    ($nest)
@@ -2158,8 +2146,6 @@
               (set! $denominator _small-integer-1)
               (if (i32.gt_s $exp (i32.const 0))
                   (then
-                   (global.set $p1 $exp)
-                   (global.set $p2 ($get-integer-digit-i32 $numerator (i32.const 0)))
                    (set! $numerator ($multiply-integer-digits/dealloc $numerator
                                                                       ($pow-10-integer $exp))))))))
         (else

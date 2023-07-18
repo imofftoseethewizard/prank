@@ -20,6 +20,7 @@
  (include "./constants.wam")
  (include "./globals.wam")
  (include "./gc-client.wam")
+ (include "./values.wam")
 
  ;;-----------------------------------------------------------------------------
  ;;
@@ -91,10 +92,20 @@
    (expr ,value)
    (i32.store (i32.add ,pair _value-size) ,value))
 
+ (func $is-pair (export "is-pair")
+   (param $x i32)
+   (result i32)
+   (i32.eq (%get-value-tag $x) _tag-pair))
+
  (func $get-pair-car (export "get-pair-car")
    (param $pair i32)
    (result i32)
    (%get-pair-car $pair))
+
+ (func $get-tpair-car (export "get-tpair-car")
+   (param $pair i32)
+   (result i32)
+   (%get-pair-car (%get-value-data $pair)))
 
  (func $get-pair-cdr (export "get-pair-cdr")
    (param $pair i32)
@@ -115,6 +126,11 @@
    (param $pair i32)
    (result i32)
    (%get-pair-car (%get-pair-cdr $pair)))
+
+ (func $get-tpair-cdar (export "get-tpair-cdar")
+   (param $pair i32)
+   (result i32)
+   (%get-pair-car (%get-value-data (%get-pair-cdr (%get-value-data $pair)))))
 
  (func $get-pair-cddr (export "get-pair-cddr")
    (param $pair i32)

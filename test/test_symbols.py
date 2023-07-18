@@ -1,4 +1,4 @@
-from util import format_addr
+from util import create_test_string, format_addr
 from modules.debug.pairs import *
 from modules.debug.block_mgr import *
 from modules.debug.strings import *
@@ -25,12 +25,10 @@ def test_inter_symbol():
 def test_inter_symbol_match():
     init_test()
 
-    s1 = alloc_string(1, 1)
-    set_string_bytes(s1, ord('a'), 1)
+    s1 = create_test_string('a')
     sym1 = inter_symbol(s1)
 
-    s2 = alloc_string(1, 1)
-    set_string_bytes(s2, ord('a'), 1)
+    s2 = create_test_string('a')
     sym2 = inter_symbol(s2)
 
     assert s1 != s2

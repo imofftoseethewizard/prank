@@ -38,6 +38,13 @@
 
  (memory (debug (export "memory")) 1)
 
+ (debug
+  (global $debug (export "#debug") (mut i32) (i32.const 0))
+  (global $p1 (export "p1") (mut i32) (i32.const 0))
+  (global $p2 (export "p2") (mut i32) (i32.const 0))
+  (global $p3 (export "p3") (mut i32) (i32.const 0))
+  (global $p4 (export "p4") (mut i32) (i32.const 0)))
+
  (global $charset-ab         (export "charset-ab")         (mut i32) (i32.const 0))
  (global $charset-ba         (export "charset-ba")         (mut i32) (i32.const 0))
  (global $charset-bc         (export "charset-bc")         (mut i32) (i32.const 0))
