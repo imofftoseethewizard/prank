@@ -97,15 +97,25 @@
    (result i32)
    (i32.eq (%get-value-tag $x) _tag-pair))
 
+ (func $get-car (export "get-car")
+   (param $pair i32)
+   (result i32)
+   (%get-pair-car (%get-value-data $pair)))
+
+ (func $get-cdr (export "get-cdr")
+   (param $pair i32)
+   (result i32)
+   (%get-pair-cdr (%get-value-data $pair)))
+
+ (func $get-cdar (export "get-cdar")
+   (param $pair i32)
+   (result i32)
+   (%get-pair-car (%get-value-data (%get-pair-cdr (%get-value-data $pair)))))
+
  (func $get-pair-car (export "get-pair-car")
    (param $pair i32)
    (result i32)
    (%get-pair-car $pair))
-
- (func $get-tpair-car (export "get-tpair-car")
-   (param $pair i32)
-   (result i32)
-   (%get-pair-car (%get-value-data $pair)))
 
  (func $get-pair-cdr (export "get-pair-cdr")
    (param $pair i32)
@@ -126,11 +136,6 @@
    (param $pair i32)
    (result i32)
    (%get-pair-car (%get-pair-cdr $pair)))
-
- (func $get-tpair-cdar (export "get-tpair-cdar")
-   (param $pair i32)
-   (result i32)
-   (%get-pair-car (%get-value-data (%get-pair-cdr (%get-value-data $pair)))))
 
  (func $get-pair-cddr (export "get-pair-cddr")
    (param $pair i32)
@@ -343,13 +348,16 @@
  (func $dealloc-pair (export "dealloc-pair")
    (param $pair i32)
 
-   (%set-pair-car $pair (%get-pair-free-list))
+   (local $addr i32)
+   (set! $addr (%get-value-data $pair))
+
+   (%set-pair-car $addr (%get-pair-free-list))
 
    (debug
-    (%set-pair-cdr $pair (i32.const 0xdeadce11))
+    (%set-pair-cdr $addr (i32.const 0xdeadce11))
     (%global.decr i32 $pair-count))
 
-   (%set-pair-free-list $pair))
+   (%set-pair-free-list $addr))
 
  ;; end of module
  )

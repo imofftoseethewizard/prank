@@ -2,15 +2,17 @@
 
  ;; A bytevector is a boxed block.
 
- (import "block-mgr" "alloc-block"    (func $alloc-block      (param i32 i32) (result i32)))
- (import "block-mgr" "dealloc-block"  (func $dealloc-block    (param i32 i32)))
- (import "block-mgr" "get-block-addr" (func $get-block-addr   (param i32)     (result i32)))
- (import "block-mgr" "init-blockset"  (func $init-blockset    (param i32 i32)))
- (import "lists" "get-list-length"    (func $get-list-length  (param i32)     (result i32)))
- (import "pairs" "make-pair"          (func $make-pair        (param i32 i32) (result i32)))
- (import "pairs" "dealloc-pair"       (func $dealloc-pair     (param i32)))
- (import "pairs" "get-pair-car"       (func $get-pair-car     (param i32)     (result i32)))
- (import "pairs" "get-pair-cdr"       (func $get-pair-cdr     (param i32)     (result i32)))
+ (import "block-mgr" "alloc-block"    (func $alloc-block     (param i32 i32) (result i32)))
+ (import "block-mgr" "dealloc-block"  (func $dealloc-block   (param i32 i32)))
+ (import "block-mgr" "get-block-addr" (func $get-block-addr  (param i32)     (result i32)))
+ (import "block-mgr" "init-blockset"  (func $init-blockset   (param i32 i32)))
+ (import "lists" "get-list-length"    (func $get-list-length (param i32)     (result i32)))
+ (import "pairs" "make-pair"          (func $make-pair       (param i32 i32) (result i32)))
+ (import "pairs" "dealloc-pair"       (func $dealloc-pair    (param i32)))
+ (import "pairs" "get-car"            (func $get-car         (param i32)     (result i32)))
+ (import "pairs" "get-cdr"            (func $get-cdr         (param i32)     (result i32)))
+ (import "pairs" "get-pair-car"       (func $get-pair-car    (param i32)     (result i32)))
+ (import "pairs" "get-pair-cdr"       (func $get-pair-cdr    (param i32)     (result i32)))
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
@@ -78,10 +80,11 @@
    (loop $again
      (if (i32.ne $head _null)
          (then
-          ($set-bytevector-i8 $bv $idx ($get-pair-car $head))
-          (set! $head ($get-pair-cdr $head))
+          ($set-bytevector-i8 $bv $idx ($get-car $head))
+          (set! $head ($get-cdr $head))
           (%incr i32 $idx)
           (br $again))))
+
 
    $bv)
 

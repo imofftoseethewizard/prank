@@ -7,6 +7,8 @@
  (import "block-mgr" "init-blockset"  (func $init-blockset   (param i32 i32)))
  (import "lists" "get-list-length"    (func $get-list-length (param i32)     (result i32)))
  (import "pairs" "dealloc-pair"       (func $dealloc-pair    (param i32)))
+ (import "pairs" "get-car"            (func $get-car         (param i32)     (result i32)))
+ (import "pairs" "get-cdr"            (func $get-cdr         (param i32)     (result i32)))
  (import "pairs" "get-pair-car"       (func $get-pair-car    (param i32)     (result i32)))
  (import "pairs" "get-pair-cdr"       (func $get-pair-cdr    (param i32)     (result i32)))
  (import "pairs" "make-pair"          (func $make-pair       (param i32 i32) (result i32)))
@@ -118,22 +120,22 @@
    (local $v i32)
    (local $value i32)
 
-   (local.set $v (call $alloc-vector (call $get-list-length (local.get $list))))
+   (set! $v ($alloc-vector ($get-list-length $list)))
 
-   (local.set $addr (call $get-vector-addr (local.get $v)))
-   (local.set $head (local.get $list))
+   (set! $addr ($get-vector-addr $v))
+   (set! $head $list)
 
    (loop $again
-     (if (i32.ne (local.get $head) (global.get $null))
+     (if (i32.ne $head _null)
          (then
-          (local.set $value (call $get-pair-car (local.get $head)))
-          (i32.store (local.get $addr) (local.get $value))
-          (call $add-ref (local.get $v) (local.get $value))
+          (set! $value ($get-car $head))
+          (set! $head ($get-cdr $head))
+          (i32.store $addr $value)
+          ($add-ref $v $value)
           (%incr-n i32 $addr 4)
-          (%next-cdr $head)
           (br $again))))
 
-   (local.get $v))
+   $v)
 
  ;; end of module
  )

@@ -101,13 +101,11 @@ def test_init_parser():
 
 def test_parse_empty():
     init_test()
-    init_parser()
 
     assert parse_test('') == error_incomplete_input.value
 
 def test_parse_symbol():
     init_test()
-    init_parser()
 
     src = 'a'
     assert parse_test(src) == make_symbol(create_test_string(src))
@@ -118,7 +116,6 @@ def test_parse_small_integer(radix, fmt):
     init_test()
 
     for i in range(-20, 21):
-        init_parser()
         src = f'{radix}{{i:{fmt}}}'.format(i=i)
         print(src)
         assert parse_test(src) >> tag_size_bits.value == i
@@ -130,7 +127,6 @@ def test_parse_rational(radix, fmt):
 
     for n in range(-20, 21):
         for d in range(1, 20):
-            init_parser()
             src = f'{radix}{{n:{fmt}}}/{{d:{fmt}}}'.format(n=n, d=d)
 
             value = parse_test(src)
@@ -147,7 +143,6 @@ def test_parse_full_complex(radix, fmt):
 
     for re in range(-20, 21):
         for im in range(-20, 21):
-            init_parser()
             src = f'{radix}{{re:{fmt}}}{{im:+{fmt}}}i'.format(re=re, im=im)
             value = parse_test(src)
             if im != 0:
@@ -164,7 +159,6 @@ def test_parse_complex_polar(radix, fmt):
     init_test()
 
     for m in range(0, 5):
-        init_parser()
         src = f'{radix}{{m:{fmt}}}@0'.format(m=m)
         value = parse_test(src)
         assert is_complex(value)
@@ -178,7 +172,6 @@ def test_parse_complex_polar(radix, fmt):
         assert get_boxed_f64(im) == pytest.approx(0)
 
     for m in range(0, 5):
-        init_parser()
         src = f'{radix}{{m:{fmt}}}@{{n:{fmt}}}/{{d:{fmt}}}'.format(m=m, n=11, d=7)
         value = parse_test(src)
         assert is_complex(value)
@@ -197,14 +190,12 @@ def test_parse_complex_unit_im(radix, fmt):
     init_test()
 
     for re in range(-20, 21):
-        init_parser()
         src = f'{radix}{{re:{fmt}}}+i'.format(re=re)
         value = parse_test(src)
         assert is_complex(value)
         assert real_part(value) >> tag_size_bits.value == re
         assert imag_part(value) >> tag_size_bits.value == 1
 
-        init_parser()
         src = f'{radix}{{re:{fmt}}}-i'.format(re=re)
         value = parse_test(src)
         assert is_complex(value)
@@ -217,7 +208,6 @@ def test_parse_complex_im_only(radix, fmt):
     init_test()
 
     for im in range(-20, 21):
-        init_parser()
         src = f'{radix}{{im:+{fmt}}}i'.format(im=im)
         print(src)
         value = parse_test(src)
@@ -236,7 +226,6 @@ def test_parse_complex_infnan_im(radix, fmt):
     for re in range(-20, 21):
         for sign in '+-':
             for im_val in ['inf', 'nan']:
-                init_parser()
                 src = f'{radix}{{re:{fmt}}}{{sign}}{{im_val}}.0i'.format(re=re, sign=sign, im_val=im_val)
                 value = parse_test(src)
                 assert is_complex(value)
@@ -258,7 +247,6 @@ def test_parse_infnan_im(radix, fmt):
 
     for sign in '+-':
         for im_val in ['inf', 'nan']:
-            init_parser()
             src = f'{radix}{{sign}}{{im_val}}.0i'.format(sign=sign, im_val=im_val)
             value = parse_test(src)
             assert is_complex(value)
@@ -280,7 +268,6 @@ def test_parse_infnan(radix, fmt):
 
     for sign in '+-':
         for val in ['inf', 'nan']:
-            init_parser()
             src = f'{radix}{{sign}}{{val}}.0'.format(sign=sign, val=val)
             value = parse_test(src)
             assert is_inexact(value)
@@ -345,7 +332,6 @@ def test_parse_exact_decimal():
     init_test()
 
     for src, value in zip(decimal_test_cases, exact_decimal_test_values):
-        init_parser()
         src = '#e' + src
         print(src)
         try:
@@ -421,7 +407,6 @@ def test_parse_decimal():
     init_test()
 
     for src in decimal_test_cases:
-        init_parser()
         print(src)
         value = parse_test(src)
 
@@ -443,7 +428,6 @@ def check_octal_integer(src_base):
     src = f'#o{src_base}'
     py_src = f'0o{src_base}'
     value = eval(py_src)
-    init_parser()
 
     result = parse_test(src)
 
@@ -472,7 +456,6 @@ def test_octal_number_forms():
 
     init_test()
 
-    init_parser()
     result = parse_test('#i#o26/7')
     assert get_boxed_f64(result) == 0o26/7
 
@@ -481,7 +464,6 @@ def check_hexidecimal_integer(src_base):
     src = f'#x{src_base}'
     py_src = f'0x{src_base}'
     value = eval(py_src)
-    init_parser()
 
     result = parse_test(src)
 
@@ -513,7 +495,6 @@ def check_binary_integer(src_base):
     src = f'#b{src_base}'
     py_src = f'0b{src_base}'
     value = eval(py_src)
-    init_parser()
 
     result = parse_test(src)
 
@@ -548,7 +529,6 @@ def test_empty_bytevector():
     )
 
     for src in empty_bytevectors:
-        init_parser()
         value = parse_test(src)
         assert is_bytevector(value)
         assert get_bytevector_size(value) == 0
@@ -559,7 +539,6 @@ def test_simple_bytevector():
 
     for b in range(0, 255):
         src = f'#u8({b})'
-        init_parser()
         value = parse_test(src)
 
         assert is_bytevector(value)
@@ -571,7 +550,6 @@ def test_bytevector_number_radixes():
     init_test()
 
     src = '#u8(#b1111 #o17 15 #d15 #xf)'
-    init_parser()
     value = parse_test(src)
 
     assert is_bytevector(value)
@@ -591,7 +569,6 @@ def test_bytevector_number_normalization():
       25+0i ; = 25, check complex
     )
     '''
-    init_parser()
     value = parse_test(src)
 
     assert is_bytevector(value)
@@ -605,49 +582,42 @@ def test_invalid_bytevector_negative():
 
     init_test()
     src = '#u8(-1)'
-    init_parser()
     value = parse_test(src)
     assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_overflow():
     init_test()
     src = '#u8(256)'
-    init_parser()
     value = parse_test(src)
     assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_rational():
     init_test()
     src = '#u8(1/2)'
-    init_parser()
     value = parse_test(src)
     assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_float():
     init_test()
     src = '#u8(#i#b1)'
-    init_parser()
     value = parse_test(src)
     assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_complex():
     init_test()
     src = '#u8(1+2i)'
-    init_parser()
     value = parse_test(src)
     assert value == error_illegal_bytevector_element.value
 
 def test_invalid_bytevector_non_numeric():
     init_test()
     src = '#u8(#u8(0))'
-    init_parser()
     value = parse_test(src)
     assert value == error_illegal_bytevector_element.value
 
 def test_empty_string():
     init_test()
     src = '""'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 0
@@ -656,7 +626,6 @@ def test_empty_string():
 def test_one_char_string():
     init_test()
     src = '"a"'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
@@ -669,7 +638,6 @@ def test_string_mnemonic_escapes():
 
     for m, c in ('a\a', 'b\b', 'n\n', 'r\r', 't\t'):
         src = f'"\\{m}"'
-        init_parser()
         value = parse_test(src)
         assert is_string(value)
         assert get_string_length(value) == 1
@@ -681,7 +649,6 @@ def test_string_escaped_backslash():
     init_test()
 
     src = r'"\\"'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
@@ -693,7 +660,6 @@ def test_string_escaped_double_quote():
     init_test()
 
     src = r'"\""'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
@@ -705,7 +671,6 @@ def test_string_escaped_line_ending():
     init_test()
 
     src = '"a\\ \n b"'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 2
@@ -717,7 +682,6 @@ def test_string_escaped_line_ending():
 def test_string_2byte_character():
     init_test()
     src = '"λ"'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
@@ -727,7 +691,6 @@ def test_string_2byte_character():
 def test_string_3byte_character():
     init_test()
     src = '"ᴁ"'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
@@ -737,7 +700,6 @@ def test_string_3byte_character():
 def test_string_4byte_character():
     init_test()
     src = '"𝅘𝅥𝅮"'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
@@ -750,7 +712,6 @@ def test_simple_strings():
 
     s = ''
     for i in range(1, 300):
-        init_parser()
         c = chr(i%96+32)
         if c in '"\\':
             s += '\\'
@@ -769,7 +730,6 @@ def test_long_strings():
     base = 'λᴁ 𝅘𝅥𝅮'
 
     for i in range(9):
-        init_parser()
         base = base + base + base
         src = f'"{base}"'
         value = parse_test(src)
@@ -781,7 +741,6 @@ def test_string_hex_escape():
 
     init_test()
     src = '"\\x20;"'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
@@ -789,12 +748,10 @@ def test_string_hex_escape():
     assert get_string_char(get_string_addr(value)) == ord(' ')
 
     src = '"λ"'
-    init_parser()
     value = parse_test(src)
     print(format_addr(get_string_char(get_string_addr(value))))
 
     src = '"\\x3bb;"'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
@@ -803,7 +760,6 @@ def test_string_hex_escape():
     assert struct.pack('<H', get_string_char(get_string_addr(value))).decode() == 'λ'
 
     src = '"\\x1d11e;"'
-    init_parser()
     value = parse_test(src)
     assert is_string(value)
     assert get_string_length(value) == 1
@@ -849,7 +805,6 @@ def test_simple_char():
     init_test()
 
     for i in range(32, 128):
-        init_parser()
         src = f'#\\{chr(i)}'
         value = parse_test(src)
         assert is_char(value)
@@ -869,7 +824,6 @@ def test_named_char():
                     ('space',     ' '),
                     ('tab',       '\u0009')):
 
-        init_parser()
         print(name, c)
         src = f'#\\{name}'
         value = parse_test(src)
@@ -881,19 +835,16 @@ def test_character_hex_escape():
     init_test()
 
     src = '#\\x20;'
-    init_parser()
     value = parse_test(src)
     assert is_char(value)
     assert get_char_code_point(value) == ord(' ')
 
     src = '#\\x3bb;'
-    init_parser()
     value = parse_test(src)
     assert is_char(value)
     assert get_char_code_point(value) == ord('λ')
 
     src = '#\\x1d11e;'
-    init_parser()
     value = parse_test(src)
     assert is_char(value)
     assert get_char_code_point(value) == ord('𝄞')
@@ -903,29 +854,24 @@ def test_booleans():
     init_test()
 
     src = '#t'
-    init_parser()
     value = parse_test(src)
     assert value == TRUE
 
     src = '#true'
-    init_parser()
     value = parse_test(src)
     assert value == TRUE
 
     src = '#f'
-    init_parser()
     value = parse_test(src)
     assert value == FALSE
 
     src = '#false'
-    init_parser()
     value = parse_test(src)
     assert value == FALSE
 
 def test_identifiers():
 
     init_test()
-    init_parser()
 
     src = 'foo'
     assert parse_test(src) == make_symbol(create_test_string(src))
@@ -965,11 +911,13 @@ def test_vectors():
 
     init_test()
 
-    init_parser()
+    src = '#()'
+    value = parse_test(src)
+    assert is_vector(value)
+    assert get_vector_length(value) == 0
 
     src = '#(#\\space "foo" bar 3.14 42)'
     value = parse_test(src)
-
     assert is_vector(value)
     assert get_vector_length(value) == 5
     assert get_char_code_point(get_vector_element(value, 0)) == ord(' ')
@@ -980,23 +928,16 @@ def test_vectors():
     assert get_boxed_f64(get_vector_element(value, 3)) == 3.14
     assert get_vector_element(value, 4) >> 3 == 42
 
-    src = '#()'
-    value = parse_test(src)
-    assert is_vector(value)
-    assert get_vector_length(value) == 0
-
-
 def test_quasiquote():
 
     init_test()
-    init_parser()
 
     src = "`foo"
     value = parse_test(src)
     assert is_pair(value)
     assert get_list_length(value) == 2
-    e1 = get_tpair_car(value)
-    e2 = get_tpair_cdar(value)
+    e1 = get_car(value)
+    e2 = get_cdar(value)
     print(format_addr(e1), format_addr(parse_mod.p1.value))
     assert is_symbol(e1)
     assert e1 == quasiquote_symbol.value
@@ -1006,15 +947,13 @@ def test_quasiquote():
 def test_quote():
 
     init_test()
-    init_parser()
 
     src = "'foo"
     value = parse_test(src)
     assert is_pair(value)
     assert get_list_length(value) == 2
-    e1 = get_tpair_car(value)
-    e2 = get_tpair_cdar(value)
-    print(format_addr(e1), format_addr(parse_mod.p1.value))
+    e1 = get_car(value)
+    e2 = get_cdar(value)
     assert is_symbol(e1)
     assert e1 == quote_symbol.value
     assert is_symbol(e2)
@@ -1023,15 +962,13 @@ def test_quote():
 def test_unquote():
 
     init_test()
-    init_parser()
 
     src = ",foo"
     value = parse_test(src)
     assert is_pair(value)
     assert get_list_length(value) == 2
-    e1 = get_tpair_car(value)
-    e2 = get_tpair_cdar(value)
-    print(format_addr(e1), format_addr(parse_mod.p1.value))
+    e1 = get_car(value)
+    e2 = get_cdar(value)
     assert is_symbol(e1)
     assert e1 == unquote_symbol.value
     assert is_symbol(e2)
@@ -1040,17 +977,32 @@ def test_unquote():
 def test_unquote_splicing():
 
     init_test()
-    init_parser()
 
     src = ",@foo"
     value = parse_test(src)
-    print(format_addr(value))
     assert is_pair(value)
     assert get_list_length(value) == 2
-    e1 = get_tpair_car(value)
-    e2 = get_tpair_cdar(value)
-    print(format_addr(e1), format_addr(parse_mod.p1.value))
+    e1 = get_car(value)
+    e2 = get_cdar(value)
     assert is_symbol(e1)
     assert e1 == unquote_splicing_symbol.value
     assert is_symbol(e2)
     assert e2 == make_symbol(create_test_string('foo'))
+
+def test_dot():
+
+    init_test()
+
+    src = '(foo . bar)'
+    try:
+        value = parse_test(src)
+    except:
+        print(parse_mod.p1.value, parse_mod.p2.value, parse_mod.p3.value)
+        raise
+    assert is_pair(value)
+    e1 = get_car(value)
+    e2 = get_cdr(value)
+    assert is_symbol(e1)
+    assert e1 == make_symbol(create_test_string('foo'))
+    assert is_symbol(e2)
+    assert e2 == make_symbol(create_test_string('bar'))

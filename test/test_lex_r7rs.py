@@ -80,6 +80,7 @@ def test_lex_match_delimited_token():
     init_test()
 
     check_match_fail(lex_match_delimited_token, '', lex_rule_delimited_token)
+    check_match_fail(lex_match_delimited_token, '.', lex_rule_delimited_token)
 
     check_match(lex_match_delimited_token, '#(',   lex_rule_delimited_token_string)
     check_match(lex_match_delimited_token, '#u8(', lex_rule_delimited_token_string)
