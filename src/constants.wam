@@ -8,4 +8,4 @@
 (const #value-size      4)
 (const #value-size-bits 2)
 
-(const #max-lexical-rules 178)
+(const #max-lexical-rules 200)

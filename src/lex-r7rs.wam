@@ -20,10 +20,12 @@
  (import "lex" "lex-match-string/ascii-ci"               (func $lex-match-string/ascii-ci               (param i32 i32 i32 i32)             (result i32 i32)))
  (import "lex" "lex-match-strings/ascii-ci/longest-of-2" (func $lex-match-strings/ascii-ci/longest-of-2 (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-strings/ascii-ci/longest-of-3" (func $lex-match-strings/ascii-ci/longest-of-3 (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-strings/ascii-ci/longest-of-4" (func $lex-match-strings/ascii-ci/longest-of-4 (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
  (import "lex" "lex-match-strings/ascii-ci/one-of-2"     (func $lex-match-strings/ascii-ci/one-of-2     (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-strings/longest-of-4"          (func $lex-match-strings/longest-of-4          (param i32 i32 i32 i32 i32 i32 i32) (result i32 i32)))
  (import "lex" "lex-match-strings/one-of-2"              (func $lex-match-strings/one-of-2              (param i32 i32 i32 i32 i32)         (result i32 i32)))
  (import "lex" "lex-match-strings/one-of-3"              (func $lex-match-strings/one-of-3              (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
+ (import "lex" "lex-match-strings/one-of-3/ascii-ci"     (func $lex-match-strings/one-of-3/ascii-ci     (param i32 i32 i32 i32 i32 i32)     (result i32 i32)))
  (import "lex" "lex-match-until-rule"                    (func $lex-match-until-rule                    (param i32 i32 i32 i32)             (result i32 i32)))
  (import "strings" "alloc-string"                        (func $alloc-string                            (param i32 i32)                     (result i32)))
  (import "strings" "get-string-addr"                     (func $get-string-addr                         (param i32)                         (result i32)))
@@ -187,8 +189,10 @@
    (table.set $lexical-rules _lex-rule-delimited-token-string          (ref.func $lex-match-delimited-token-string))
    (table.set $lexical-rules _lex-rule-unquote-splicing                (ref.func $lex-match-unquote-splicing))
    (table.set $lexical-rules _lex-rule-undelimited-token               (ref.func $lex-match-undelimited-token))
+   (table.set $lexical-rules _lex-rule-undelimited-token/ascii-ci      (ref.func $lex-match-undelimited-token/ascii-ci))
    (table.set $lexical-rules _lex-rule-token/group-1                   (ref.func $lex-match-token/group-1))
    (table.set $lexical-rules _lex-rule-token/group-2                   (ref.func $lex-match-token/group-2))
+   (table.set $lexical-rules _lex-rule-token/ascii-ci/group-2          (ref.func $lex-match-token/ascii-ci/group-2))
    (table.set $lexical-rules _lex-rule-token-char                      (ref.func $lex-match-token-char))
    (table.set $lexical-rules _lex-rule-delimiter                       (ref.func $lex-match-delimiter))
    (table.set $lexical-rules _lex-rule-intraline-whitespace            (ref.func $lex-match-intraline-whitespace))
@@ -243,17 +247,24 @@
    (table.set $lexical-rules _lex-rule-symbol-element/character        (ref.func $lex-match-symbol-element/character))
    (table.set $lexical-rules _lex-rule-escaped-vertical-line           (ref.func $lex-match-escaped-vertical-line))
    (table.set $lexical-rules _lex-rule-boolean                         (ref.func $lex-match-boolean))
+   (table.set $lexical-rules _lex-rule-boolean/ascii-ci                (ref.func $lex-match-boolean/ascii-ci))
    (table.set $lexical-rules _lex-rule-character                       (ref.func $lex-match-character))
+   (table.set $lexical-rules _lex-rule-character/ascii-ci              (ref.func $lex-match-character/ascii-ci))
    (table.set $lexical-rules _lex-rule-escaped-character               (ref.func $lex-match-escaped-character))
    (table.set $lexical-rules _lex-rule-single-character                (ref.func $lex-match-single-character))
    (table.set $lexical-rules _lex-rule-character-prefix                (ref.func $lex-match-character-prefix))
    (table.set $lexical-rules _lex-rule-named-character                 (ref.func $lex-match-named-character))
+   (table.set $lexical-rules _lex-rule-named-character/ascii-ci        (ref.func $lex-match-named-character/ascii-ci))
    (table.set $lexical-rules _lex-rule-escaped-character-hex           (ref.func $lex-match-escaped-character-hex))
    (table.set $lexical-rules _lex-rule-character-hex-prefix            (ref.func $lex-match-character-hex-prefix))
    (table.set $lexical-rules _lex-rule-character-name                  (ref.func $lex-match-character-name))
    (table.set $lexical-rules _lex-rule-character-name/group-1          (ref.func $lex-match-character-name/group-1))
    (table.set $lexical-rules _lex-rule-character-name/group-2          (ref.func $lex-match-character-name/group-2))
    (table.set $lexical-rules _lex-rule-character-name/group-3          (ref.func $lex-match-character-name/group-3))
+   (table.set $lexical-rules _lex-rule-character-name/ascii-ci         (ref.func $lex-match-character-name/ascii-ci))
+   (table.set $lexical-rules _lex-rule-character-name/ascii-ci/group-1 (ref.func $lex-match-character-name/ascii-ci/group-1))
+   (table.set $lexical-rules _lex-rule-character-name/ascii-ci/group-2 (ref.func $lex-match-character-name/ascii-ci/group-2))
+   (table.set $lexical-rules _lex-rule-character-name/ascii-ci/group-3 (ref.func $lex-match-character-name/ascii-ci/group-3))
    (table.set $lexical-rules _lex-rule-quoted-string                   (ref.func $lex-match-quoted-string))
    (table.set $lexical-rules _lex-rule-double-quote                    (ref.func $lex-match-double-quote))
    (table.set $lexical-rules _lex-rule-string-elements                 (ref.func $lex-match-string-elements))
@@ -397,6 +408,20 @@
 
  (elem funcref (ref.func $lex-match-undelimited-token))
 
+ (func $lex-match-undelimited-token/ascii-ci (export "lex-match-undelimited-token/ascii-ci")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-rules/longest-of-2 _lex-rule-undelimited-token/ascii-ci
+                                  _lex-rule-token/group-1
+                                  _lex-rule-token/ascii-ci/group-2
+                                  $text
+                                  $end))
+
+ (elem funcref (ref.func $lex-match-undelimited-token/ascii-ci))
+
  (func $lex-match-token/group-1 (export "lex-match-token/group-1")
    (param $text i32)
    (param $end i32)
@@ -430,6 +455,21 @@
                                   $end))
 
  (elem funcref (ref.func $lex-match-token/group-2))
+
+ (func $lex-match-token/ascii-ci/group-2 (export "lex-match-token/ascii-ci/group-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-rules/longest-of-3 _lex-rule-token/ascii-ci/group-2
+                                  _lex-rule-boolean/ascii-ci
+                                  _lex-rule-character/ascii-ci
+                                  _lex-rule-dot
+                                  $text
+                                  $end))
+
+ (elem funcref (ref.func $lex-match-token/ascii-ci/group-2))
 
  (func $lex-match-delimited-token-string (export "lex-match-delimited-token-string")
    (param $text i32)
@@ -1295,7 +1335,21 @@
 
  (elem funcref (ref.func $lex-match-boolean))
 
+ (func $lex-match-boolean/ascii-ci (export "lex-match-boolean/ascii-ci")
+   (param $text i32)
+   (param $end i32)
 
+   (result i32 i32)
+
+   ($lex-match-strings/ascii-ci/longest-of-4 _lex-rule-boolean/ascii-ci
+                                             _string-boolean-t
+                                             _string-boolean-f
+                                             _string-boolean-true
+                                             _string-boolean-false
+                                             $text
+                                             $end))
+
+ (elem funcref (ref.func $lex-match-boolean/ascii-ci))
 
  ;; <character> -> #\ <any character>
  ;;                  | #\ <character name>
@@ -1315,6 +1369,21 @@
                                   $end))
 
  (elem funcref (ref.func $lex-match-character))
+
+ (func $lex-match-character/ascii-ci (export "lex-match-character/ascii-ci")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-rules/longest-of-3 _lex-rule-character/ascii-ci
+                                  _lex-rule-escaped-character
+                                  _lex-rule-named-character/ascii-ci
+                                  _lex-rule-escaped-character-hex
+                                  $text
+                                  $end))
+
+ (elem funcref (ref.func $lex-match-character/ascii-ci))
 
  (func $lex-match-escaped-character (export "lex-match-escaped-character")
    (param $text i32)
@@ -1369,6 +1438,20 @@
                                    $end))
 
  (elem funcref (ref.func $lex-match-named-character))
+
+ (func $lex-match-named-character/ascii-ci (export "lex-match-named-character/ascii-ci")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-rules/sequence-of-2 _lex-rule-named-character
+                                   _lex-rule-character-prefix
+                                   _lex-rule-character-name/ascii-ci
+                                   $text
+                                   $end))
+
+ (elem funcref (ref.func $lex-match-named-character/ascii-ci))
 
  (func $lex-match-escaped-character-hex (export "lex-match-escaped-character-hex")
    (param $text i32)
@@ -1469,6 +1552,74 @@
                                 $end))
 
  (elem funcref (ref.func $lex-match-character-name/group-3))
+
+ (func $lex-match-character-name/ascii-ci (export "lex-match-character-name/ascii-ci")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (local $match-end i32)
+
+   _lex-rule-character-name
+
+   (drop ;; rule-id
+    (set! $match-end
+          ($lex-match-rules/longest-of-3 _lex-rule-character-name/ascii-ci
+                                         _lex-rule-character-name/ascii-ci/group-1
+                                         _lex-rule-character-name/ascii-ci/group-2
+                                         _lex-rule-character-name/ascii-ci/group-3
+                                         $text
+                                         $end)))
+
+   $match-end)
+
+ (elem funcref (ref.func $lex-match-character-name/ascii-ci))
+
+ (func $lex-match-character-name/ascii-ci/group-1 (export "lex-match-character-name/ascii-ci/group-1")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-strings/one-of-3/ascii-ci _lex-rule-character-name/ascii-ci/group-1
+                                         _string-alarm
+                                         _string-backspace
+                                         _string-delete
+                                         $text
+                                         $end))
+
+ (elem funcref (ref.func $lex-match-character-name/ascii-ci/group-1))
+
+ (func $lex-match-character-name/ascii-ci/group-2 (export "lex-match-character-name/ascii-ci/group-2")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-strings/one-of-3/ascii-ci _lex-rule-character-name/ascii-ci/group-2
+                                         _string-escape
+                                         _string-newline
+                                         _string-null
+                                         $text
+                                         $end))
+
+ (elem funcref (ref.func $lex-match-character-name/ascii-ci/group-2))
+
+ (func $lex-match-character-name/ascii-ci/group-3 (export "lex-match-character-name/ascii-ci/group-3")
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   ($lex-match-strings/one-of-3/ascii-ci _lex-rule-character-name/ascii-ci/group-3
+                                         _string-return
+                                         _string-space
+                                         _string-tab
+                                         $text
+                                         $end))
+
+ (elem funcref (ref.func $lex-match-character-name/ascii-ci/group-3))
 
 
  ;; <string> -> " <string element>* "

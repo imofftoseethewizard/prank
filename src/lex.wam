@@ -242,6 +242,32 @@
         (then $end-match)
         (else ($match-string $third-str $text $end))))))
 
+ (func $lex-match-strings/one-of-3/ascii-ci (export "lex-match-strings/one-of-3/ascii-ci")
+   (param $rule-id i32)
+   (param $first-str i32)
+   (param $second-str i32)
+   (param $third-str i32)
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (local $end-match i32)
+
+   (set! $end-match ($match-string/ascii-ci $first-str $text $end))
+
+   $rule-id
+
+   (if (result i32) (i32.ne $end-match _null)
+     (then $end-match)
+
+     (else
+      (set! $end-match ($match-string/ascii-ci $second-str $text $end))
+
+      (if (result i32) (i32.ne $end-match _null)
+        (then $end-match)
+        (else ($match-string/ascii-ci $third-str $text $end))))))
+
  (func $lex-match-strings/longest-of-2 (export "lex-match-strings/longest-of-2")
    (param $rule-id i32)
    (param $first-str i32)
@@ -421,6 +447,53 @@
 
    (set! $end-match
          ($match-string $fourth-str $text $end))
+
+   (if (i32.gt_s $end-match $max-end)
+       (then
+        (set! $max-end $end-match)))
+
+   $rule-id
+   $max-end)
+
+ (func $lex-match-strings/ascii-ci/longest-of-4 (export "lex-match-strings/ascii-ci/longest-of-4")
+   (param $rule-id i32)
+   (param $first-str i32)
+   (param $second-str i32)
+   (param $third-str i32)
+   (param $fourth-str i32)
+   (param $text i32)
+   (param $end i32)
+
+   (result i32 i32)
+
+   (local $end-match i32)
+   (local $max-end i32)
+
+   (set! $max-end (i32.const -1))
+
+   (set! $end-match
+         ($match-string/ascii-ci $first-str $text $end))
+
+   (if (i32.gt_s $end-match $max-end)
+       (then
+        (set! $max-end $end-match)))
+
+   (set! $end-match
+         ($match-string/ascii-ci $second-str $text $end))
+
+   (if (i32.gt_s $end-match $max-end)
+       (then
+        (set! $max-end $end-match)))
+
+   (set! $end-match
+         ($match-string/ascii-ci $third-str $text $end))
+
+   (if (i32.gt_s $end-match $max-end)
+       (then
+        (set! $max-end $end-match)))
+
+   (set! $end-match
+         ($match-string/ascii-ci $fourth-str $text $end))
 
    (if (i32.gt_s $end-match $max-end)
        (then
