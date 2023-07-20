@@ -191,6 +191,14 @@
   (global $ctx-type-mask         (export "ctx-type-mask")         i32 _ctx-type-mask)
   (global $ctx-type-mask-inverse (export "ctx-type-mask-inverse") i32 _ctx-type-mask-inverse))
 
+ ;; used by directives #!fold-case #!no-fold-case
+
+ (global $fold-case (debug (export "fold-case")) (mut i32) (i32.const 0))
+
+ (macro %set-fold-case
+   (expr ,v)
+   (global.set $fold-case ,v))
+
  ;; The stack is implemented as a list of bytevectors.
  (global $ctx-stack (debug (export "ctx-stack")) (mut i32) _null)
 
@@ -688,8 +696,7 @@
  (func $process-directive (debug (export "process-directive"))
    (param $text i32)
    (param $end i32)
-   ;; todo
-   )
+   (%set-fold-case (i32.eq ($get-string-char (i32.add $text (i32.const 2))) _char-f)))
 
  (func $parse-delimited-token (export "parse-delimited-token")
    (param $rule-id i32)
