@@ -1030,5 +1030,33 @@ def test_directives():
     value = parse_test(src)
     assert get_char_code_point(value) == ord(' ')
 
-#todo: ordinary comments, nested comments, datum comments, directives
-#todo: multi-level nesting, error codes and locations, memory leaks
+def test_ordinary_comment():
+
+    init_test()
+
+    src = '(foo ; . bar \n . baz)'
+    value = parse_test(src)
+    assert is_pair(value)
+    e1 = get_car(value)
+    e2 = get_cdr(value)
+    assert is_symbol(e1)
+    assert e1 == make_symbol(create_test_string('foo'))
+    assert is_symbol(e2)
+    assert e2 == make_symbol(create_test_string('baz'))
+
+def test_nested_comments():
+
+    init_test()
+
+    src = '''#|
+       start of a nested comment #| eggs go here |#
+       3.14
+    |#
+    42
+    '''
+    value = parse_test(src)
+    assert is_small_integer(value)
+    assert to_int(value) == 42
+
+#todo: datum comments
+#todo: lists, multi-level nesting, error codes and locations, memory leaks
