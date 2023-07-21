@@ -24,6 +24,7 @@
 (define _char-at-sign         (i32.const 64))
 (define _char-A               (i32.const 65))
 (define _char-F               (i32.const 70))
+(define _char-T               (i32.const 84))
 (define _char-Z               (i32.const 90))
 (define _char-backslash       (i32.const 92))
 (define _char-backtick        (i32.const 96))

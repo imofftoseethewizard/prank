@@ -994,11 +994,7 @@ def test_dot():
     init_test()
 
     src = '(foo . bar)'
-    try:
-        value = parse_test(src)
-    except:
-        print(parse_mod.p1.value, parse_mod.p2.value, parse_mod.p3.value)
-        raise
+    value = parse_test(src)
     assert is_pair(value)
     e1 = get_car(value)
     e2 = get_cdr(value)
@@ -1006,3 +1002,33 @@ def test_dot():
     assert e1 == make_symbol(create_test_string('foo'))
     assert is_symbol(e2)
     assert e2 == make_symbol(create_test_string('bar'))
+
+def test_directives():
+
+    init_test()
+
+    src = '#!fold-case(FOO . #!no-fold-case BAR)'
+
+    value = parse_test(src)
+    assert is_pair(value)
+    e1 = get_car(value)
+    e2 = get_cdr(value)
+    assert is_symbol(e1)
+    assert e1 == make_symbol(create_test_string('foo'))
+    assert is_symbol(e2)
+    assert e2 == make_symbol(create_test_string('BAR'))
+
+    src = '#!fold-case #T'
+    value = parse_test(src)
+    assert value == TRUE
+
+    src = '#!fold-case #False'
+    value = parse_test(src)
+    assert value == FALSE
+
+    src = '#!fold-case #\\sPaCe'
+    value = parse_test(src)
+    assert get_char_code_point(value) == ord(' ')
+
+#todo: ordinary comments, nested comments, datum comments, directives
+#todo: multi-level nesting, error codes and locations, memory leaks

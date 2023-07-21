@@ -18,14 +18,16 @@
  (include "./globals.wam")
  (include "./values.wam")
 
+ (func $is-ascii-upper-case (export "is-ascii-upper-case")
+   (param $x i32)
+   (result i32)
+   (i32.and (i32.ge_u $x _char-A) (i32.le_u $x _char-Z)))
+
  (func $ascii-lower (export "ascii-lower")
    (param $x i32)
-
    (result i32)
 
-   (if (result i32)
-       (i32.and (i32.ge_u $x _char-A)
-                (i32.le_u $x _char-Z))
+   (if (result i32) ($is-ascii-upper-case $x)
      (then
       (i32.add $x (i32.const 0x20)))
      (else

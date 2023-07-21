@@ -1,91 +1,93 @@
 (module
 
- (import "bytevectors" "alloc-bytevector"            (func $alloc-bytevector                (param i32)         (result i32)))
- (import "bytevectors" "build-bytevector"            (func $build-bytevector                (param i32)         (result i32)))
- (import "bytevectors" "dealloc-bytevector"          (func $dealloc-bytevector              (param i32)))
- (import "bytevectors" "get-bytevector-i32"          (func $get-bytevector-i32              (param i32 i32)     (result i32)))
- (import "bytevectors" "set-bytevector-i32"          (func $set-bytevector-i32              (param i32 i32 i32)))
- (import "chars" "ascii-lower"                       (func $ascii-lower                     (param i32)         (result i32)))
- (import "chars" "calc-char-width"                   (func $calc-char-width                 (param i32)         (result i32)))
- (import "chars" "encode-code-point"                 (func $encode-code-point               (param i32)         (result i32)))
- (import "lex-r7rs" "lex-match-atmosphere"           (func $lex-match-atmosphere            (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-2"            (func $lex-match-complex-2             (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-infnan-im-2"  (func $lex-match-complex-infnan-im-2   (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-8"            (func $lex-match-complex-8             (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-infnan-im-8"  (func $lex-match-complex-infnan-im-8   (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-10"           (func $lex-match-complex-10            (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-infnan-im-10" (func $lex-match-complex-infnan-im-10  (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-16"           (func $lex-match-complex-16            (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-complex-infnan-im-16" (func $lex-match-complex-infnan-im-16  (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-datum-comment"        (func $lex-match-datum-comment         (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-significand-forms"    (func $lex-match-significand-forms     (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-delimited-token"      (func $lex-match-delimited-token       (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-delimiter"            (func $lex-match-delimiter             (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-prefix-2"             (func $lex-match-prefix-2              (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-real-2"               (func $lex-match-real-2                (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-prefix-8"             (func $lex-match-prefix-8              (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-real-8"               (func $lex-match-real-8                (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-prefix-10"            (func $lex-match-prefix-10             (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-real-10"              (func $lex-match-real-10               (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-prefix-16"            (func $lex-match-prefix-16             (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-real-16"              (func $lex-match-real-16               (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-sign"                 (func $lex-match-sign                  (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-string-element"       (func $lex-match-string-element        (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-symbol-element"       (func $lex-match-symbol-element        (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-uinteger-2"           (func $lex-match-uinteger-2            (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-uinteger-8"           (func $lex-match-uinteger-8            (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-uinteger-10"          (func $lex-match-uinteger-10           (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-uinteger-16"          (func $lex-match-uinteger-16           (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-undelimited-token"    (func $lex-match-undelimited-token     (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-ureal-2"              (func $lex-match-ureal-2               (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-ureal-8"              (func $lex-match-ureal-8               (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-ureal-10"             (func $lex-match-ureal-10              (param i32 i32)     (result i32 i32)))
- (import "lex-r7rs" "lex-match-ureal-16"             (func $lex-match-ureal-16              (param i32 i32)     (result i32 i32)))
- (import "lists" "dealloc-list"                      (func $dealloc-list                    (param i32)))
- (import "math" "cos"                                (func $cos                             (param f64)         (result f64)))
- (import "math" "sin"                                (func $sin                             (param f64)         (result f64)))
- (import "numbers" "get-integer-digit-i32"           (func $get-integer-digit-i32           (param i32 i32)         (result i32)))
- (import "numbers" "is-inexact"                      (func $is-inexact                      (param i32)         (result i32)))
- (import "numbers" "is-negative"                     (func $is-negative                     (param i32)         (result i32)))
- (import "numbers" "alloc-integer"                   (func $alloc-integer                   (param i32)         (result i32)))
- (import "numbers" "coerce-f64"                      (func $coerce-f64                      (param i32)         (result f64)))
- (import "numbers" "dealloc-number"                  (func $dealloc-number                  (param i32)))
- (import "numbers" "make-boxed-f64"                  (func $make-boxed-f64                  (param f64)         (result i32)))
- (import "numbers" "make-boxed-i64"                  (func $make-boxed-i64                  (param i64)         (result i32)))
- (import "numbers" "make-complex"                    (func $make-complex                    (param i32 i32)     (result i32)))
- (import "numbers" "make-rational"                   (func $make-rational                   (param i32 i32)     (result i32)))
- (import "numbers" "make-small-integer"              (func $make-small-integer              (param i32)         (result i32)))
- (import "numbers" "multiply-add-integer-i32"        (func $multiply-add-integer-i32        (param i32 i32 i32)))
- (import "numbers" "multiply-integer-digits/dealloc" (func $multiply-integer-digits/dealloc (param i32 i32)     (result i32)))
- (import "numbers" "normalize-number"                (func $normalize-number                (param i32)         (result i32)))
- (import "numbers" "normalize-rational"              (func $normalize-rational              (param i32)         (result i32)))
- (import "numbers" "pow-10-integer"                  (func $pow-10-integer                  (param i32)         (result i32)))
- (import "numbers" "negate-number"                   (func $negate-number                   (param i32)         (result i32)))
- (import "numbers" "set-integer-i64-digit"           (func $set-integer-i64-digit           (param i32 i32 i64)))
- (import "numbers" "to-inexact"                      (func $to-inexact                      (param i32)         (result i32)))
- (import "pairs" "dealloc-pair"                      (func $dealloc-pair                    (param i32)))
- (import "pairs" "get-car"                           (func $get-car                         (param i32)         (result i32)))
- (import "pairs" "get-cdr"                           (func $get-cdr                         (param i32)         (result i32)))
- (import "pairs" "get-cdar"                          (func $get-cdar                        (param i32)         (result i32)))
- (import "pairs" "get-pair-car"                      (func $get-pair-car                    (param i32)         (result i32)))
- (import "pairs" "get-pair-cdr"                      (func $get-pair-cdr                    (param i32)         (result i32)))
- (import "pairs" "make-pair"                         (func $make-pair                       (param i32 i32)     (result i32)))
- (import "pairs" "set-pair-car"                      (func $set-pair-car                    (param i32 i32)))
- (import "pairs" "set-pair-cdr"                      (func $set-pair-cdr                    (param i32 i32)))
- (import "strings" "alloc-string"                    (func $alloc-string                    (param i32 i32)     (result i32)))
- (import "strings" "build-string"                    (func $build-string                    (param i32)         (result i32)))
- (import "strings" "dealloc-string"                  (func $dealloc-string                  (param i32)))
- (import "strings" "get-string-addr"                 (func $get-string-addr                 (param i32)         (result i32)))
- (import "strings" "get-string-char"                 (func $get-string-char                 (param i32)         (result i32)))
- (import "strings" "match-string"                    (func $match-string                    (param i32 i32 i32) (result i32)))
- (import "strings" "match-string/ascii-ci"           (func $match-string/ascii-ci           (param i32 i32 i32) (result i32)))
- (import "strings" "set-string-bytes"                (func $set-string-bytes                (param i32 i32 i32)))
- (import "strings" "slice-string-addr"               (func $slice-string-addr               (param i32 i32)     (result i32)))
- (import "symbols" "make-symbol"                     (func $make-symbol                     (param i32)         (result i32)))
- (import "vectors" "build-vector"                    (func $build-vector                    (param i32)         (result i32)))
- (import "vectors" "dealloc-vector"                  (func $dealloc-vector                  (param i32)))
- (import "vectors" "get-vector-element"              (func $get-vector-element              (param i32 i32)     (result i32)))
- (import "vectors" "get-vector-length"               (func $get-vector-length               (param i32)         (result i32)))
+ (import "bytevectors" "alloc-bytevector"                  (func $alloc-bytevector                     (param i32)         (result i32)))
+ (import "bytevectors" "build-bytevector"                  (func $build-bytevector                     (param i32)         (result i32)))
+ (import "bytevectors" "dealloc-bytevector"                (func $dealloc-bytevector                   (param i32)))
+ (import "bytevectors" "get-bytevector-i32"                (func $get-bytevector-i32                   (param i32 i32)     (result i32)))
+ (import "bytevectors" "set-bytevector-i32"                (func $set-bytevector-i32                   (param i32 i32 i32)))
+ (import "chars" "ascii-lower"                             (func $ascii-lower                          (param i32)         (result i32)))
+ (import "chars" "calc-char-width"                         (func $calc-char-width                      (param i32)         (result i32)))
+ (import "chars" "encode-code-point"                       (func $encode-code-point                    (param i32)         (result i32)))
+ (import "lex-r7rs" "lex-match-atmosphere"                 (func $lex-match-atmosphere                 (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-2"                  (func $lex-match-complex-2                  (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-infnan-im-2"        (func $lex-match-complex-infnan-im-2        (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-8"                  (func $lex-match-complex-8                  (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-infnan-im-8"        (func $lex-match-complex-infnan-im-8        (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-10"                 (func $lex-match-complex-10                 (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-infnan-im-10"       (func $lex-match-complex-infnan-im-10       (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-16"                 (func $lex-match-complex-16                 (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-complex-infnan-im-16"       (func $lex-match-complex-infnan-im-16       (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-datum-comment"              (func $lex-match-datum-comment              (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-significand-forms"          (func $lex-match-significand-forms          (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-delimited-token"            (func $lex-match-delimited-token            (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-delimiter"                  (func $lex-match-delimiter                  (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-prefix-2"                   (func $lex-match-prefix-2                   (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-real-2"                     (func $lex-match-real-2                     (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-prefix-8"                   (func $lex-match-prefix-8                   (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-real-8"                     (func $lex-match-real-8                     (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-prefix-10"                  (func $lex-match-prefix-10                  (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-real-10"                    (func $lex-match-real-10                    (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-prefix-16"                  (func $lex-match-prefix-16                  (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-real-16"                    (func $lex-match-real-16                    (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-sign"                       (func $lex-match-sign                       (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-string-element"             (func $lex-match-string-element             (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-symbol-element"             (func $lex-match-symbol-element             (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-uinteger-2"                 (func $lex-match-uinteger-2                 (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-uinteger-8"                 (func $lex-match-uinteger-8                 (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-uinteger-10"                (func $lex-match-uinteger-10                (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-uinteger-16"                (func $lex-match-uinteger-16                (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-undelimited-token"          (func $lex-match-undelimited-token          (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-undelimited-token/ascii-ci" (func $lex-match-undelimited-token/ascii-ci (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-ureal-2"                    (func $lex-match-ureal-2                    (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-ureal-8"                    (func $lex-match-ureal-8                    (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-ureal-10"                   (func $lex-match-ureal-10                   (param i32 i32)     (result i32 i32)))
+ (import "lex-r7rs" "lex-match-ureal-16"                   (func $lex-match-ureal-16                   (param i32 i32)     (result i32 i32)))
+ (import "lists" "dealloc-list"                            (func $dealloc-list                         (param i32)))
+ (import "math" "cos"                                      (func $cos                                  (param f64)         (result f64)))
+ (import "math" "sin"                                      (func $sin                                  (param f64)         (result f64)))
+ (import "numbers" "get-integer-digit-i32"                 (func $get-integer-digit-i32                (param i32 i32)         (result i32)))
+ (import "numbers" "is-inexact"                            (func $is-inexact                           (param i32)         (result i32)))
+ (import "numbers" "is-negative"                           (func $is-negative                          (param i32)         (result i32)))
+ (import "numbers" "alloc-integer"                         (func $alloc-integer                        (param i32)         (result i32)))
+ (import "numbers" "coerce-f64"                            (func $coerce-f64                           (param i32)         (result f64)))
+ (import "numbers" "dealloc-number"                        (func $dealloc-number                       (param i32)))
+ (import "numbers" "make-boxed-f64"                        (func $make-boxed-f64                       (param f64)         (result i32)))
+ (import "numbers" "make-boxed-i64"                        (func $make-boxed-i64                       (param i64)         (result i32)))
+ (import "numbers" "make-complex"                          (func $make-complex                         (param i32 i32)     (result i32)))
+ (import "numbers" "make-rational"                         (func $make-rational                        (param i32 i32)     (result i32)))
+ (import "numbers" "make-small-integer"                    (func $make-small-integer                   (param i32)         (result i32)))
+ (import "numbers" "multiply-add-integer-i32"              (func $multiply-add-integer-i32             (param i32 i32 i32)))
+ (import "numbers" "multiply-integer-digits/dealloc"       (func $multiply-integer-digits/dealloc      (param i32 i32)     (result i32)))
+ (import "numbers" "normalize-number"                      (func $normalize-number                     (param i32)         (result i32)))
+ (import "numbers" "normalize-rational"                    (func $normalize-rational                   (param i32)         (result i32)))
+ (import "numbers" "pow-10-integer"                        (func $pow-10-integer                       (param i32)         (result i32)))
+ (import "numbers" "negate-number"                         (func $negate-number                        (param i32)         (result i32)))
+ (import "numbers" "set-integer-i64-digit"                 (func $set-integer-i64-digit                (param i32 i32 i64)))
+ (import "numbers" "to-inexact"                            (func $to-inexact                           (param i32)         (result i32)))
+ (import "pairs" "dealloc-pair"                            (func $dealloc-pair                         (param i32)))
+ (import "pairs" "get-car"                                 (func $get-car                              (param i32)         (result i32)))
+ (import "pairs" "get-cdr"                                 (func $get-cdr                              (param i32)         (result i32)))
+ (import "pairs" "get-cdar"                                (func $get-cdar                             (param i32)         (result i32)))
+ (import "pairs" "get-pair-car"                            (func $get-pair-car                         (param i32)         (result i32)))
+ (import "pairs" "get-pair-cdr"                            (func $get-pair-cdr                         (param i32)         (result i32)))
+ (import "pairs" "make-pair"                               (func $make-pair                            (param i32 i32)     (result i32)))
+ (import "pairs" "set-pair-car"                            (func $set-pair-car                         (param i32 i32)))
+ (import "pairs" "set-pair-cdr"                            (func $set-pair-cdr                         (param i32 i32)))
+ (import "strings" "alloc-string"                          (func $alloc-string                         (param i32 i32)     (result i32)))
+ (import "strings" "build-string"                          (func $build-string                         (param i32)         (result i32)))
+ (import "strings" "dealloc-string"                        (func $dealloc-string                       (param i32)))
+ (import "strings" "get-string-addr"                       (func $get-string-addr                      (param i32)         (result i32)))
+ (import "strings" "get-string-char"                       (func $get-string-char                      (param i32)         (result i32)))
+ (import "strings" "match-string"                          (func $match-string                         (param i32 i32 i32) (result i32)))
+ (import "strings" "match-string/ascii-ci"                 (func $match-string/ascii-ci                (param i32 i32 i32) (result i32)))
+ (import "strings" "set-string-bytes"                      (func $set-string-bytes                     (param i32 i32 i32)))
+ (import "strings" "slice-string-addr"                     (func $slice-string-addr                    (param i32 i32)     (result i32)))
+ (import "strings" "string-foldcase/ascii"                 (func $string-foldcase/ascii                (param i32)))
+ (import "symbols" "make-symbol"                           (func $make-symbol                          (param i32)         (result i32)))
+ (import "vectors" "build-vector"                          (func $build-vector                         (param i32)         (result i32)))
+ (import "vectors" "dealloc-vector"                        (func $dealloc-vector                       (param i32)))
+ (import "vectors" "get-vector-element"                    (func $get-vector-element                   (param i32 i32)     (result i32)))
+ (import "vectors" "get-vector-length"                     (func $get-vector-length                    (param i32)         (result i32)))
 
  (import "lex-r7rs" "string-alarm"            (global $string-alarm            (mut i32)))
  (import "lex-r7rs" "string-begin-bytevector" (global $string-begin-bytevector (mut i32)))
@@ -194,6 +196,9 @@
  ;; used by directives #!fold-case #!no-fold-case
 
  (global $fold-case (debug (export "fold-case")) (mut i32) (i32.const 0))
+
+ (macro %get-fold-case
+   (global.get $fold-case))
 
  (macro %set-fold-case
    (expr ,v)
@@ -602,8 +607,10 @@
           (set! $text $end-match)
           (br $again)))
 
-     ;; Delimited tokens are strings, vertical bar-delimited identifiers, and
-     ;; the open and close paren characters.
+     ;; Delimited tokens are strings, vertical bar-delimited identifiers, a
+     ;; small set of individual characters -- tick, backtick, comma and the open
+     ;; and close paren characters -- and short tokens -- begin vector, begin
+     ;; bytevector, and unquote-splicing.
 
      (set! $rule-id
            (set! $end-match
@@ -625,11 +632,14 @@
           (br $again)))
 
      ;; An undelimited token is anything else that isn't whitespace, a comment,
-     ;; or a directive.
+     ;; or a directive.  If the parser is in the case-folding state, then
+     ;; booleans and character names may are parsed case-insensitively.
 
      (set! $rule-id
            (set! $end-match
-                 ($lex-match-undelimited-token $text $end)))
+                 (if (result i32 i32) (%get-fold-case)
+                   (then ($lex-match-undelimited-token/ascii-ci $text $end))
+                   (else ($lex-match-undelimited-token $text $end)))))
 
      (if (i32.ne $end-match _null)
          (then
@@ -743,12 +753,14 @@
    (param $text i32)
    (param $end i32)
 
-   (if (i32.eq $rule-id _lex-rule-ordinary-identifier)
+   (if (i32.or (i32.eq $rule-id _lex-rule-ordinary-identifier)
+               (i32.eq $rule-id _lex-rule-peculiar-identifier))
        (then
-        ($parse-simple-identifier $text $end)
+        ($parse-identifier $text $end)
         (return)))
 
-   (if (i32.eq $rule-id _lex-rule-boolean)
+   (if (i32.or (i32.eq $rule-id _lex-rule-boolean)
+               (i32.eq $rule-id _lex-rule-boolean/ascii-ci))
        (then
         ($parse-boolean $text $end)
         (return)))
@@ -765,7 +777,8 @@
         ($parse-escaped-character $text $end)
         (return)))
 
-   (if (i32.eq $rule-id _lex-rule-named-character)
+   (if (i32.or (i32.eq $rule-id _lex-rule-named-character)
+               (i32.eq $rule-id _lex-rule-named-character/ascii-ci))
        (then
         ($parse-named-character $text $end)
         (return)))
@@ -793,11 +806,6 @@
    (if (i32.eq $rule-id _lex-rule-num-8)
        (then
         ($parse-num-8 $text $end)
-        (return)))
-
-   (if (i32.eq $rule-id _lex-rule-peculiar-identifier)
-       (then
-        ($parse-simple-identifier $text $end)
         (return)))
 
    (unreachable))
@@ -864,18 +872,28 @@
    (%set-auto-unnest-ctx (%get-current-ctx))
    (%set-datum-comment-ctx (%get-current-ctx)))
 
- (func $parse-simple-identifier (debug (export "parse-simple-identifier"))
+ (func $parse-identifier (debug (export "parse-identifier"))
    (param $text i32)
    (param $end i32)
 
-   ($append-value ($make-symbol ($slice-string-addr $text $end))))
+   (local $s i32)
+
+   (set! $s ($slice-string-addr $text $end))
+
+   (if (%get-fold-case)
+       (then ($string-foldcase/ascii $s))) ;; todo unicode
+
+   ($append-value ($make-symbol $s)))
 
  (func $parse-boolean (debug (export "parse-boolean"))
    (param $text i32)
    (param $end i32)
 
-   ($append-value (if (result i32) (i32.eq ($get-string-char (i32.add $text (i32.const 1)))
-                                           _char-t)
+   (local $char i32)
+
+   (set! $char ($get-string-char (i32.add $text (i32.const 1))))
+
+   ($append-value (if (result i32) (i32.or (i32.eq $char _char-T) (i32.eq $char _char-t))
                     (then _true)
                     (else _false))))
 
@@ -900,16 +918,16 @@
    (set! $char
          (if (result i32) (i32.eq $length (i32.const 5))
            (then
-            (if (result i32) (i32.eq ($match-string (%string-alarm) $text $end) $end)
+            (if (result i32) (i32.eq ($match-string/ascii-ci (%string-alarm) $text $end) $end)
               (then _char-bell)
               (else _char-space)))
            (else
             (if (result i32) (i32.eq $length (i32.const 6))
               (then
-               (if (result i32) (i32.eq ($match-string (%string-delete) $text $end) $end)
+               (if (result i32) (i32.eq ($match-string/ascii-ci (%string-delete) $text $end) $end)
                  (then _char-delete)
                  (else
-                  (if (result i32) (i32.eq ($match-string (%string-escape) $text $end) $end)
+                  (if (result i32) (i32.eq ($match-string/ascii-ci (%string-escape) $text $end) $end)
                     (then _char-escape)
                     (else _char-carriage-return))))) ;; return
               (else

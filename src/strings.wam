@@ -14,13 +14,15 @@
  (import "block-mgr" "dealloc-block"   (func $dealloc-block       (param i32 i32)))
  (import "block-mgr" "get-block-addr"  (func $get-block-addr      (param i32)     (result i32)))
  (import "block-mgr" "init-blockset"   (func $init-blockset       (param i32 i32)))
- (import "chars" "char-eq/ascii-ci"    (func $char-eq/ascii-ci    (param i32 i32) (result i32)))
+ (import "chars" "ascii-lower"         (func $ascii-lower         (param i32)     (result i32)))
  (import "chars" "calc-encoded-length" (func $calc-encoded-length (param i32)     (result i32)))
+ (import "chars" "char-eq/ascii-ci"    (func $char-eq/ascii-ci    (param i32 i32) (result i32)))
  (import "chars" "encode-char"         (func $encode-char         (param i32)     (result i32)))
+ (import "chars" "is-ascii-upper-case" (func $is-ascii-upper-case (param i32)     (result i32)))
+ (import "pairs" "dealloc-pair"        (func $dealloc-pair        (param i32)))
  (import "pairs" "get-pair-car"        (func $get-pair-car        (param i32)     (result i32)))
  (import "pairs" "get-pair-cdr"        (func $get-pair-cdr        (param i32)     (result i32)))
  (import "pairs" "make-pair"           (func $make-pair           (param i32 i32) (result i32)))
- (import "pairs" "dealloc-pair"        (func $dealloc-pair        (param i32)))
 
  (include "./block-mgr-memory-proxy-imports.wam")
 
@@ -333,6 +335,30 @@
    (memory.copy ($get-string-addr $s) $start $size)
 
    $s)
+
+ (func $string-foldcase/ascii (export "string-foldcase/ascii")
+   (param $s i32)
+
+   (local $addr i32)
+   (local $char i32)
+   (local $end i32)
+
+   (set! $addr ($get-string-addr $s))
+   (set! $end (i32.add $addr ($get-string-size $s)))
+
+   (loop $again
+     (if (i32.lt_u $addr $end)
+         (then
+          (set! $char ($get-string-char $addr))
+
+          (if ($is-ascii-upper-case $char)
+              (then
+               ($set-string-bytes $addr ($ascii-lower $char) (i32.const 1))
+               (%incr i32 $addr))
+            (else
+             (set! $addr (i32.add $addr ($calc-encoded-length $char)))))
+
+          (br $again)))))
 
  (func $build-string (export "build-string")
    (param $elements i32)
