@@ -1058,5 +1058,32 @@ def test_nested_comments():
     assert is_small_integer(value)
     assert to_int(value) == 42
 
+def test_datum_comments():
+
+    src = '#u8(#;42 3)'
+
+    init_test()
+    value = parse_test(src)
+    assert is_bytevector(value)
+    assert get_bytevector_size(value) == 1
+    assert get_bytevector_i8_u(value, 0) == 3
+
+    src = '#u8(#;3.14 3)'
+
+    init_test()
+    value = parse_test(src)
+    assert is_bytevector(value)
+    assert get_bytevector_size(value) == 1
+    assert get_bytevector_i8_u(value, 0) == 3
+
+    src = '#u8(#;#;3.14 #\\space 3)'
+
+    init_test()
+    value = parse_test(src)
+    assert is_bytevector(value)
+    assert get_bytevector_size(value) == 1
+    assert get_bytevector_i8_u(value, 0) == 3
+
+
 #todo: datum comments
 #todo: lists, multi-level nesting, error codes and locations, memory leaks

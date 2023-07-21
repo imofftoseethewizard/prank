@@ -162,30 +162,30 @@
  (define _inexact      (i32.const 2))
 
  ;; Define the parse context structure
- (define _ctx-flags-offset (+offset 0 4))
- (define _ctx-tail-offset  (+offset))
- (define _ctx-value-offset (+offset))
- (define _ctx-size         (+offset))
+ (define _ctx-flags-offset        (+offset 0 4))
+ (define _ctx-tail-offset         (+offset))
+ (define _ctx-value-offset        (+offset))
+ (define _ctx-ignore-count-offset (+offset))
+ (define _ctx-size                (+offset))
 
  (debug
-  (global $ctx-flags-offset (export "ctx-flags-offset") i32 _ctx-flags-offset)
-  (global $ctx-tail-offset  (export "ctx-tail-offset")  i32 _ctx-tail-offset)
-  (global $ctx-value-offset (export "ctx-value-offset") i32 _ctx-value-offset)
-  (global $ctx-size         (export "ctx-size")         i32 _ctx-size))
+  (global $ctx-flags-offset        (export "ctx-flags-offset")        i32 _ctx-flags-offset)
+  (global $ctx-tail-offset         (export "ctx-tail-offset")         i32 _ctx-tail-offset)
+  (global $ctx-value-offset        (export "ctx-value-offset")        i32 _ctx-value-offset)
+  (global $ctx-ignore-count-offset (export "ctx-ignore-count-offset") i32 _ctx-ignore-count-offset)
+  (global $ctx-size                (export "ctx-size")                i32 _ctx-size))
 
  ;; Flags
  (define _ctx-auto-unnest       (i32.const 0x01))
- (define _ctx-datum-comment     (i32.const 0x02))
- (define _ctx-finalized         (i32.const 0x04))
- (define _ctx-finalizing        (i32.const 0x08))
- (define _ctx-type-bytevector   (i32.const 0x10))
- (define _ctx-type-vector       (i32.const 0x20))
- (define _ctx-type-mask         (i32.const 0x30))
- (define _ctx-type-mask-inverse (i32.const 0xffffffcf))
+ (define _ctx-finalized         (i32.const 0x02))
+ (define _ctx-finalizing        (i32.const 0x04))
+ (define _ctx-type-bytevector   (i32.const 0x08))
+ (define _ctx-type-vector       (i32.const 0x10))
+ (define _ctx-type-mask         (i32.const 0x18))
+ (define _ctx-type-mask-inverse (i32.const 0xffffffe7))
 
  (debug
   (global $ctx-auto-unnest       (export "ctx-auto-unnest")       i32 _ctx-auto-unnest)
-  (global $ctx-datum-comment     (export "ctx-datum-comment")     i32 _ctx-datum-comment)
   (global $ctx-finalized         (export "ctx-finalized")         i32 _ctx-finalized)
   (global $ctx-finalizing        (export "ctx-finalizing")        i32 _ctx-finalizing)
   (global $ctx-type-bytevector   (export "ctx-type-bytevector")   i32 _ctx-type-bytevector)
@@ -225,6 +225,10 @@
    (expr ,ctx)
    ($get-bytevector-i32 ,ctx _ctx-flags-offset))
 
+ (macro %get-ctx-ignore-count
+   (expr ,ctx)
+   ($get-bytevector-i32 ,ctx _ctx-ignore-count-offset))
+
  (macro %get-ctx-tail
    (expr ,ctx)
    ($get-bytevector-i32 ,ctx _ctx-tail-offset))
@@ -241,6 +245,11 @@
    (expr ,ctx)
    (expr ,flags)
    ($set-bytevector-i32 ,ctx _ctx-flags-offset ,flags))
+
+ (macro %set-ctx-ignore-count
+   (expr ,ctx)
+   (expr ,ignore-count)
+   ($set-bytevector-i32 ,ctx _ctx-ignore-count-offset ,ignore-count))
 
  (macro %set-ctx-tail
    (expr ,ctx)
@@ -261,10 +270,6 @@
  (macro %is-auto-unnest-ctx
    (expr ,ctx)
    (i32.and (%get-ctx-flags ,ctx) _ctx-auto-unnest))
-
- (macro %is-datum-comment-ctx
-   (expr ,ctx)
-   (i32.and (%get-ctx-flags ,ctx) _ctx-datum-comment))
 
  (macro %is-bytevector-ctx
    (expr ,ctx)
@@ -290,10 +295,6 @@
  (macro %set-auto-unnest-ctx
    (label $ctx)
    (%set-ctx-flags $ctx (i32.or (%get-ctx-flags $ctx) _ctx-auto-unnest)))
-
- (macro %set-datum-comment-ctx
-   (label $ctx)
-   (%set-ctx-flags $ctx (i32.or (%get-ctx-flags $ctx) _ctx-datum-comment)))
 
  (macro %set-bytevector-ctx
    (label $ctx)
@@ -396,6 +397,7 @@
    (set! $ctx ($alloc-bytevector _ctx-size))
 
    (%set-ctx-flags $ctx (i32.const 0))
+   (%set-ctx-ignore-count $ctx (i32.const 0))
 
    (set! $value ($make-pair _null _null))
    (%set-ctx-value $ctx $value)
@@ -422,26 +424,27 @@
    (if (i32.eq $head _null)
        (then
         ;; fail unmatched close paren
-        (return)
-        ))
+        (return)))
 
    (set! $ctx ($get-pair-car $head))
+
+   (if (%get-ctx-ignore-count $ctx)
+       (then
+        ;; fail unexpected close paren
+        (return)))
+
    (%set-ctx-stack ($get-pair-cdr $head))
 
    ($dealloc-pair $head)
    (set! $value ($get-pair-cdr (%get-ctx-value $ctx)))
 
-   (if (%is-datum-comment-ctx $ctx)
-       (then
-        ($dealloc-value $value))
-     (else
-      ($append-value (if (result i32) (%is-list-ctx $ctx)
+   ($append-value (if (result i32) (%is-list-ctx $ctx)
                        (then $value)
                        (else
                         (if (result i32) (%is-vector-ctx $ctx)
                           (then ($build-vector $value))
                           (else ($build-bytevector $value)))
-                        ($dealloc-list $value))))))
+                        ($dealloc-list $value))))
 
    ($dealloc-parse-context $ctx))
 
@@ -449,9 +452,17 @@
    (param $v i32)
 
    (local $ctx i32)
+   (local $ignore-count i32)
    (local $new-tail i32)
 
    (set! $ctx (%get-current-ctx))
+   (set! $ignore-count (%get-ctx-ignore-count $ctx))
+
+   (if $ignore-count
+       (then
+        ($dealloc-value $v)
+        (%set-ctx-ignore-count $ctx (i32.sub $ignore-count (i32.const 1)))
+        (return)))
 
    (if (%is-bytevector-ctx $ctx)
        (then
@@ -869,8 +880,10 @@
    (param $text i32)
    (param $end i32)
 
-   (%set-auto-unnest-ctx (%get-current-ctx))
-   (%set-datum-comment-ctx (%get-current-ctx)))
+   (local $ctx i32)
+
+   (set! $ctx (%get-current-ctx))
+   (%set-ctx-ignore-count $ctx (i32.add (%get-ctx-ignore-count $ctx) (i32.const 1))))
 
  (func $parse-identifier (debug (export "parse-identifier"))
    (param $text i32)
