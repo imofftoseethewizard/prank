@@ -163,16 +163,18 @@
 
  ;; Define the parse context structure
  (define _ctx-flags-offset        (+offset 0 4))
+ (define _ctx-ignore-count-offset (+offset))
+ (define _ctx-location-offset     (+offset))
  (define _ctx-tail-offset         (+offset))
  (define _ctx-value-offset        (+offset))
- (define _ctx-ignore-count-offset (+offset))
  (define _ctx-size                (+offset))
 
  (debug
   (global $ctx-flags-offset        (export "ctx-flags-offset")        i32 _ctx-flags-offset)
+  (global $ctx-ignore-count-offset (export "ctx-ignore-count-offset") i32 _ctx-ignore-count-offset)
+  (global $ctx-location-offset     (export "ctx-location-offset")     i32 _ctx-location-offset)
   (global $ctx-tail-offset         (export "ctx-tail-offset")         i32 _ctx-tail-offset)
   (global $ctx-value-offset        (export "ctx-value-offset")        i32 _ctx-value-offset)
-  (global $ctx-ignore-count-offset (export "ctx-ignore-count-offset") i32 _ctx-ignore-count-offset)
   (global $ctx-size                (export "ctx-size")                i32 _ctx-size))
 
  ;; Flags
@@ -229,6 +231,10 @@
    (expr ,ctx)
    ($get-bytevector-i32 ,ctx _ctx-ignore-count-offset))
 
+ (macro %get-ctx-location
+   (expr ,ctx)
+   ($get-bytevector-i32 ,ctx _ctx-location-offset))
+
  (macro %get-ctx-tail
    (expr ,ctx)
    ($get-bytevector-i32 ,ctx _ctx-tail-offset))
@@ -250,6 +256,11 @@
    (expr ,ctx)
    (expr ,ignore-count)
    ($set-bytevector-i32 ,ctx _ctx-ignore-count-offset ,ignore-count))
+
+ (macro %set-ctx-location
+   (expr ,ctx)
+   (expr ,location)
+   ($set-bytevector-i32 ,ctx _ctx-location-offset ,location))
 
  (macro %set-ctx-tail
    (expr ,ctx)
@@ -308,10 +319,6 @@
  (macro %set-finalizing-ctx
    (label $ctx)
    (%set-ctx-flags $ctx (i32.or (%get-ctx-flags $ctx) _ctx-finalizing)))
-
- ;; (macro %set-list-ctx
- ;;   (label $ctx)
- ;;   (%set-ctx-flags $ctx (i32.and (%get-ctx-flags $ctx) _ctx-type-mask-inverse)))
 
  (macro %set-vector-ctx
    (label $ctx)
@@ -389,6 +396,7 @@
    (%set-ctx-stack _null))
 
  (func $make-parse-context (debug (export "make-parse-context"))
+   (param $text i32)
    (result i32)
 
    (local $ctx i32)
@@ -398,6 +406,7 @@
 
    (%set-ctx-flags $ctx (i32.const 0))
    (%set-ctx-ignore-count $ctx (i32.const 0))
+   (%set-ctx-location $ctx $text)
 
    (set! $value ($make-pair _null _null))
    (%set-ctx-value $ctx $value)
@@ -411,7 +420,8 @@
    ($dealloc-bytevector $ctx))
 
  (func $nest (debug (export "nest"))
-   (%push-ctx ($make-parse-context)))
+   (param $text i32)
+   (%push-ctx ($make-parse-context $text)))
 
  (func $unnest (debug (export "unnest"))
 
@@ -421,16 +431,16 @@
 
    (set! $head (%get-ctx-stack))
 
-   (if (i32.eq $head _null)
+   (if (i32.eq ($get-pair-cdr $head) _null)
        (then
-        ;; fail unmatched close paren
+        (%set-parse-error _error-unmatched-close-parenthesis)
         (return)))
 
    (set! $ctx ($get-pair-car $head))
 
    (if (%get-ctx-ignore-count $ctx)
        (then
-        ;; fail unexpected close paren
+        (%set-parse-error _error-datum-expected)
         (return)))
 
    (%set-ctx-stack ($get-pair-cdr $head))
@@ -468,16 +478,18 @@
        (then
         (if (i32.eqz (%is-small-integer $v))
             (then
-             (%set-parse-error _error-illegal-bytevector-element))
+             (%set-parse-error _error-illegal-bytevector-element)
+             (%set-parse-location (%get-ctx-location (%get-current-ctx))))
           (else
            (set! $v (%get-small-integer-value $v))
            (if (i32.gt_u $v (i32.const 0xff))
                (then
-                (%set-parse-error _error-illegal-bytevector-element)))))))
+                (%set-parse-error _error-illegal-bytevector-element)
+                (%set-parse-location (%get-ctx-location (%get-current-ctx)))))))))
 
    (if (%is-finalized-ctx $ctx)
        (then
-        (%set-parse-error _error-pair-missing-close-parenthesis))
+        (%set-parse-error _error-close-parenthesis-expected))
      (else
       (if (%is-finalizing-ctx $ctx)
           (then
@@ -556,7 +568,7 @@
    (local $value i32)
 
    (if (i32.eq (%get-ctx-stack) _null)
-       (then ($nest)))
+       (then ($nest _null)))
 
    (if (i32.ne (%get-parse-error) _null)
        (then
@@ -588,6 +600,8 @@
    ($init-parser)
 
    (loop $again
+     (%set-parse-location $text)
+     (%set-ctx-location (%get-current-ctx) $text)
 
      ;; Atmosphere matches whitespace, comments, and directives.
 
@@ -608,7 +622,6 @@
 
                     (if (i32.eq $end-delimiter _null)
                         (then
-                         (%set-parse-location $text)
                          (return _error-delimiter-must-follow-directive)))))
 
                ;; set parser state for fold-case/no-fold-case
@@ -636,7 +649,9 @@
 
           (if (%is-parse-finished)
               (then
-               (%set-parse-location $end-match)
+               (if (i32.eq (%get-parse-error) _null)
+                   (then
+                    (%set-parse-location $end-match)))
                (return (%get-parse-result))))
 
           (set! $text $end-match)
@@ -666,7 +681,6 @@
 
                (if (i32.eq $end-delimiter _null)
                    (then
-                    (%set-parse-location $text)
                     (return _error-unrecognized-token)))))
 
           ($parse-undelimited-token $rule-id $text $end-match)
@@ -677,7 +691,9 @@
 
           (if (%is-parse-finished)
               (then
-               (%set-parse-location $end-match)
+               (if (i32.eq (%get-parse-error) _null)
+                   (then
+                    (%set-parse-location $end-match)))
                (return (%get-parse-result))))
 
           (set! $text $end-match)
@@ -702,13 +718,13 @@
 
           (if (%is-parse-finished)
               (then
-               (%set-parse-location $end-match)
+               (if (i32.eq (%get-parse-error) _null)
+                   (then
+                    (%set-parse-location $end-match)))
                (return (%get-parse-result))))
 
           (set! $text $end-match)
           (br $again))))
-
-   (%set-parse-location $text)
 
    (if (result i32) (i32.eq $text $end)
      (then _error-incomplete-input)
@@ -740,13 +756,13 @@
         (if (i32.eq ($match-string (%string-begin-vector) $text $end)
                     $end)
             (then
-             ($nest)
+             ($nest $text)
              (%set-vector-ctx (%get-current-ctx)))
           (else
            (if (i32.eq ($match-string (%string-begin-bytevector) $text $end)
                        $end)
                (then
-                ($nest)
+                ($nest $text)
                 (%set-bytevector-ctx (%get-current-ctx)))
              (else
               ($parse-unquote-splicing $text $end)))))
@@ -778,9 +794,7 @@
 
    (if (i32.eq $rule-id _lex-rule-dot)
        (then
-        ;; check that ctx is not already finalizing, and that it is
-        ;; also neither a bytevector nor a vector ctx
-        (%set-finalizing-ctx (%get-current-ctx))
+        ($parse-dot $text $end)
         (return)))
 
    (if (i32.eq $rule-id _lex-rule-escaped-character)
@@ -825,7 +839,7 @@
    (param $text i32)
    (param $end i32)
 
-   ($nest)
+   ($nest $text)
    ($append-value (%unquote-splicing-symbol))
    (%set-auto-unnest-ctx (%get-current-ctx)))
 
@@ -845,19 +859,15 @@
 
    (if (i32.eq $char _char-open-paren)
        (then
-        ($nest)
+        ($nest $text)
         (return)))
 
    (if (i32.eq $char _char-close-paren)
        (then
-        (if (i32.eq (%get-ctx-stack) _null)
-            (then
-             (%set-parse-error _error-unmatched-close-parenthesis))
-          (else
-           ($unnest)))
+        ($unnest)
         (return)))
 
-   ($nest)
+   ($nest $text)
 
    (if (i32.eq $char _char-quote)
        (then
@@ -909,6 +919,24 @@
    ($append-value (if (result i32) (i32.or (i32.eq $char _char-T) (i32.eq $char _char-t))
                     (then _true)
                     (else _false))))
+
+ (func $parse-dot (debug (export "parse-dot"))
+   (param $text i32)
+   (param $end i32)
+
+   (local $ctx i32)
+
+   (set! $ctx (%get-current-ctx))
+
+   (if (i32.or (%is-finalized-ctx $ctx) (%is-finalizing-ctx $ctx))
+       (then
+        (%set-parse-error _error-close-parenthesis-expected))
+     (else
+      (if (i32.or (%is-bytevector-ctx $ctx) (%is-vector-ctx $ctx))
+          (then
+           (%set-parse-error _error-illegal-use-of-dot))
+        (else
+         (%set-finalizing-ctx $ctx))))))
 
  (func $parse-escaped-character (debug (export "parse-escaped-character"))
    (param $text i32)
@@ -1120,6 +1148,9 @@
    (result i32)
 
    (local $code-point i32)
+   (local $start i32)
+
+   (set! $start $text)
 
    ;; move text forward 2 to skip over \x
    (set! $text (i32.add $text (i32.const 2)))
@@ -1132,7 +1163,8 @@
 
      (if (i32.and $code-point (i32.const 0xf0000000))
          (then
-          ;; todo: inline hex overflow error
+          (%set-parse-error _error-inline-hex-overflow)
+          (%set-parse-location $start)
           (return _char-null)))
 
      (set! $code-point (i32.or (i32.shl $code-point (i32.const 4))
@@ -1146,7 +1178,8 @@
 
    (if (i32.eq ($calc-char-width $code-point) (i32.const -1))
        (then
-        ;; todo: invalid code point
+        (%set-parse-error _error-invalid-code-point)
+        (%set-parse-location $start)
         (return _char-null)))
 
    $code-point)

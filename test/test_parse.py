@@ -60,14 +60,17 @@ def integer_to_int(x):
 
     return v
 
-def parse_test(src):
+def prepare_parse(src):
 
     s = create_test_string(src)
     text = get_string_addr(s)
     end = text + get_string_size(s)
 
-    return parse(text, end)
+    return text, end
 
+def parse_test(src):
+
+    return parse(*prepare_parse(src))
 
 def init_test():
     init_pairs()
@@ -577,43 +580,6 @@ def test_bytevector_number_normalization():
     assert get_bytevector_i8_u(value, 1) == 128
     assert get_bytevector_i8_u(value, 2) == 10
     assert get_bytevector_i8_u(value, 3) == 25
-
-def test_invalid_bytevector_negative():
-
-    init_test()
-    src = '#u8(-1)'
-    value = parse_test(src)
-    assert value == error_illegal_bytevector_element.value
-
-def test_invalid_bytevector_overflow():
-    init_test()
-    src = '#u8(256)'
-    value = parse_test(src)
-    assert value == error_illegal_bytevector_element.value
-
-def test_invalid_bytevector_rational():
-    init_test()
-    src = '#u8(1/2)'
-    value = parse_test(src)
-    assert value == error_illegal_bytevector_element.value
-
-def test_invalid_bytevector_float():
-    init_test()
-    src = '#u8(#i#b1)'
-    value = parse_test(src)
-    assert value == error_illegal_bytevector_element.value
-
-def test_invalid_bytevector_complex():
-    init_test()
-    src = '#u8(1+2i)'
-    value = parse_test(src)
-    assert value == error_illegal_bytevector_element.value
-
-def test_invalid_bytevector_non_numeric():
-    init_test()
-    src = '#u8(#u8(0))'
-    value = parse_test(src)
-    assert value == error_illegal_bytevector_element.value
 
 def test_empty_string():
     init_test()
@@ -1160,4 +1126,247 @@ def test_nested_lists():
     assert is_symbol(e3_2_2_2)
     assert e3_2_2_2 == make_symbol(create_test_string('g'))
 
-#todo: error codes and locations, memory leaks
+def test_error_unmatched_close_paren():
+
+    init_test()
+
+    src = ')'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_unmatched_close_parenthesis.value
+    assert get_parse_location() == text
+
+    init_parser()
+
+    src = ' )'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_unmatched_close_parenthesis.value
+    assert get_parse_location() == text+1
+
+    init_parser()
+
+def test_error_datum_expected():
+
+    init_test()
+
+    init_parser()
+    src = '(#;)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_datum_expected.value
+    assert get_parse_location() == text+3
+
+    # todo hang on next parse here -- error in unwind stack
+    # init_parser()
+
+def test_error_close_paren_expected():
+
+    init_test()
+
+    init_parser()
+    src = '(1 . 2 . 3)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_close_parenthesis_expected.value
+    assert get_parse_location() == text+7
+
+    init_parser()
+
+    src = '(1 . 2 3)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_close_parenthesis_expected.value
+    assert get_parse_location() == text+7
+
+    init_parser()
+
+def test_error_illegal_use_of_dot():
+
+    init_test()
+
+    src = '#(1 . 2)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_illegal_use_of_dot.value
+    assert get_parse_location() == text+4
+
+    init_parser()
+
+    src = '#u8(1 . 2)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_illegal_use_of_dot.value
+    assert get_parse_location() == text+6
+
+    init_parser()
+
+    src = '#u8(1 2 . ())'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_illegal_use_of_dot.value
+    assert get_parse_location() == text+8
+
+    init_parser()
+
+def test_error_invalid_bytevector_negative():
+
+    init_test()
+
+    src = '#u8(-1)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_illegal_bytevector_element.value
+    assert get_parse_location() == text+4
+
+    init_parser()
+
+def test_error_invalid_bytevector_overflow():
+    init_test()
+
+    src = '#u8(256)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_illegal_bytevector_element.value
+    assert get_parse_location() == text+4
+
+    init_parser()
+
+def test_error_invalid_bytevector_rational():
+    init_test()
+
+    src = '#u8(1/2)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_illegal_bytevector_element.value
+    assert get_parse_location() == text+4
+
+    init_parser()
+
+def test_error_invalid_bytevector_float():
+    init_test()
+
+    src = '#u8(#i#b1)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_illegal_bytevector_element.value
+    assert get_parse_location() == text+4
+
+    init_parser()
+
+def test_error_invalid_bytevector_complex():
+    init_test()
+
+    src = '#u8(1+2i)'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_illegal_bytevector_element.value
+    assert get_parse_location() == text+4
+
+    init_parser()
+
+def test_error_invalid_bytevector_non_numeric():
+    init_test()
+
+    src = '#u8(#u8(0))'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_illegal_bytevector_element.value
+    assert get_parse_location() == text+4
+
+    init_parser()
+
+def test_error_delimiter_must_follow_directive():
+
+    init_test()
+
+    src = '#!fold-case42'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_delimiter_must_follow_directive.value
+    assert get_parse_location() == text
+
+    init_parser()
+
+def test_error_unrecognized_token():
+
+    init_test()
+
+    src = '1e-21a'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_unrecognized_token.value
+    assert get_parse_location() == text
+
+    init_parser()
+
+    src = '#truest'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_unrecognized_token.value
+    assert get_parse_location() == text
+
+    init_parser()
+
+    src = '#\\spaces'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_unrecognized_token.value
+    assert get_parse_location() == text
+
+    init_parser()
+
+    src = '.\\'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_unrecognized_token.value
+    assert get_parse_location() == text
+
+    init_parser()
+
+    src = '"hello'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_unrecognized_token.value
+    assert get_parse_location() == text
+
+    init_parser()
+
+def test_error_inline_hex_overflow():
+
+    init_test()
+
+    src = '"\\xdeadbeef0;"'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_inline_hex_overflow.value
+    assert get_parse_location() == text+1
+
+    init_parser()
+
+def test_error_invalid_code_point():
+
+    init_test()
+
+    src = '"\\xdeadbeef;"'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_invalid_code_point.value
+    assert get_parse_location() == text+1
+
+    init_parser()
+
+def test_error_incomplete_input():
+
+    init_test()
+
+    src = '(foo ...'
+    text, end = prepare_parse(src)
+    value = parse(text, end)
+    assert value == error_incomplete_input.value
+    assert get_parse_location() == text+8
+
+    init_parser()
+
+
+#todo: memory leaks
