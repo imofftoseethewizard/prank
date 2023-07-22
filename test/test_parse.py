@@ -1060,30 +1060,104 @@ def test_nested_comments():
 
 def test_datum_comments():
 
-    src = '#u8(#;42 3)'
-
     init_test()
+
+    src = '#u8(#;42 3)'
     value = parse_test(src)
     assert is_bytevector(value)
     assert get_bytevector_size(value) == 1
     assert get_bytevector_i8_u(value, 0) == 3
 
     src = '#u8(#;3.14 3)'
-
-    init_test()
     value = parse_test(src)
     assert is_bytevector(value)
     assert get_bytevector_size(value) == 1
     assert get_bytevector_i8_u(value, 0) == 3
 
     src = '#u8(#;#;3.14 #\\space 3)'
-
-    init_test()
     value = parse_test(src)
     assert is_bytevector(value)
     assert get_bytevector_size(value) == 1
     assert get_bytevector_i8_u(value, 0) == 3
 
+def test_simple_lists():
 
-#todo: datum comments
-#todo: lists, multi-level nesting, error codes and locations, memory leaks
+    init_test()
+
+    src = '()'
+    value = parse_test(src)
+    assert value == NULL
+
+    src = '(a)'
+    value = parse_test(src)
+    assert is_pair(value)
+    assert get_list_length(value) == 1
+    e1 = get_car(value)
+    assert is_symbol(e1)
+    assert e1 == make_symbol(create_test_string('a'))
+
+    src = '(#(1) foo)'
+    value = parse_test(src)
+    assert is_pair(value)
+    assert get_list_length(value) == 2
+    e1 = get_car(value)
+    assert is_vector(e1)
+    assert get_vector_length(e1) == 1
+    e1_1 = get_vector_element(e1, 0)
+    assert is_small_integer(e1_1)
+    assert to_int(e1_1) == 1
+    e2 = get_cdar(value)
+    assert is_symbol(e2)
+    assert e2 == make_symbol(create_test_string('foo'))
+
+    src = '(a . ())'
+    value = parse_test(src)
+    assert is_pair(value)
+    assert get_list_length(value) == 1
+    e1 = get_car(value)
+    assert is_symbol(e1)
+    assert e1 == make_symbol(create_test_string('a'))
+
+def test_nested_lists():
+
+    init_test()
+
+    src = '(a (b c) (d (e (f g))))'
+    value = parse_test(src)
+    assert is_pair(value)
+    assert get_list_length(value) == 3
+    e1 = get_car(value)
+    assert is_symbol(e1)
+    assert e1 == make_symbol(create_test_string('a'))
+    e2 = get_cdar(value)
+    assert is_pair(e2)
+    assert get_list_length(e2) == 2
+    e2_1 = get_car(e2)
+    assert is_symbol(e2_1)
+    assert e2_1 == make_symbol(create_test_string('b'))
+    e2_2 = get_cdar(e2)
+    assert is_symbol(e2_2)
+    assert e2_2 == make_symbol(create_test_string('c'))
+    e3 = get_cddar(value)
+    assert is_pair(e3)
+    assert get_list_length(e3) == 2
+    e3_1 = get_car(e3)
+    assert is_symbol(e3_1)
+    assert e3_1 == make_symbol(create_test_string('d'))
+    e3_2 = get_cdar(e3)
+    assert is_pair(e3_2)
+    assert get_list_length(e3_2) == 2
+    e3_2_1 = get_car(e3_2)
+    assert is_symbol(e3_2_1)
+    assert e3_2_1 == make_symbol(create_test_string('e'))
+    e3_2_2 = get_cdar(e3_2)
+    assert is_pair(e3_2_2)
+    assert get_list_length(e3_2_2) == 2
+    e3_2_2_1 = get_car(e3_2_2)
+    assert is_symbol(e3_2_2_1)
+    assert e3_2_2_1 == make_symbol(create_test_string('f'))
+    e3_2_2_2 = get_cdar(e3_2_2)
+    assert is_symbol(e3_2_2_2)
+    assert e3_2_2_2 == make_symbol(create_test_string('g'))
+
+#todo: error codes and locations, memory leaks
