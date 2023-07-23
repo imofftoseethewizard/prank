@@ -1368,5 +1368,4 @@ def test_error_incomplete_input():
 
     init_parser()
 
-
 #todo: memory leaks
