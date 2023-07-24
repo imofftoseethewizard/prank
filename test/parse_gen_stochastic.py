@@ -55,6 +55,8 @@ def generate_boolean():
         else:
             return Boolean(False, '#false')
 
+    assert False
+
 def generate_bytevector():
     elements = [generate_byte() for i in range(random.randrange(7))]
     return ByteVector(elements, '#u8(' + join_whitespace(elements) + ')')
@@ -77,6 +79,8 @@ def generate_character():
     if choice == 2:
         return generate_scalar_hex_character()
 
+    assert False
+
 def generate_literal_character():
 
     choice = random.randrange(4)
@@ -87,11 +91,13 @@ def generate_literal_character():
     if choice == 1:
         return generate_2_byte_character()
 
-    if choice == 3:
+    if choice == 2:
         return generate_3_byte_character()
 
-    if choice == 4:
+    if choice == 3:
         return generate_4_byte_character()
+
+    assert False
 
 def generate_ascii_character():
 
@@ -226,6 +232,8 @@ def generate_prefix(radix, exactness):
     else:
         return format_radix(radix) + format_exactness(exactness)
 
+    assert False
+
 def generate_real(radix, exactness):
 
     if exactness == 'i':
@@ -241,6 +249,8 @@ def generate_real(radix, exactness):
 
     else:
         return generate_exact_real(10)
+
+    assert False
 
 def generate_exact_real(radix, allow_rationals=True):
 
@@ -258,6 +268,8 @@ def generate_exact_real(radix, allow_rationals=True):
     if choice == 21:
         return generate_rational(radix)
 
+    assert False
+
 def generate_inexact_real(radix):
 
     if random_boolean():
@@ -272,6 +284,8 @@ def generate_inexact_real(radix):
             v = float(r.value)
 
         return F64(v, r.text)
+
+    assert False
 
 def generate_small_integer(radix):
 
@@ -319,6 +333,8 @@ def generate_decimal_suffix():
     else:
         return 'e' + random.choice('+-') + str(random.randrange(1, 340))
 
+    assert False
+
 def generate_infnan():
 
     choice = random.randrange(4)
@@ -335,15 +351,22 @@ def generate_infnan():
     if choice == 3:
         return F64(float('nan'), '-nan.0')
 
+    assert False
+
 def generate_number():
 
     choice = random.randrange(8)
 
     if random_boolean():
-        return generate_real(generate_radix(), generate_exactness())
+        radix = generate_radix()
+        exactness = generate_exactness()
+        r = generate_real(radix, exactness)
+        return type(r)(*r[:-1], generate_prefix(radix, exactness) + r.text)
 
     else:
         return generate_complex()
+
+    assert False
 
 def generate_rational(radix):
 
@@ -392,6 +415,8 @@ def generate_datum():
 
     if choice == 8:
         return generate_datum_comment()
+
+    assert False
 
 def generate_datum_comment():
     d = generate_datum()
