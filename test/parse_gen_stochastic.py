@@ -2,6 +2,28 @@ import random
 
 from collections import namedtuple
 
+from util import create_test_string, format_addr
+
+from modules.debug.block_mgr import *
+from modules.debug.bytevectors import *
+from modules.debug.chars import *
+from modules.debug.lex import *
+from modules.debug.lex_r7rs import *
+from modules.debug.lists import *
+from modules.debug.numbers import *
+from modules.debug.pairs import *
+from modules.debug.parse import *
+from modules.debug.strings import *
+from modules.debug.symbols import *
+from modules.debug.vectors import *
+
+from modules.debug import parse as parse_mod
+from modules.debug import strings, symbols
+
+NULL = NULL.value
+TRUE = TRUE.value
+FALSE = FALSE.value
+
 Boolean      = namedtuple('Boolean',       ('value', 'text'))
 ByteVector   = namedtuple('ByteVector',    ('elements', 'text'))
 Character    = namedtuple('Character',     ('value', 'text'))
@@ -130,7 +152,7 @@ def generate_named_character():
 def generate_scalar_hex_character():
 
     code_point = random.randrange(0x110000)
-    return Character(code_point, f'#\\{code_point:x}')
+    return Character(code_point, f'#\\x{code_point:x}')
 
 def generate_complex():
 
@@ -385,9 +407,9 @@ def generate_rational(radix):
 
     return Rational(n_val, d_val, n_text + '/' + d_text)
 
-def generate_datum():
+def generate_datum(allow_datum_comment=True):
 
-    choice = random.randrange(9)
+    choice = random.randrange(9 if allow_datum_comment else 8)
 
     if choice == 0:
         return generate_boolean()
@@ -419,7 +441,7 @@ def generate_datum():
     assert False
 
 def generate_datum_comment():
-    d = generate_datum()
+    d = generate_datum(allow_datum_comment=False)
     return DatumComment('#; ' + d.text)
 
 def generate_list():

@@ -581,7 +581,7 @@ def test_lex_match_character():
     check_match(lex_match_character, r'#\return',    lex_rule_named_character)
     check_match(lex_match_character, r'#\space',     lex_rule_named_character)
     check_match(lex_match_character, r'#\tab',       lex_rule_named_character)
-    check_match(lex_match_character, r'#\xb00;',     lex_rule_escaped_character_hex)
+    check_match(lex_match_character, r'#\xb00',      lex_rule_escaped_character_hex)
 
 def test_lex_match_named_character():
     init_test()
@@ -603,7 +603,7 @@ def test_lex_match_escaped_character_hex():
 
     check_match_fail(lex_match_escaped_character_hex, '', lex_rule_escaped_character_hex)
 
-    check_match(lex_match_escaped_character_hex, r'#\xb00;', lex_rule_escaped_character_hex)
+    check_match(lex_match_escaped_character_hex, r'#\xb00', lex_rule_escaped_character_hex)
 
 def test_lex_match_character_name():
     init_test()
