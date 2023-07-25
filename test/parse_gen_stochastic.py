@@ -20,6 +20,25 @@ from modules.debug.vectors import *
 from modules.debug import parse as parse_mod
 from modules.debug import strings, symbols
 
+def init_test():
+    init_pairs()
+    init_blockset_manager()
+    init_bytevectors()
+    init_vectors()
+    init_numbers()
+    init_strings()
+    init_lex_r7rs()
+    init_symbols()
+    init_parse()
+
+def prepare_parse(src):
+
+    s = create_test_string(src)
+    text = get_string_addr(s)
+    end = text + get_string_size(s)
+
+    return text, end
+
 NULL = NULL.value
 TRUE = TRUE.value
 FALSE = FALSE.value
@@ -407,7 +426,7 @@ def generate_rational(radix):
 
     return Rational(n_val, d_val, n_text + '/' + d_text)
 
-def generate_datum(allow_datum_comment=True):
+def generate_datum(allow_datum_comment=False):
 
     choice = random.randrange(9 if allow_datum_comment else 8)
 
@@ -483,9 +502,30 @@ words = open('/usr/share/dict/words').read().split('\n')
 
 def generate_identifier():
     w = random.choice(words)
-    return Identifier(w, w)
+    if "'" in w:
+        return Identifier(w, '|' + w + '|')
+    else:
+        return Identifier(w, w)
 
 def generate_string():
     ws = random.choices(words, k=random.randrange(1, 10))
     s = ' '.join(ws)
     return String(s, '"' + s + '"')
+
+def stochastic_test(N):
+    init_test()
+    for i in range(N):
+      d = generate_datum()
+      try:
+        init_parser()
+        start, end = prepare_parse(d.text)
+        v = parse(start, end)
+        assert v & 0xffff != 0x0107
+        dealloc_value(v)
+      except:
+        print()
+        print(i)
+        print(d.text)
+        print(get_parse_location() - start)
+        print(format_addr(v))
+        raise

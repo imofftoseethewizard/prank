@@ -187,6 +187,18 @@ def test_parse_complex_polar(radix, fmt):
         assert is_inexact(im)
         assert get_boxed_f64(im) == pytest.approx(m, abs=1e-2)
 
+def test_parse_complex_polar_inf_nan():
+
+    init_test()
+
+    src = '#i1@+inf.0'
+    value = parse_test(src)
+    assert is_complex(value)
+    re = real_part(value)
+    im = imag_part(value)
+    assert is_boxed_f64(re)
+    assert is_boxed_f64(im)
+
 @pytest.mark.parametrize('radix,fmt', [('#b', 'b'), ('#o', 'o'), ('', 'd'), ('#d', 'd'), ('#x', 'x')])
 def test_parse_complex_unit_im(radix, fmt):
 
@@ -800,10 +812,10 @@ def test_character_hex_escape():
 
     init_test()
 
-    # src = '#\\x20 '
-    # value = parse_test(src)
-    # assert is_char(value)
-    # assert get_char_code_point(value) == ord(' ')
+    src = '#\\x20 '
+    value = parse_test(src)
+    assert is_char(value)
+    assert get_char_code_point(value) == ord(' ')
 
     src = '#\\x3bb'
     value = parse_test(src)
@@ -814,6 +826,27 @@ def test_character_hex_escape():
     value = parse_test(src)
     assert is_char(value)
     assert get_char_code_point(value) == ord('𝄞')
+
+def test_2byte_character():
+    init_test()
+    src = '#\\λ'
+    value = parse_test(src)
+    assert is_char(value)
+    assert get_char_code_point(value) == ord('λ')
+
+def test_3byte_character():
+    init_test()
+    src = '#\\ᴁ'
+    value = parse_test(src)
+    assert is_char(value)
+    assert get_char_code_point(value) == ord('ᴁ')
+
+def test_4byte_character():
+    init_test()
+    src = '#\\𝅘𝅥𝅮'
+    value = parse_test(src)
+    assert is_char(value)
+    assert get_char_code_point(value) == ord('𝅘𝅥𝅮')
 
 def test_booleans():
 
@@ -1367,5 +1400,22 @@ def test_error_incomplete_input():
     assert get_parse_location() == text+8
 
     init_parser()
+
+def test_is_finite():
+
+    init_test()
+    assert is_finite(1.0)
+    assert not is_finite(float('inf'))
+    assert not is_finite(float('-inf'))
+    assert not is_finite(float('nan'))
+
+def test_stochastic_case_1():
+
+    init_test()
+
+    src = '0+.854i'
+    value = parse(*prepare_parse(src))
+    assert is_complex(value)
+
 
 #todo: memory leaks

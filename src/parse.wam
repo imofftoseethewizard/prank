@@ -7,6 +7,7 @@
  (import "bytevectors" "set-bytevector-i32"                (func $set-bytevector-i32                   (param i32 i32 i32)))
  (import "chars" "ascii-lower"                             (func $ascii-lower                          (param i32)         (result i32)))
  (import "chars" "calc-char-width"                         (func $calc-char-width                      (param i32)         (result i32)))
+ (import "chars" "decode-utf-8"                            (func $decode-utf-8                         (param i32)         (result i32)))
  (import "chars" "encode-code-point"                       (func $encode-code-point                    (param i32)         (result i32)))
  (import "lex-r7rs" "lex-match-atmosphere"                 (func $lex-match-atmosphere                 (param i32 i32)     (result i32 i32)))
  (import "lex-r7rs" "lex-match-complex-2"                  (func $lex-match-complex-2                  (param i32 i32)     (result i32 i32)))
@@ -533,24 +534,24 @@
 
    (if (i32.eq $tag _tag-box)
        (then
-        (set! $type (%get-box-type $value))
+        (set! $type (i32.and (%get-box-type $value) _box-type-mask))
 
-        (if (i32.eq $tag _type-bytevector)
+        (if (i32.eq $type _type-bytevector)
             (then
              ($dealloc-bytevector $value)
              (return)))
 
-        (if (i32.eq $tag _type-number)
+        (if (i32.eq $type _type-number)
             (then
              ($dealloc-number $value)
              (return)))
 
-        (if (i32.eq $tag _type-string)
+        (if (i32.eq $type _type-string)
             (then
              ($dealloc-string $value)
              (return)))
 
-        (if (i32.eq $tag _type-vector)
+        (if (i32.eq $type _type-vector)
             (then
              (set! $idx ($get-vector-length $value))
              (loop $again
@@ -942,9 +943,10 @@
    (param $text i32)
    (param $end i32)
 
-   ($append-value (%make-value _tag-char
-                               (i32.shl ($get-string-char (i32.add $text (i32.const 2)))
-                                        _tag-size-bits))))
+   (local $c i32)
+
+   (set! $c ($get-string-char (i32.add $text (i32.const 2))))
+   ($append-value (%make-value _tag-char (i32.shl ($decode-utf-8 $c) _tag-size-bits))))
 
  (func $parse-named-character (debug (export "parse-named-character"))
    (param $text i32)
@@ -1258,7 +1260,6 @@
 
    (local $end-match i32)
    (local $im i32)
-   (local $is-negative-im i32)
    (local $re i32)
    (local $rule-id i32)
 
@@ -1271,22 +1272,7 @@
            (then ($parse-infnan-value $text $end-match))
            (else ($parse-real-2-value $text $end-match))))
 
-   (set! $is-negative-im (i32.eq ($get-string-char $end-match) _char-minus))
-
-   (set! $text (i32.add $end-match (i32.const 1)))
-
-   (set! $rule-id
-         (set! $end-match
-               ($lex-match-ureal-2 $text $end)))
-
-   (set! $im
-         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-2)
-           (then ($parse-uinteger-2-value $text $end-match))
-           (else ($parse-urational-2-value $text $end-match))))
-
-   (if $is-negative-im
-       (then
-        (set! $im ($negate-number $im))))
+   (set! $im ($parse-real-2-value $end-match (i32.sub $end (i32.const 1))))
 
    ($make-complex $re $im))
 
@@ -1298,20 +1284,24 @@
    (local $magnitude f64)
    (local $end-match i32)
    (local $arg f64)
-   (local $re i32)
 
    (drop ;; rule-id
     (set! $end-match ($lex-match-real-2 $text $end)))
 
-   (set! $magnitude ($coerce-f64 ($parse-real-2-value $text $end-match)))
+   ($make-polar-complex
+    ($parse-real-2-value $text $end-match)
+    ($parse-real-2-value (i32.add $end-match (i32.const 1)) $end)))
 
-   (set! $arg ($coerce-f64 ($parse-real-2-value (i32.add $end-match (i32.const 1)) $end)))
+ ;; this belongs elsewhere (numbers.wam?)
+ (define _f64-exponent-mask (i64.const 0x7ff0000000000000))
 
-   (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
-
-   ($make-complex
-    $re
-    ($make-boxed-f64 (f64.mul $magnitude ($sin $arg)))))
+ ;; an IEEE 754 float is inf or nan if-and-only-if all of its
+ ;; exponent bits are 1s
+ (func $is-finite (debug (export "is-finite"))
+   (param $x f64)
+   (result i32)
+   (i64.ne (i64.and (i64.reinterpret_f64 $x) _f64-exponent-mask)
+           _f64-exponent-mask))
 
  (func $parse-complex-unit-im-2-value (debug (export "parse-complex-unit-im-2-value"))
    (param $text i32)
@@ -1592,7 +1582,6 @@
 
    (local $end-match i32)
    (local $im i32)
-   (local $is-negative-im i32)
    (local $re i32)
    (local $rule-id i32)
 
@@ -1605,22 +1594,7 @@
            (then ($parse-infnan-value $text $end-match))
            (else ($parse-real-8-value $text $end-match))))
 
-   (set! $is-negative-im (i32.eq ($get-string-char $end-match) _char-minus))
-
-   (set! $text (i32.add $end-match (i32.const 1)))
-
-   (set! $rule-id
-         (set! $end-match
-               ($lex-match-ureal-8 $text $end)))
-
-   (set! $im
-         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-8)
-           (then ($parse-uinteger-8-value $text $end-match))
-           (else ($parse-urational-8-value $text $end-match))))
-
-   (if $is-negative-im
-       (then
-        (set! $im ($negate-number $im))))
+   (set! $im ($parse-real-8-value $end-match (i32.sub $end (i32.const 1))))
 
    ($make-complex $re $im))
 
@@ -1629,23 +1603,35 @@
    (param $end i32)
    (result i32)
 
-   (local $magnitude f64)
    (local $end-match i32)
-   (local $arg f64)
-   (local $re i32)
 
    (drop ;; rule-id
     (set! $end-match ($lex-match-real-8 $text $end)))
 
-   (set! $magnitude ($coerce-f64 ($parse-real-8-value $text $end-match)))
+   ($make-polar-complex
+    ($parse-real-8-value $text $end-match)
+    ($parse-real-8-value (i32.add $end-match (i32.const 1)) $end)))
 
-   (set! $arg ($coerce-f64 ($parse-real-8-value (i32.add $end-match (i32.const 1)) $end)))
+ (func $make-polar-complex (export "make-polar-complex")
+   (param $magnitude i32)
+   (param $arg i32)
+   (result i32)
 
-   (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
+   (local $r f64)
+   (local $t f64)
 
-   ($make-complex
-    $re
-    ($make-boxed-f64 (f64.mul $magnitude ($sin $arg)))))
+   (set! $r ($coerce-f64 $magnitude))
+   (set! $t ($coerce-f64 $arg))
+
+   (if (result i32) ($is-finite $t)
+       (then
+        ($make-complex
+         ($make-boxed-f64 (f64.mul $r ($cos $t)))
+         ($make-boxed-f64 (f64.mul $r ($sin $t)))))
+       (else
+        ($make-complex
+         ($make-boxed-f64 (f64.const +nan))
+         ($make-boxed-f64 (f64.const +nan))))))
 
  (func $parse-complex-unit-im-8-value (debug (export "parse-complex-unit-im-8-value"))
    (param $text i32)
@@ -1954,7 +1940,6 @@
 
    (local $end-match i32)
    (local $im i32)
-   (local $is-negative-im i32)
    (local $re i32)
    (local $rule-id i32)
 
@@ -1967,22 +1952,7 @@
            (then ($parse-infnan-value $text $end-match))
            (else ($parse-real-10-value $text $end-match $exactness))))
 
-   (set! $is-negative-im (i32.eq ($get-string-char $end-match) _char-minus))
-
-   (set! $text (i32.add $end-match (i32.const 1)))
-
-   (set! $rule-id
-         (set! $end-match
-               ($lex-match-ureal-10 $text $end)))
-
-   (set! $im
-         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-10)
-           (then ($parse-uinteger-10-value $text $end-match))
-           (else ($parse-urational-10-value $text $end-match))))
-
-   (if $is-negative-im
-       (then
-        (set! $im ($negate-number $im))))
+   (set! $im ($parse-real-10-value $end-match (i32.sub $end (i32.const 1)) $exactness))
 
    ($make-complex $re $im))
 
@@ -2000,15 +1970,9 @@
    (drop ;; rule-id
     (set! $end-match ($lex-match-real-10 $text $end)))
 
-   (set! $magnitude ($coerce-f64 ($parse-real-10-value $text $end-match $exactness)))
-
-   (set! $arg ($coerce-f64 ($parse-real-10-value (i32.add $end-match (i32.const 1))
-                                                 $end
-                                                 $exactness)))
-
-   (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
-
-   ($make-complex $re ($make-boxed-f64 (f64.mul $magnitude ($sin $arg)))))
+   ($make-polar-complex
+    ($parse-real-10-value $text $end-match $exactness)
+    ($parse-real-10-value (i32.add $end-match (i32.const 1)) $end $exactness)))
 
  (func $parse-complex-unit-im-10-value (debug (export "parse-complex-unit-im-10-value"))
    (param $text i32)
@@ -2522,7 +2486,6 @@
 
    (local $end-match i32)
    (local $im i32)
-   (local $is-negative-im i32)
    (local $re i32)
    (local $rule-id i32)
 
@@ -2535,22 +2498,7 @@
            (then ($parse-infnan-value $text $end-match))
            (else ($parse-real-16-value $text $end-match))))
 
-   (set! $is-negative-im (i32.eq ($get-string-char $end-match) _char-minus))
-
-   (set! $text (i32.add $end-match (i32.const 1)))
-
-   (set! $rule-id
-         (set! $end-match
-               ($lex-match-ureal-16 $text $end)))
-
-   (set! $im
-         (if (result i32) (i32.eq $rule-id _lex-rule-uinteger-16)
-           (then ($parse-uinteger-16-value $text $end-match))
-           (else ($parse-urational-16-value $text $end-match))))
-
-   (if $is-negative-im
-       (then
-        (set! $im ($negate-number $im))))
+   (set! $im ($parse-real-16-value $end-match (i32.sub $end (i32.const 1))))
 
    ($make-complex $re $im))
 
@@ -2567,13 +2515,9 @@
    (drop ;; rule-id
     (set! $end-match ($lex-match-real-16 $text $end)))
 
-   (set! $magnitude ($coerce-f64 ($parse-real-16-value $text $end-match)))
-
-   (set! $arg ($coerce-f64 ($parse-real-16-value (i32.add $end-match (i32.const 1)) $end)))
-
-   (set! $re ($make-boxed-f64 (f64.mul $magnitude ($cos $arg))))
-
-   ($make-complex $re ($make-boxed-f64 (f64.mul $magnitude ($sin $arg)))))
+   ($make-polar-complex
+    ($parse-real-16-value $text $end-match)
+    ($parse-real-16-value (i32.add $end-match (i32.const 1)) $end)))
 
  (func $parse-complex-unit-im-16-value (debug (export "parse-complex-unit-im-16-value"))
    (param $text i32)

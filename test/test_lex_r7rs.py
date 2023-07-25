@@ -572,6 +572,9 @@ def test_lex_match_character():
 
     check_match(lex_match_character, r'#\ ',         lex_rule_escaped_character)
     check_match(lex_match_character, r'#\a',         lex_rule_escaped_character)
+    check_match(lex_match_character, r'#\λ',         lex_rule_escaped_character)
+    check_match(lex_match_character, r'#\ᴁ',         lex_rule_escaped_character)
+    check_match(lex_match_character, r'#\𝅘𝅥𝅮',         lex_rule_escaped_character)
     check_match(lex_match_character, r'#\alarm',     lex_rule_named_character)
     check_match(lex_match_character, r'#\backspace', lex_rule_named_character)
     check_match(lex_match_character, r'#\delete',    lex_rule_named_character)

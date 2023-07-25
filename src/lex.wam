@@ -39,7 +39,7 @@
      (then
       _null)
      (else
-      (i32.add (i32.const 1) $text)))) ;; todo unicode
+      (i32.add ($calc-encoded-length (%get-char $text)) $text))))
 
  (func $lex-match-char (export "lex-match-char")
    (param $rule-id i32)
