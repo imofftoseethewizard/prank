@@ -127,8 +127,18 @@
 
  (global $x64-free-list (debug (export "x64-free-list")) (mut i32) (i32.const 0))
  (debug
-  (global $number-block-list (debug (export "number-block-list")) (mut i32) (i32.const 0))
+  (global $x64-block-list (debug (export "x64-block-list")) (mut i32) (i32.const 0))
   (global $x64-count (debug (export "x64-count")) (mut i32) (i32.const 0)))
+
+ (macro %get-next-free-x64
+   (expr ,x64)
+   (i32.load ,x64))
+
+ (debug
+  (func $get-next-free-x64
+    (param $x64 i32)
+    (result i32)
+    (%get-next-free-x64 $x64)))
 
  (global $integer-1e16  (debug (export "integer-1e16"))  (mut i32) (i32.const 0))
  (global $integer-1e32  (debug (export "integer-1e32"))  (mut i32) (i32.const 0))
@@ -158,7 +168,7 @@
 
    (global.set $x64-free-list _null)
    (debug
-    (global.set $number-block-list _null)
+    (global.set $x64-block-list _null)
     (global.set $x64-count (i32.const 0)))
 
    (global.set $integer-1e16  ($make-integer _i64-1e16 (i32.const 1)))
@@ -306,7 +316,7 @@
     (%global.incr i32 $x64-count))
 
    (global.get $x64-free-list)
-   (global.set $x64-free-list (i32.load (global.get $x64-free-list))))
+   (global.set $x64-free-list (%get-next-free-x64 (global.get $x64-free-list))))
 
  (func $alloc-x64-block (debug (export "alloc-x64-block"))
 
@@ -320,7 +330,7 @@
    (set! $block ($alloc-block _numbers-blockset _number-block-size))
 
    (debug
-    (global.set $number-block-list ($make-pair $block (global.get $number-block-list))))
+    (global.set $x64-block-list ($make-pair $block (global.get $x64-block-list))))
 
    (set! $addr ($get-block-addr $block))
    (set! $end-addr (i32.add $addr _number-block-size))
@@ -354,6 +364,10 @@
    (set! $type (%get-number-type $x))
    (set! $value (%get-box-value $x))
 
+   (if (i32.ne $x (i32.const 0x1d1))
+       (then
+        (global.set $p4 $x)))
+
    (if (i32.or (i32.eq $type _number-type-f64)
                (i32.eq $type _number-type-i64))
        (then
@@ -376,11 +390,14 @@
         (%dealloc-box $x)
         (return)))
 
-   (unreachable))
+   ($invalid-number-type))
 
  (func $dealloc-x64 (debug (export "dealloc-x64"))
    (param $x64 i32)
 
+   (if (i32.and (i32.const 0x7) $x64)
+       (then
+        (unreachable)))
    (i32.store $x64 (global.get $x64-free-list))
 
    (debug
@@ -1156,17 +1173,9 @@
 
       ($shift-integer $div $bit-place)
 
-      (global.set $p1 _null)
-      (global.set $p2 _null)
-      (global.set $p3 _null)
-
       (loop $again
         (if (i32.ge_s $bit-place (i32.const 0))
             (then
-             (global.set $p1 ($make-pair $bit-place (global.get $p1)))
-             (global.set $p2 ($make-pair $rem (global.get $p2)))
-             (global.set $p3 ($make-pair ($copy-integer $div) (global.get $p3)))
-
              (if ($lt-integer $rem $div)
                  (then
                   (%decr i32 $bit-place)
@@ -1611,9 +1620,6 @@
    (local $b-is-small i32)
    (local $b-type i32)
    (local $b-value i32)
-
-   (global.set $p1 $a)
-   (global.set $p2 $b)
 
    (if (i32.eq (%get-value-tag $a) _tag-small-integer)
        (then
@@ -2088,8 +2094,7 @@
    (if (i32.eq $type _number-type-i64)
        (then
         (return
-         ($make-integer-i64 (i64.load $value))
-         ($dealloc-number $x))))
+         ($make-integer-i64 (i64.load $value)))))
 
    (if (i32.eq $type _number-type-complex)
        (then
@@ -2250,15 +2255,17 @@
 
    (local $high-bits i64)
    (local $value i64)
+   (local $x64 i32)
 
    ;; mask out lower 29 bits. If the upper bits are all 1 or all 0,
    ;; then the number can be stored in a small integer.
 
-   (set! $value (i64.load (%get-box-value $x)))
+   (set! $x64 (%get-box-value $x))
+   (set! $value (i64.load $x64))
 
    (if (%is-small-value-i64 $value)
        (then
-        ($dealloc-x64 $x)
+        ($dealloc-x64 $x64)
         (return (%make-small-integer (i32.wrap_i64 $value)))))
 
    $x)
@@ -2325,6 +2332,9 @@
         ($dealloc-pair $value)
         (%dealloc-box $x)
         (return $re)))
+
+   ($set-pair-car $value $re)
+   ($set-pair-cdr $value $im)
 
    $x)
 

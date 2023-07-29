@@ -112,6 +112,11 @@
    (result i32)
    (%get-pair-car (%get-value-data (%get-pair-cdr (%get-value-data $pair)))))
 
+ (func $get-cddr (export "get-cddr")
+   (param $pair i32)
+   (result i32)
+   (%get-pair-cdr (%get-value-data (%get-pair-cdr (%get-value-data $pair)))))
+
  (func $get-cddar (export "get-cddar")
    (param $pair i32)
    (result i32)

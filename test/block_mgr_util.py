@@ -81,6 +81,7 @@ def validate_block_refs(blockset):
     block_count = block_mgr.get_blockset_block_count(blockset)
     unused_count = block_mgr.get_blockset_unused_count(blockset)
 
+    print(block_count, unused_count, block_mgr.ref_count.value)
     assert block_count + unused_count == block_mgr.ref_count.value
 
 def validate_block_list(blockset):

@@ -3,6 +3,8 @@ import random
 from collections import namedtuple
 
 from util import create_test_string, format_addr
+from validate import validate
+
 
 from modules.debug.block_mgr import *
 from modules.debug.bytevectors import *
@@ -490,7 +492,12 @@ def format_int(v, radix):
 
     assert False
 
-radix_chars = (0, 0, 'b', 0, 0, 0, 0, 0, 'o', 0, 'd', 0, 0, 0, 0, 0, 'x')
+radix_chars = {
+    2: 'b',
+    8: 'o',
+    10: 'd',
+    16: 'x',
+}
 
 def format_radix(radix):
     return '#' + radix_chars[radix]
@@ -502,7 +509,7 @@ words = open('/usr/share/dict/words').read().split('\n')
 
 def generate_identifier():
     w = random.choice(words)
-    if "'" in w:
+    if set("'íûÅçåñêâèôüäéöáó") & set(w): # todo unicode identifers
         return Identifier(w, '|' + w + '|')
     else:
         return Identifier(w, w)
@@ -512,7 +519,8 @@ def generate_string():
     s = ' '.join(ws)
     return String(s, '"' + s + '"')
 
-def stochastic_test(N):
+def stochastic_test(N, seed=0, check_valid=True):
+    random.seed(seed)
     init_test()
     for i in range(N):
       d = generate_datum()
@@ -521,6 +529,8 @@ def stochastic_test(N):
         start, end = prepare_parse(d.text)
         v = parse(start, end)
         assert v & 0xffff != 0x0107
+        if check_valid:
+            validate()
         dealloc_value(v)
       except:
         print()

@@ -782,6 +782,12 @@
             (i32.mul _blockset-count
                      (%calc-blockset-free-lists-area-size))))
 
+ (debug
+  ;; used in test/validate.py
+  (func $calc-initial-refs-top (export "calc-initial-refs-top")
+    (result i32)
+    (%calc-initial-refs-top)))
+
  ;;-----------------------------------------------------------------------------
  ;;
  ;; Module Initialization

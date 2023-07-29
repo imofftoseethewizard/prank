@@ -19,7 +19,7 @@ from modules.debug.symbols import *
 from modules.debug.vectors import *
 
 from modules.debug import parse as parse_mod
-from modules.debug import strings, symbols
+from modules.debug import numbers, strings, symbols
 
 NULL = NULL.value
 TRUE = TRUE.value
@@ -1416,6 +1416,54 @@ def test_stochastic_case_1():
     src = '0+.854i'
     value = parse(*prepare_parse(src))
     assert is_complex(value)
+
+def test_stochastic_case_2():
+
+    init_test()
+
+    src = '#i#o100000000/1'
+    value = parse(*prepare_parse(src))
+    assert is_boxed_f64(value)
+
+def test_stochastic_case_3():
+
+    init_test()
+
+    src = '#(#d.6350136e+112+9i	cape	(#i+12432414))'
+    value = parse(*prepare_parse(src))
+    assert is_vector(value)
+
+def test_stochastic_case_4():
+
+    init_test()
+
+    src = '#e#x11d3b88d91332876-i'
+
+    start, end = prepare_parse(src)
+    v = parse(start, end)
+    dealloc_value(v)
+
+def test_stochastic_case_5():
+
+    init_test()
+
+    src = '''((#u8(#x#eb0) #false #true #u8())
+#("turncoat Otis's hydrogen gnawed"
+"normal reveals shtik's exclusiveness"
+#\\delete
+-80535206
+#o+62031661607740057744/1000445124i)	forehands #("bravado's"
+skimp	#\\delete	inferential #\\xed432
+"incarceration") "debars Seattle's filed drum Cherie cubicle Steiner's Yellowstone" #\\x1151c)
+'''
+
+    start, end = prepare_parse(src)
+    v = parse(start, end)
+    print(get_parse_location() - start)
+    print(format_addr(v))
+    assert v & 0xffff != 0x0107
+    assert get_parse_location() == end-1
+    dealloc_value(v)
 
 
 #todo: memory leaks
