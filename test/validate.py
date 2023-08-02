@@ -1,3 +1,5 @@
+from util import to_int
+
 from modules.debug.pairs import *
 from modules.debug import block_mgr, numbers
 
@@ -28,6 +30,7 @@ block_lists = {}
 blocks = {}
 allocated_blocks = {}
 free_blocks = {}
+unused_blocks = {}
 
 # numbers state
 
@@ -58,6 +61,7 @@ def prepare_validation():
     collect_pair_addrs()
     collect_blocks()
     collect_x64_blocks()
+    collect_x64s()
 
 def validate_bytevectors():
     ...
@@ -87,12 +91,12 @@ def initialize_global_state():
     blocks.clear()
     allocated_blocks.clear()
     free_blocks.clear()
+    unused_blocks.clear()
 
     x64_blocks.clear()
     x64s.clear()
     allocated_x64s.clear()
     free_x64s.clear()
-
 
 # Pairs
 
@@ -121,13 +125,17 @@ def collect_blocks():
             head = block_mgr.get_next_block(head)
 
         free_blks = free_blocks[b] = set()
+        unused_blks = unused_blocks[b] = set()
 
         for idx, free_list in enumerate(free_lists(b)):
             if free_list is not NULL:
                 for block in free_list_blocks(free_list):
-                    free_blks.add(block)
+                    if block_mgr.is_unused_block(block):
+                        unused_blks.add(block)
+                    else:
+                        free_blks.add(block)
 
-        allocated_blocks[b] = blks - free_blks
+        allocated_blocks[b] = blks - free_blks - unused_blks
 
 def free_lists(blockset):
 
@@ -172,7 +180,7 @@ def collect_x64s():
 
     for b in x64_blocks:
         base_addr = block_mgr.get_block_addr(b)
-        for addr in range(base_addr, base_addr + numbers.number_block_size, 8):
+        for addr in range(base_addr, base_addr + numbers.number_block_size.value, 8):
             x64s.add(addr)
 
     head = numbers.x64_free_list.value
@@ -180,7 +188,7 @@ def collect_x64s():
         free_x64s.add(head)
         head = numbers.get_next_free_x64(head)
 
-    allocated_x64s |= x64s - free_x64s
+    allocated_x64s.update(x64s - free_x64s)
 
 # Strings
 # Vectors
@@ -320,11 +328,30 @@ def free_list_idx_to_size(idx):
 def validate_numbers():
     validate_x64s()
 
+    assert to_int(numbers.integer_1e16.value)  == 10000000000000000
+    assert to_int(numbers.integer_1e32.value)  == 100000000000000000000000000000000
+    assert to_int(numbers.integer_1e64.value)  == 10000000000000000000000000000000000000000000000000000000000000000
+    assert to_int(numbers.integer_1e128.value) == 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    assert to_int(numbers.integer_1e256.value) == 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+    assert get_value_data(numbers.integer_1e16.value) in allocated_pair_addrs
+    assert get_pair_cdr(get_value_data(numbers.integer_1e16.value)) in allocated_blocks[numbers_blockset.value]
+
 def validate_x64s():
     assert len(allocated_x64s - x64s) == 0
     assert len(free_x64s - x64s) == 0
     assert len(free_x64s) + len(allocated_x64s) == len(x64s)
+    assert numbers.x64_count.value == len(allocated_x64s)
+
 
 # Strings
 
 # Symbols
+
+#-------------------------------------------------------------------------------
+#
+# Utilities
+#
+
+def get_value_data(x):
+    return x & ~7

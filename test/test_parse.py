@@ -1462,8 +1462,33 @@ skimp	#\\delete	inferential #\\xed432
     print(get_parse_location() - start)
     print(format_addr(v))
     assert v & 0xffff != 0x0107
-    assert get_parse_location() == end-1
+    assert get_parse_location() == end
     dealloc_value(v)
 
+def test_stochastic_case_6():
+
+    init_test()
+
+    src = '''#(#false	(#(#\\λ	#(#u8(#o204	#d160	#e#x82	#e#d250)
+#\\xc51a7 #t #(#false)
+#\\ᴁ)
+"invoiced overstate constitutional embarrassment English mote"	alignments (#true	|Malachi's| pericardiums	radioing	#((#false	#u8(#e#xa4)
+#((#false
+#false) #\\null #(#u8(#x6	#x7f) #u8(#o277) #\\𝅘𝅥𝅮 #i#b+nan.0i
+#i#d+inf.0)	#(predominate #(#\\tab	#f	#u8(42)	#(#u8(#o122
+#o33	#b#e11001010	#e39	#b10000111))
+#b-100000101001100001100001110101110101010000100000110110011111011	#i#d-122453969)
+"pueblos boomed azimuth declines mastectomy's stringiest righting Voronezh's"))
+|boardwalk's|))	#u8()) #\\x809ac))
+()	#u8(#x#e22	#o41 #b1010110)
+#\\xae96d)'''
+
+    start, end = prepare_parse(src)
+    v = parse(start, end)
+    print(get_parse_location() - start)
+    print(format_addr(v))
+    assert v & 0xffff != 0x0107
+    assert get_parse_location() == end
+    dealloc_value(v)
 
 #todo: memory leaks

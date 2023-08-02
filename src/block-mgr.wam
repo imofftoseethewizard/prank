@@ -1469,7 +1469,6 @@
                ;; back into the free lists.
 
                (set! $relocated ($make-pair $block $relocated))
-
                (set! $count (i32.sub $count $average))
                (br $relocate))))))
 

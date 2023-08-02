@@ -135,7 +135,7 @@
    (i32.load ,x64))
 
  (debug
-  (func $get-next-free-x64
+  (func $get-next-free-x64 (export "get-next-free-x64")
     (param $x64 i32)
     (result i32)
     (%get-next-free-x64 $x64)))

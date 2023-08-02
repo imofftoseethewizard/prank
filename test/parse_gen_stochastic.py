@@ -2,8 +2,8 @@ import random
 
 from collections import namedtuple
 
-from util import create_test_string, format_addr
-from validate import validate
+from util import create_test_string, format_addr, to_int, to_str
+from validate import blocks, free_blocks, prepare_validation, validate
 
 
 from modules.debug.block_mgr import *
@@ -20,7 +20,7 @@ from modules.debug.symbols import *
 from modules.debug.vectors import *
 
 from modules.debug import parse as parse_mod
-from modules.debug import strings, symbols
+from modules.debug import chars, numbers, strings, symbols
 
 def init_test():
     init_pairs()
@@ -35,9 +35,15 @@ def init_test():
 
 def prepare_parse(src):
 
-    s = create_test_string(src)
+    encoded_size = len(src.encode())
+
+    # strings less than 1024 bytes long may be relocated during deallocation.
+    # since parsing uses string addrs for efficiency, it is vital to ensure
+    # that the buffer does not move.
+    s = create_test_string(src, size=max(1024, encoded_size))
+
     text = get_string_addr(s)
-    end = text + get_string_size(s)
+    end = text + encoded_size
 
     return text, end
 
@@ -529,13 +535,180 @@ def stochastic_test(N, seed=0, check_valid=True):
         start, end = prepare_parse(d.text)
         v = parse(start, end)
         assert v & 0xffff != 0x0107
+        check_result(d, v)
+        dealloc_value(v)
         if check_valid:
             validate()
-        dealloc_value(v)
       except:
         print()
         print(i)
+        print('------------------------------------------------------')
         print(d.text)
+        print('------------------------------------------------------')
+        print(to_str(start, end))
+        print('------------------------------------------------------')
+        print('')
         print(get_parse_location() - start)
         print(format_addr(v))
         raise
+
+indent = ''
+
+def print_value(v):
+    if is_pair(v):
+        print_list(v)
+
+    elif is_vector(v):
+        print_vector(v)
+
+    elif is_bytevector(v):
+        print_bytevector(v)
+
+    elif numbers.is_small_integer(v):
+        print_number(v)
+
+    elif numbers.is_boxed_i64(v):
+        print_number(v)
+
+    elif numbers.is_rational(v):
+        print('rational')
+        # print_number(v)
+
+    elif numbers.is_complex(v):
+        print('complex')
+        # print_number(v)
+
+    elif numbers.is_boxed_f64(v):
+        print('f64')
+        # print_number(v)
+
+    elif is_string(v):
+        print_string(v)
+
+    elif is_symbol(v):
+        print_symbol(v)
+
+    elif is_char(v):
+        print_character(v)
+
+    elif v == NULL:
+        print(indent + '()')
+
+    elif v == FALSE:
+        print(indent + '#false')
+
+    elif v == TRUE:
+        print(indent + '#true')
+
+    else:
+        print('other -- probably integer')
+        #assert False
+
+def print_list(v):
+    global indent
+    print(indent + '(')
+    indent += ' '
+    head = v
+    while head != NULL:
+        print_value(get_car(head))
+        head = get_cdr(head)
+    indent = indent[:-1]
+    print(indent + ')')
+
+def print_vector(v):
+    global indent
+    print(indent + '#(')
+    indent += '  '
+    for i in range(vectors.get_vector_length(v)):
+        print_value(vectors.get_vector_element(v, i))
+    indent = indent[:-2]
+    print(indent + ')')
+
+def print_bytevector(v):
+    global indent
+    print(indent + '#u8(')
+    indent += '    '
+    for i in range(bytevectors.get_bytevector_size(v)):
+        print(indent + hex(bytevectors.get_bytevector_i8_u(v, i)))
+    indent = indent[:-4]
+    print(indent + ')')
+
+def print_number(v):
+    print(indent + str(to_int(v)))
+
+def print_string(v):
+    addr = strings.get_string_addr()
+    print(to_str(addr, addr + strings.get_string_size()))
+
+def print_symbol(v):
+    print(indent + '<a symbol>')
+
+def print_character(v):
+    print(indent + '<a character>')
+
+def check_result(d, v):
+    if is_pair(v):
+        if type(d) != List:
+            print(type(d), d.value, d.text)
+            print(format_addr(v))
+        assert type(d) == List
+        # NB. this code only generates proper lists atm.
+        head = v
+        idx = 0
+        while head != NULL:
+            check_result(d.elements[idx], get_car(head))
+            head = get_cdr(head)
+            idx += 1
+        assert idx == len(d.elements)
+
+    elif is_vector(v):
+        assert type(d) == Vector
+        assert len(d.elements) == get_vector_length(v)
+        for i, e in enumerate(d.elements):
+            check_result(e, get_vector_element(v, i))
+
+    elif is_bytevector(v):
+        assert type(d) == ByteVector
+        assert len(d.elements) == get_bytevector_size(v)
+        for i, e in enumerate(d.elements):
+            check_result(e, get_bytevector_i8_u(v, i))
+
+    # elif numbers.is_small_integer(v):
+    #     print_number(v)
+
+    # elif numbers.is_boxed_i64(v):
+    #     print_number(v)
+
+    # elif numbers.is_rational(v):
+    #     print('rational')
+    #     # print_number(v)
+
+    # elif numbers.is_complex(v):
+    #     print('complex')
+    #     # print_number(v)
+
+    # elif numbers.is_boxed_f64(v):
+    #     print('f64')
+    #     # print_number(v)
+
+    # elif is_string(v):
+    #     print_string(v)
+
+    # elif is_symbol(v):
+    #     print_symbol(v)
+
+    # elif is_char(v):
+    #     print_character(v)
+
+    # elif v == NULL:
+    #     print(indent + '()')
+
+    # elif v == FALSE:
+    #     print(indent + '#false')
+
+    # elif v == TRUE:
+    #     print(indent + '#true')
+
+    # else:
+    #     print('other -- probably integer')
+    #     #assert False
