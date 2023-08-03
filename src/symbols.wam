@@ -153,7 +153,7 @@
    (param $name i32)
    (result i32)
 
-   (%make-value _tag-symbol ($inter-symbol $name)))
+   (%tag-value _tag-symbol ($inter-symbol $name)))
 
  ;;-----------------------------------------------------------------------------
  ;;

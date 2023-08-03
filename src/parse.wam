@@ -498,7 +498,7 @@
            ($set-pair-cdr (%get-ctx-tail $ctx) $v))
         (else
          (set! $new-tail ($make-pair $v _null))
-         ($set-pair-cdr (%get-ctx-tail $ctx) (%make-value _tag-pair $new-tail))
+         ($set-pair-cdr (%get-ctx-tail $ctx) (%tag-value _tag-pair $new-tail))
          (%set-ctx-tail $ctx $new-tail)))))
 
    ;; datum comment, quote, quasiquote, splice, unquote, and
@@ -946,7 +946,7 @@
    (local $c i32)
 
    (set! $c ($get-string-char (i32.add $text (i32.const 2))))
-   ($append-value (%make-value _tag-char (i32.shl ($decode-utf-8 $c) _tag-size-bits))))
+   ($append-value (%make-value _tag-char ($decode-utf-8 $c))))
 
  (func $parse-named-character (debug (export "parse-named-character"))
    (param $text i32)
@@ -988,7 +988,7 @@
                            (then _char-backspace)
                            (else (unreachable) _null))))))))))))))
 
-   ($append-value (%make-value _tag-char (i32.shl $char _tag-size-bits))))
+   ($append-value (%make-value _tag-char $char)))
 
  (func $parse-escaped-character-hex (debug (export "parse-escaped-character-hex"))
    (param $text i32)
@@ -996,8 +996,8 @@
 
    ;; add 1 to skip over the #
    ($append-value (%make-value _tag-char
-                               (i32.shl ($parse-hex-escape (i32.add $text (i32.const 1)) $end)
-                                        _tag-size-bits))))
+                               ($parse-hex-escape (i32.add $text (i32.const 1))
+                                                  $end))))
 
  (func $parse-vertical-line-quoted-symbol (debug (export "parse-vertical-line-quoted-symbol"))
    (param $text i32)

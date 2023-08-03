@@ -239,7 +239,7 @@
 
  (macro %make-small-integer
    (expr ,v)
-   (%make-value (i32.shl ,v _tag-size-bits) _tag-small-integer))
+   (%make-value _tag-small-integer ,v))
 
  (macro %negate-small-integer
    (expr ,x)

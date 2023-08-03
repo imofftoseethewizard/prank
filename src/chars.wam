@@ -51,7 +51,7 @@
  (func $make-char (export "make-char")
    (param $code-point i32)
    (result i32)
-   (%make-value _tag-char (i32.shl $code-point _tag-size-bits)))
+   (%make-value _tag-char $code-point))
 
  (func $calc-char-width (export "calc-char-width")
    (param $char i32)

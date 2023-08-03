@@ -648,11 +648,8 @@ def print_character(v):
 
 def check_result(d, v):
     if is_pair(v):
-        if type(d) != List:
-            print(type(d), d.value, d.text)
-            print(format_addr(v))
         assert type(d) == List
-        # NB. this code only generates proper lists atm.
+        # NB. the code in this file only generates proper lists atm.
         head = v
         idx = 0
         while head != NULL:
@@ -671,7 +668,9 @@ def check_result(d, v):
         assert type(d) == ByteVector
         assert len(d.elements) == get_bytevector_size(v)
         for i, e in enumerate(d.elements):
-            check_result(e, get_bytevector_i8_u(v, i))
+            if e.value != get_bytevector_i8_u(v, i):
+                print(i, e, get_bytevector_i8_u(v, i))
+            assert e.value == get_bytevector_i8_u(v, i)
 
     # elif numbers.is_small_integer(v):
     #     print_number(v)

@@ -77,6 +77,11 @@
 (macro %make-value
   (expr ,tag)
   (expr ,data)
+  (%tag-value ,tag (i32.shl ,data _tag-size-bits)))
+
+(macro %tag-value
+  (expr ,tag)
+  (expr ,data)
   (i32.or ,tag ,data))
 
 (macro %is-pair-value
