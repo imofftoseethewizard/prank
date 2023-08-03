@@ -19,7 +19,7 @@ blockset = block_mgr.get_blockset(blockset_id)
 
 NULL = block_mgr.NULL.value
 
-refs_base = block_mgr.refs_top.value
+refs_base = block_mgr.calc_initial_refs_top()
 
 def debug():
     block_mgr.DEBUG.value = True
@@ -74,7 +74,7 @@ def validate_blockset(blockset):
     validate_free_lists(blockset)
 
 def validate_block_refs(blockset):
-    provisioned_refs = (block_mgr.refs_top.value - refs_base)/16
+    provisioned_refs = (block_mgr.refs_top.value - refs_base)//16
 
     assert provisioned_refs == block_mgr.ref_count.value + count_free_refs()
 
