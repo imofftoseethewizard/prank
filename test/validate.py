@@ -1,4 +1,4 @@
-from util import to_int
+from util import to_int, format_addr
 
 from modules.debug.pairs import *
 from modules.debug import block_mgr, numbers

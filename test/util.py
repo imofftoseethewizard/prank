@@ -52,10 +52,15 @@ def to_int(x):
 
     if numbers.is_small_integer(x):
 
-        if x < 0:
-            x += 1<<32
+        if x & (1<<31):
+            if x < 0:
+                return x >> 3
+            else:
+                print(x, format_addr(x))
+                assert False
 
         return x >> 3
+
 
     elif numbers.is_boxed_i64(x):
 
@@ -80,6 +85,9 @@ def integer_to_int(x):
             digit += 1<<64
 
         v += digit << (64*i)
+
+    if numbers.is_negative(x):
+        v = -v
 
     return v
 

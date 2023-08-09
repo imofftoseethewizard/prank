@@ -1491,4 +1491,30 @@ def test_stochastic_case_6():
     assert get_parse_location() == end
     dealloc_value(v)
 
+def test_stochastic_case_7():
+
+    init_test()
+
+    src = '''(("degrade cloak readers typist bivalves Richthofen's unequally zodiac's"	#\\𝅘𝅥𝅮	#\\x23c5d
+sword)	345131.737286466175e-133
+#t)'''
+    start, end = prepare_parse(src)
+    v = parse(start, end)
+
+    v1 = get_cdar(v)
+    assert is_boxed_f64(v1)
+    assert get_boxed_f64(v1) == 3.4513173728646615e-128
+
+# F64(value=3.56288e-317, text='356287973646844.69e-331')
+# 3.5628793e-317
+
+# F64(value=3.47e-318, text='347e-320')
+# 3.469996e-318
+
+# F64(value=2.68509159e-315, text='.2685091588312e-314')
+# 2.685091584e-315
+
+# F64(value=-3.3378684154752447, text='#x#i-6070e2e2ca988788/1ce49a456bc66903')
+# 3.3378684154752447
+
 #todo: memory leaks

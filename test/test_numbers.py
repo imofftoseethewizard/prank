@@ -1,6 +1,6 @@
 import pytest
 
-from util import format_addr
+from util import format_addr, to_int
 from modules.debug.block_mgr import *
 from modules.debug.numbers import *
 from modules.debug.pairs import *

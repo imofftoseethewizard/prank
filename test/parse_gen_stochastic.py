@@ -1,6 +1,9 @@
+import math
 import random
+import traceback
 
 from collections import namedtuple
+from math import isnan
 
 from util import create_test_string, format_addr, to_int, to_str
 from validate import blocks, free_blocks, prepare_validation, validate
@@ -210,7 +213,35 @@ def generate_polar_complex():
     mag = generate_real(radix, exactness)
     arg = generate_real(radix, exactness)
 
-    return Complex(mag, arg, generate_prefix(radix, exactness) + mag.text + '@' + arg.text)
+    try:
+        if type(mag) == Rational:
+            mag_f = mag.n.value / mag.d.value
+        else:
+            mag_f = mag.value
+    except:
+        print('mag:', mag)
+        raise
+
+    try:
+        if type(arg) == Rational:
+            arg_f = arg.n.value / arg.d.value
+        else:
+            arg_f = arg.value
+    except:
+        print('arg:', arg)
+        raise
+
+    try:
+        re = mag_f * math.cos(arg_f)
+    except ValueError:
+        re = float('nan')
+
+    try:
+        im = mag_f * math.sin(arg_f)
+    except ValueError:
+        im = float('nan')
+
+    return Complex(F64(re, ''), F64(im, ''), generate_prefix(radix, exactness) + mag.text + '@' + arg.text)
 
 def generate_ordinary_complex():
 
@@ -234,12 +265,18 @@ def generate_unit_im_complex():
 
     re = generate_real(radix, exactness)
 
-    if random_boolean():
-        im = SmallInteger(1, '+')
+    if exactness == 'i':
+        if random_boolean():
+            im = F64(1, '+')
+        else:
+            im = F64(-1, '-')
     else:
-        im = SmallInteger(-1, '-')
+        if random_boolean():
+            im = SmallInteger(1, '+')
+        else:
+            im = SmallInteger(-1, '-')
 
-    return Complex(re, 1, generate_prefix(radix, exactness) + re.text + im.text + 'i')
+    return Complex(re, im, generate_prefix(radix, exactness) + re.text + im.text + 'i')
 
 def generate_im_only_complex():
 
@@ -254,6 +291,11 @@ def generate_im_only_complex():
     else:
         im_sign = '+'
 
+    if exactness == 'i':
+        re = F64(0, '')
+    else:
+        re = SmallInteger(0, '')
+
     return Complex(re, im, generate_prefix(radix, exactness) + im_sign + im.text + 'i')
 
 def generate_unit_im_only_complex():
@@ -261,12 +303,22 @@ def generate_unit_im_only_complex():
     radix = generate_radix()
     exactness = generate_exactness()
 
-    re = SmallInteger(0, '')
+    if exactness == 'i':
 
-    if random_boolean():
-        im = SmallInteger(1, '+')
+        re = F64(0, '')
+
+        if random_boolean():
+            im = F64(1, '+')
+        else:
+            im = F64(-1, '-')
     else:
-        im = SmallInteger(-1, '-')
+
+        re = SmallInteger(0, '')
+
+        if random_boolean():
+            im = SmallInteger(1, '+')
+        else:
+            im = SmallInteger(-1, '-')
 
     return Complex(re, im, generate_prefix(radix, exactness) + im.text + 'i')
 
@@ -328,7 +380,7 @@ def generate_inexact_real(radix):
         r = generate_exact_real(radix)
 
         if type(r) == Rational:
-            v = r.n / r.d
+            v = r.n.value / r.d.value
         else:
             v = float(r.value)
 
@@ -359,15 +411,19 @@ def generate_decimal():
     choice = random.randrange(3)
 
     if choice == 0:
-        text = generate_decimal_digits()
+        text = generate_decimal_digits() + generate_decimal_suffix()
 
     elif choice == 1:
         text = '.' + generate_decimal_digits()
 
+        if random_boolean():
+            text += generate_decimal_suffix()
+
     else:
         text = generate_decimal_digits() + '.' + generate_decimal_digits()
 
-    text += generate_decimal_suffix()
+        if random_boolean():
+            text += generate_decimal_suffix()
 
     return F64(float(text), text)
 
@@ -375,14 +431,7 @@ def generate_decimal_digits():
     return ''.join(random.choices('0123456789', k=random.randrange(1, 16)))
 
 def generate_decimal_suffix():
-
-    if random_boolean():
-        return ''
-
-    else:
-        return 'e' + random.choice('+-') + str(random.randrange(1, 340))
-
-    assert False
+    return 'e' + random.choice('+-') + str(random.randrange(1, 340))
 
 def generate_infnan():
 
@@ -422,17 +471,13 @@ def generate_rational(radix):
     n = generate_exact_real(radix, allow_rationals=False)
     d = generate_exact_real(radix, allow_rationals=False)
 
-    n_val = abs(n.value)
-    d_val = abs(d.value)
+    if d.text[0] == '-':
+        d = type(d)(-d.value, d.text[1:])
 
-    n_text = n.text[1:] if n.text[0] in '+-' else n.text
-    d_text = d.text[1:] if d.text[0] in '+-' else d.text
+    elif d.text[0] == '+':
+        d = type(d)(d.value, d.text[1:])
 
-    if n.value * d.value < 1:
-        n_val *= -1
-        n_text = '-' + n_text
-
-    return Rational(n_val, d_val, n_text + '/' + d_text)
+    return Rational(n, d, n.text + '/' + d.text)
 
 def generate_datum(allow_datum_comment=False):
 
@@ -529,28 +574,37 @@ def stochastic_test(N, seed=0, check_valid=True):
     random.seed(seed)
     init_test()
     for i in range(N):
-      d = generate_datum()
-      try:
-        init_parser()
-        start, end = prepare_parse(d.text)
-        v = parse(start, end)
-        assert v & 0xffff != 0x0107
-        check_result(d, v)
-        dealloc_value(v)
-        if check_valid:
-            validate()
-      except:
-        print()
-        print(i)
-        print('------------------------------------------------------')
-        print(d.text)
-        print('------------------------------------------------------')
-        print(to_str(start, end))
-        print('------------------------------------------------------')
-        print('')
-        print(get_parse_location() - start)
-        print(format_addr(v))
-        raise
+        d = generate_datum()
+        try:
+            init_parser()
+            start, end = prepare_parse(d.text)
+            v = parse(start, end)
+            assert v & 0xffff != 0x0107
+            check_result(d, v)
+            dealloc_value(v)
+            if check_valid:
+                validate()
+        except:
+            print()
+            print('datum:', i)
+            print('------------------------------------------------------')
+            print(d.text)
+            print('------------------------------------------------------')
+            assert d.text == to_str(start, end)
+            print('')
+            print('pos:', get_parse_location() - start)
+            print('addr(v):', format_addr(v))
+            raise
+
+def stochastic_test_series(k, N):
+    for i in range(0, k):
+        print('seed:', i)
+        try:
+            stochastic_test(N, i)
+        except KeyboardInterrupt:
+            break
+        except:
+            traceback.print_exc()
 
 indent = ''
 
@@ -637,7 +691,7 @@ def print_number(v):
     print(indent + str(to_int(v)))
 
 def print_string(v):
-    addr = strings.get_string_addr()
+    addr = strings.get_string_addr(v)
     print(to_str(addr, addr + strings.get_string_size()))
 
 def print_symbol(v):
@@ -647,67 +701,104 @@ def print_character(v):
     print(indent + '<a character>')
 
 def check_result(d, v):
-    if is_pair(v):
-        assert type(d) == List
-        # NB. the code in this file only generates proper lists atm.
-        head = v
-        idx = 0
-        while head != NULL:
-            check_result(d.elements[idx], get_car(head))
-            head = get_cdr(head)
-            idx += 1
-        assert idx == len(d.elements)
+    try:
+        if is_pair(v):
+            assert type(d) == List
+            # NB. the code in this file only generates proper lists atm.
+            head = v
+            idx = 0
+            while head != NULL:
+                check_result(d.elements[idx], get_car(head))
+                head = get_cdr(head)
+                idx += 1
+            assert idx == len(d.elements)
 
-    elif is_vector(v):
-        assert type(d) == Vector
-        assert len(d.elements) == get_vector_length(v)
-        for i, e in enumerate(d.elements):
-            check_result(e, get_vector_element(v, i))
+        elif is_vector(v):
+            assert type(d) == Vector
+            assert len(d.elements) == get_vector_length(v)
+            for i, e in enumerate(d.elements):
+                check_result(e, get_vector_element(v, i))
 
-    elif is_bytevector(v):
-        assert type(d) == ByteVector
-        assert len(d.elements) == get_bytevector_size(v)
-        for i, e in enumerate(d.elements):
-            if e.value != get_bytevector_i8_u(v, i):
-                print(i, e, get_bytevector_i8_u(v, i))
-            assert e.value == get_bytevector_i8_u(v, i)
+        elif is_bytevector(v):
+            assert type(d) == ByteVector
+            assert len(d.elements) == get_bytevector_size(v)
+            for i, e in enumerate(d.elements):
+                assert e.value == get_bytevector_i8_u(v, i)
 
-    # elif numbers.is_small_integer(v):
-    #     print_number(v)
+        elif numbers.is_small_integer(v):
+            if type(d) != SmallInteger:
+                print(format_addr(v), d)
+            assert type(d) == SmallInteger
+            if d.value != to_int(v):
+                print('mismatch:', hex(d.value), hex(v), hex(v>>3))
+            assert d.value == to_int(v)
 
-    # elif numbers.is_boxed_i64(v):
-    #     print_number(v)
+        elif numbers.is_boxed_i64(v):
+            assert type(d) == I64
+            assert d.value == to_int(v)
 
-    # elif numbers.is_rational(v):
-    #     print('rational')
-    #     # print_number(v)
+        elif numbers.is_rational(v):
+            if type(d) != Rational:
+                print(format_addr(v), d)
 
-    # elif numbers.is_complex(v):
-    #     print('complex')
-    #     # print_number(v)
+            assert is_rational(v)
+            if to_int(numerator(v))*d.d.value != to_int(denominator(v))*d.n.value:
+                print('mismatch:', to_int(numerator(v))*d.d.value, to_int(denominator(v))*d.n.value)
+                print(to_int(numerator(v)))
+                print(d.d.value)
+                print(to_int(denominator(v)))
+                print(d.n.value)
+            assert to_int(numerator(v))*d.d.value == to_int(denominator(v))*d.n.value
 
-    # elif numbers.is_boxed_f64(v):
-    #     print('f64')
-    #     # print_number(v)
+        elif numbers.is_complex(v):
+            if type(d) != Complex:
+                print(format_addr(v), d)
 
-    # elif is_string(v):
-    #     print_string(v)
+            assert is_complex(v)
+            check_result(d.re, real_part(v))
+            check_result(d.im, imag_part(v))
 
-    # elif is_symbol(v):
-    #     print_symbol(v)
+        elif numbers.is_boxed_f64(v):
+            if type(d) != F64:
+                print(format_addr(v), d)
 
-    # elif is_char(v):
-    #     print_character(v)
+            assert type(d) == F64
+            f64 = get_boxed_f64(v)
+            if d.value != f64 and (not isnan(d.value) or not isnan(f64)):
+                print(d)
+                print(get_boxed_f64(v))
+            assert d.value == f64 or (isnan(d.value) and isnan(f64))
 
-    # elif v == NULL:
-    #     print(indent + '()')
+        elif is_string(v):
+            assert type(d) == String
+            addr = strings.get_string_addr(v)
+            assert d.value == to_str(addr, addr + strings.get_string_size(v))
 
-    # elif v == FALSE:
-    #     print(indent + '#false')
+        # elif is_symbol(v):
+        #     print_symbol(v)
 
-    # elif v == TRUE:
-    #     print(indent + '#true')
+        # elif is_char(v):
+        #     print_character(v)
 
-    # else:
-    #     print('other -- probably integer')
-    #     #assert False
+        elif v == NULL:
+            assert type(d) == List
+            assert len(d.elements) == 0
+
+        elif v == FALSE:
+            assert type(d) == Boolean
+            assert d.value == False
+
+        elif v == TRUE:
+            assert type(d) == Boolean
+            assert d.value == True
+
+        # else:
+        #     print('other -- probably integer')
+        #     #assert False
+
+    except:
+        try:
+            print(d)
+        except:
+            ...
+        raise

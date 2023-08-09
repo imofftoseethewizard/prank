@@ -364,10 +364,6 @@
    (set! $type (%get-number-type $x))
    (set! $value (%get-box-value $x))
 
-   (if (i32.ne $x (i32.const 0x1d1))
-       (then
-        (global.set $p4 $x)))
-
    (if (i32.or (i32.eq $type _number-type-f64)
                (i32.eq $type _number-type-i64))
        (then
@@ -398,6 +394,7 @@
    (if (i32.and (i32.const 0x7) $x64)
        (then
         (unreachable)))
+
    (i32.store $x64 (global.get $x64-free-list))
 
    (debug
@@ -878,9 +875,37 @@
 
    $result)
 
+ (func $subtract-integer-digits/in-place (debug (export "subtract-integer-digits/in-place"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   ($subtract-integer-digits/into $a $b $a))
+
  (func $subtract-integer-digits (debug (export "subtract-integer-digits"))
    (param $a i32)
    (param $b i32)
+   (result i32)
+
+   (local $a-size i32)
+   (local $b-size i32)
+   (local $result-size i32)
+
+   (set! $a-size (%get-integer-size $a))
+   (set! $b-size (%get-integer-size $b))
+
+   (set! $result-size (i32.add (if (result i32) (i32.ge_u $a-size $b-size)
+                                 (then $a-size)
+                                 (else $b-size))
+                               (i32.const 1)))
+
+   ($subtract-integer-digits/into $a $b ($alloc-integer $result-size)))
+
+ (func $subtract-integer-digits/into (debug (export "subtract-integer-digits/into"))
+   ;; computes d = a - b
+   (param $a i32)
+   (param $b i32)
+   (param $d i32)
    (result i32)
 
    (local $a-addr i32)
@@ -892,31 +917,23 @@
    (local $b-size i32)
    (local $b-value i64)
    (local $carry i64)
+   (local $d-addr i32)
+   (local $d-end i32)
+   (local $d-size i32)
    (local $difference i64)
-   (local $result i32)
-   (local $result-addr i32)
-   (local $result-end i32)
-   (local $result-size i32)
    (local $value i64)
 
    (set! $a-size (%get-integer-size $a))
    (set! $b-size (%get-integer-size $b))
-
-   (set! $result-size (i32.add (if (result i32) (i32.ge_u $a-size $b-size)
-                                 (then $a)
-                                 (else $b))
-                               (i32.const 1)))
-
-   (set! $result ($alloc-integer $result-size))
+   (set! $d-size (%get-integer-size $d))
 
    (set! $a-addr (%get-integer-addr $a))
-   (set! $a-end (i32.add $a-addr (i32.shl $a-size (i32.const 3))))
-
    (set! $b-addr (%get-integer-addr $b))
-   (set! $b-end (i32.add $b-addr (i32.shl $b-size (i32.const 3))))
+   (set! $d-addr (%get-integer-addr $d))
 
-   (set! $result-addr (%get-integer-addr $result))
-   (set! $result-end (i32.add $result-addr (i32.shl $result-size (i32.const 3))))
+   (set! $a-end (i32.add $a-addr (i32.shl $a-size (i32.const 3))))
+   (set! $b-end (i32.add $b-addr (i32.shl $b-size (i32.const 3))))
+   (set! $d-end (i32.add $d-addr (i32.shl $d-size (i32.const 3))))
 
    (set! $carry (i64.const 0))
 
@@ -937,17 +954,17 @@
                     (then (i64.const -1))
                     (else (i64.const 0))))
 
-     (i64.store $result-addr $value)
+     (i64.store $d-addr $value)
 
      (%incr-n i32 $a-addr 8)
      (%incr-n i32 $b-addr 8)
-     (%incr-n i32 $result-addr 8)
+     (%incr-n i32 $d-addr 8)
 
-     (if (i32.lt_u $result-addr $result-end)
+     (if (i32.lt_u $d-addr $d-end)
          (then
           (br $again))))
 
-   $result)
+   $d)
 
  (func $multiply-integer-digits/dealloc (export "multiply-integer-digits/dealloc")
    (param $x i32)
@@ -1040,7 +1057,13 @@
                  (%incr-n i32 $z-addr 4)
                  (br $y-digits))))
 
-          (i32.store $z-addr (i32.wrap_i64 $c))
+          (if (i32.wrap_i64 $c)
+              (then
+               (if (i32.lt_u $z-addr $z-end)
+                   (then
+                    (i32.store $z-addr (i32.wrap_i64 $c)))
+                 (else
+                  (unreachable)))))
 
           (%incr-n i32 $x-addr 4)
           (%incr-n i32 $z-base-addr 4)
@@ -1160,7 +1183,7 @@
 
    (if (i32.le_s $quot-size (i32.const 0))
        (then
-        ;; div size > rem size => div > rem => quot = 0
+        ;; div size > rem size ==> div > rem ==> quot = 0
         (set! $quot ($alloc-integer (i32.const 1))))
 
      (else
@@ -1183,7 +1206,7 @@
                   ($shift-integer $div (i32.const -1))
                   (br $again)))
 
-             (set! $rem ($subtract-integer-digits $rem $div)) ;; todo dealloc rem
+             (set! $rem ($subtract-integer-digits/in-place $rem $div))
              ($set-integer-bit $quot $bit-place)
 
              (set! $rem-bits ($get-integer-bit-size $rem)) ;; todo: track digit, offset here
@@ -1756,6 +1779,9 @@
    (set! $a ($copy-integer $a))
    (set! $b ($copy-integer $b))
 
+   (%clear-integer-sign-flag $a)
+   (%clear-integer-sign-flag $b)
+
    (if ($lt-integer $a $b)
        (then
         (set! $t $a)
@@ -1793,6 +1819,10 @@
    (memory.copy (%get-integer-addr $b)
                 (%get-integer-addr $a)
                 (i32.shl $size (i32.const 3)))
+
+   (if (%is-negative-integer $a)
+       (then
+        (%set-negative-integer $b)))
 
    $b)
 
@@ -2496,6 +2526,17 @@
    (result i32)
 
    ($get-pair-car (%get-box-value $n)))
+
+ (func $is-integer (export "is-integer")
+   (param $n i32)
+   (result i32)
+
+   (if (result i32) (i32.ne (%get-value-tag $n) _tag-box)
+     (then
+      (i32.const 0))
+
+     (else
+      (i32.eq (%get-number-type $n) _number-type-integer))))
 
 
  )
