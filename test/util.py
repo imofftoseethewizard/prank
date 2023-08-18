@@ -1,3 +1,4 @@
+import ctypes
 import math
 import random
 
@@ -98,3 +99,12 @@ def to_str(start, end):
         data.append(strings.get_string_bytes(addr, 1))
 
     return data.decode()
+
+def double_to_uint64(x):
+    return ctypes.c_uint64.from_buffer(ctypes.c_double(x)).value
+
+def uint64_to_double(x):
+    return ctypes.c_double.from_buffer(ctypes.c_uint64(x)).value
+
+def format_b64(x):
+    return f'{x & 0xffffffffffffffff:064b}'

@@ -5,7 +5,7 @@ import traceback
 from collections import namedtuple
 from math import isnan
 
-from util import create_test_string, format_addr, to_int, to_str
+from util import create_test_string, double_to_uint64, format_addr, to_int, to_str
 from validate import blocks, free_blocks, prepare_validation, validate
 
 
@@ -556,7 +556,7 @@ def format_radix(radix):
 def generate_uint(N=128):
     return int(random.random()*(2**random.randrange(N)))
 
-words = open('/usr/share/dict/words').read().split('\n')
+words = [w for w in open('/usr/share/dict/words').read().split('\n') if w]
 
 def generate_identifier():
     w = random.choice(words)
@@ -711,6 +711,8 @@ def check_result(d, v):
                 check_result(d.elements[idx], get_car(head))
                 head = get_cdr(head)
                 idx += 1
+            if idx != len(d.elements):
+                print(idx, len(d.elements))
             assert idx == len(d.elements)
 
         elif is_vector(v):
@@ -754,7 +756,7 @@ def check_result(d, v):
             if type(d) != Complex:
                 print(format_addr(v), d)
 
-            assert is_complex(v)
+            assert type(d) == Complex
             check_result(d.re, real_part(v))
             check_result(d.im, imag_part(v))
 
@@ -769,16 +771,31 @@ def check_result(d, v):
                 print(get_boxed_f64(v))
             assert d.value == f64 or (isnan(d.value) and isnan(f64))
 
+        elif numbers.is_integer(v):
+            if type(d) != Integer:
+                print(format_addr(v), d)
+
+            assert type(d) == Integer
+            assert d.value == to_int(v)
+
         elif is_string(v):
             assert type(d) == String
             addr = strings.get_string_addr(v)
             assert d.value == to_str(addr, addr + strings.get_string_size(v))
 
-        # elif is_symbol(v):
-        #     print_symbol(v)
+        elif is_symbol(v):
+            if type(d) != Symbol:
+                print(format_addr(v), d)
 
-        # elif is_char(v):
-        #     print_character(v)
+            assert type(d) == Symbol
+            # todo
+
+        elif is_char(v):
+            if type(d) != Character:
+                print(format_addr(v), d)
+
+            assert type(d) == Character
+            # todo
 
         elif v == NULL:
             assert type(d) == List
@@ -792,9 +809,8 @@ def check_result(d, v):
             assert type(d) == Boolean
             assert d.value == True
 
-        # else:
-        #     print('other -- probably integer')
-        #     #assert False
+        else:
+            assert False, 'unknown datum'
 
     except:
         try:
@@ -802,3 +818,36 @@ def check_result(d, v):
         except:
             ...
         raise
+
+def stochastic_decimal_test(N, seed, check_valid=False, raise_on_mismatch=False):
+    random.seed(seed)
+    init_test()
+    fail_count = 0
+    for i in range(N):
+        d = generate_decimal()
+        try:
+            init_parser()
+            start, end = prepare_parse(d.text)
+            v = parse(start, end)
+            assert v & 0xffff != 0x0107
+            check_result(d, v)
+            dealloc_value(v)
+            if check_valid:
+                validate()
+        except:
+            fail_count += 1
+            print()
+            print('datum:', i)
+            print('------------------------------------------------------')
+            print(d.text)
+            print('------------------------------------------------------')
+            print('')
+            print(f'expected:     {double_to_uint64(d.value):064b}')
+            print(f'actual:       {double_to_uint64(get_boxed_f64(v)):064b}')
+            print(f'significand0: {numbers.p1.value | (numbers.p2.value << 32):064b}')
+            print(f'significand1: {numbers.p3.value | (numbers.p4.value << 32):064b}')
+            print(f'{numbers.p5.value & 0xffffffff:032b}')
+            if raise_on_mismatch:
+                raise
+
+    print(f'failures: {fail_count}')

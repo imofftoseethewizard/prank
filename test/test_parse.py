@@ -3,7 +3,7 @@ import pytest
 import math
 import struct
 
-from util import create_test_string, format_addr
+from util import create_test_string, double_to_uint64, format_addr
 
 from modules.debug.block_mgr import *
 from modules.debug.bytevectors import *
@@ -1505,16 +1505,73 @@ sword)	345131.737286466175e-133
     assert is_boxed_f64(v1)
     assert get_boxed_f64(v1) == 3.4513173728646615e-128
 
-# F64(value=3.56288e-317, text='356287973646844.69e-331')
-# 3.5628793e-317
+def test_subnormal_rounding_1():
+    init_test()
 
-# F64(value=3.47e-318, text='347e-320')
-# 3.469996e-318
+    try:
+        expected = 3.56288e-317
+        src = '356287973646844.69e-331'
+        start, end = prepare_parse(src)
+        v = parse(start, end)
+    except:
+        print(numbers.p1.value)
+        print(format_addr(numbers.p2.value))
+        print(format_addr(numbers.p3.value))
+        raise
 
-# F64(value=2.68509159e-315, text='.2685091588312e-314')
-# 2.685091584e-315
+    print(f'{double_to_uint64(get_boxed_f64(v)):064b}')
+    print(f'{double_to_uint64(expected):064b}')
+    assert is_boxed_f64(v)
+    assert get_boxed_f64(v) == expected
 
-# F64(value=-3.3378684154752447, text='#x#i-6070e2e2ca988788/1ce49a456bc66903')
-# 3.3378684154752447
+
+# F64(value=8.14e-309, text='#d814e-311')
+# 8.140000000000003e-309
+def test_subnormal_rounding_2():
+    init_test()
+
+    expected = 8.14e-309
+    src = '814e-311'
+    start, end = prepare_parse(src)
+    v = parse(start, end)
+
+    print(f'{double_to_uint64(get_boxed_f64(v)):064b}')
+    print(f'{double_to_uint64(expected):064b}')
+    print(f'significand0: {numbers.p2.value:032b}{numbers.p2.value:032b}')
+    print(f'significand1: {numbers.p3.value | (numbers.p4.value << 32):064b}')
+    assert is_boxed_f64(v)
+    assert get_boxed_f64(v) == expected
+
+# F64(value=6.1808684e-317, text='#d61808683859e-327')
+# 6.180868e-317
+def test_subnormal_rounding_3():
+    init_test()
+
+    expected = 6.1808684e-317
+    src = '61808683859e-327'
+    start, end = prepare_parse(src)
+    v = parse(start, end)
+
+    print(f'{double_to_uint64(get_boxed_f64(v)):064b}')
+    print(f'{double_to_uint64(expected):064b}')
+    assert is_boxed_f64(v)
+    assert get_boxed_f64(v) == expected
+
+def test_subnormal_min():
+    init_test()
+
+    expected = 5e-324
+    src = '5e-324'
+    start, end = prepare_parse(src)
+    v = parse(start, end)
+
+    print(f'{double_to_uint64(get_boxed_f64(v)):064b}')
+    print(f'{double_to_uint64(expected):064b}')
+    assert is_boxed_f64(v)
+    assert get_boxed_f64(v) == expected
+
+
+# F64(value=8.881824356e-27, text='.8881824356e-26')
+# 8.881824355999999e-27
 
 #todo: memory leaks

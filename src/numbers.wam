@@ -89,7 +89,8 @@
   (global $p1 (export "p1") (mut i32) (i32.const 0))
   (global $p2 (export "p2") (mut i32) (i32.const 0))
   (global $p3 (export "p3") (mut i32) (i32.const 0))
-  (global $p4 (export "p4") (mut i32) (i32.const 0)))
+  (global $p4 (export "p4") (mut i32) (i32.const 0))
+  (global $p5 (export "p5") (mut i32) (i32.const 0)))
 
  ;;     i64              xxxx xxxx xxxx xxxx xxxx 0000 0000 0001
  ;;     f64              xxxx xxxx xxxx xxxx xxxx 0001 0000 0001
@@ -657,11 +658,99 @@
 
      ($int-binop $a-int $b-int)))
 
+ (macro %compare-op
+   (label $name)
+   (expr ,export)
+   (expr ,i64-compare-op)
+   (label $int-compare-op)
+
+   (func $name ,export
+     (param $a i32)
+     (param $b i32)
+     (result i32)
+
+     (local $a-int i32)
+     (local $a-is-small i32)
+     (local $a-type i32)
+     (local $a-value i32)
+     (local $b-int i32)
+     (local $b-is-small i32)
+     (local $b-type i32)
+     (local $b-value i32)
+
+     (if (i32.eq (%get-value-tag $a) _tag-small-integer)
+         (then
+          (set! $a-is-small (i32.const 1)))
+       (else
+        (set! $a-type (%get-number-type $a))
+        (set! $a-value (%get-box-value $a))))
+
+     (if (i32.eq (%get-value-tag $b) _tag-small-integer)
+         (then
+          (set! $b-is-small (i32.const 1)))
+       (else
+        (set! $b-type (%get-number-type $b))
+        (set! $b-value (%get-box-value $b))))
+
+     (if $a-is-small
+         (then
+          (if $b-is-small
+              (then
+               (return (,i64-compare-op (i64.extend_i32_s (%get-small-integer-value $a))
+                                        (i64.extend_i32_s (%get-small-integer-value $b)))))
+            (else
+             (if (i32.eq $b-type _number-type-i64)
+                 (then
+                  (return (,i64-compare-op (i64.extend_i32_s (%get-small-integer-value $a))
+                                           (i64.load $b-value))))
+               (else
+                (set! $a-int ($make-integer-i64
+                              (i64.extend_i32_s (%get-small-integer-value $a))))
+                (set! $b-int $b))))))
+       (else
+        (if (i32.eq $a-type _number-type-i64)
+            (then
+             (if $b-is-small
+                 (then
+                  (return (,i64-compare-op (i64.load $a-value)
+                                           (i64.extend_i32_s (%get-small-integer-value $b)))))
+               (else
+                (if (i32.eq $b-type _number-type-i64)
+                    (then
+                     (return
+                      (,i64-compare-op (i64.load $a-value) (i64.load $b-value))))
+                  (else
+                   (set! $a-int ($make-integer-i64 (i64.load $a-value)))
+                   (set! $b-int $b))))))
+          (else
+           (set! $a-int $a)
+           (if $b-is-small
+               (then
+                (set! $b-int ($make-integer-i64 (i64.extend_i32_s
+                                                 (%get-small-integer-value $b)))))
+             (else
+              (if (i32.eq $b-type _number-type-i64)
+                  (then
+                   (set! $b-int ($make-integer-i64 (i64.load $b-value)))))))))))
+
+     ($int-compare-op $a-int $b-int)
+
+     (if (i32.ne $a $a-int)
+         (then
+          ($dealloc-number $a-int)))
+
+     (if (i32.ne $b $b-int)
+         (then
+          ($dealloc-number $b-int)))))
+
  (%binop $add       (debug (export "add"))       i64.add   $integer-addition)
  (%binop $subtract  (debug (export "subtract"))  i64.sub   $integer-subtraction)
  (%binop $multiply  (debug (export "multiply"))  i64.mul   $integer-multiplication)
  (%binop $quotient  (debug (export "quotient"))  i64.div_s $integer-quotient)
  (%binop $remainder (debug (export "remainder")) i64.rem_s $integer-remainder)
+
+ (%compare-op $ge (debug (export "ge")) i64.gt_s $integer-ge)
+ (%compare-op $gt (debug (export "gt")) i64.gt_s $integer-gt)
 
  (%binop-2 $divide (debug (export "divide")) $i64-division $integer-division)
 
@@ -684,18 +773,27 @@
 
    (if (i32.xor $a-sign-flag $b-sign-flag)
        (then
-           (if (i32.ge_s ($compare-integer-digits $a $b) (i32.const 0))
-               (then
-                (set! $result ($subtract-integer-digits $a $b))
-                (%set-integer-sign-flag $result $a-sign-flag))
-             (else
-              (set! $result ($subtract-integer-digits $b $a))
-              (%set-integer-sign-flag $result $b-sign-flag))))
+        (if (i32.ge_s ($compare-integer-digits $a $b) (i32.const 0))
+            (then
+             (set! $result ($subtract-integer-digits $a $b))
+             (%set-integer-sign-flag $result $a-sign-flag))
+          (else
+           (set! $result ($subtract-integer-digits $b $a))
+           (%set-integer-sign-flag $result $b-sign-flag))))
      (else
       (set! $result ($add-integer-digits $a $b))
       (%set-integer-sign-flag $result $a-sign-flag)))
 
    $result)
+
+ (func $integer-addition/dealloc-2 (debug (export "integer-addition/dealloc-2"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   ($integer-addition $a $b)
+   ($dealloc-number $a)
+   ($dealloc-number $b))
 
  (func $integer-subtraction (debug (export "integer-subtraction"))
    (param $a i32)
@@ -737,6 +835,44 @@
                                             (%get-integer-sign-flag $b)))
 
    $result)
+
+ (func $integer-ge (debug (export "integer-ge"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (if (result i32) (%is-negative-integer $a)
+     (then
+      (if (result i32) (%is-negative-integer $b)
+        (then
+         (i32.le_s ($compare-integer-digits $a $b) (i32.const 0)))
+        (else
+         (i32.const 0))))
+     (else
+      (if (result i32) (%is-negative-integer $b)
+        (then
+         (i32.const 1))
+        (else
+         (i32.ge_s ($compare-integer-digits $a $b) (i32.const 0)))))))
+
+ (func $integer-gt (debug (export "integer-gt"))
+   (param $a i32)
+   (param $b i32)
+   (result i32)
+
+   (if (result i32) (%is-negative-integer $a)
+     (then
+      (if (result i32) (%is-negative-integer $b)
+        (then
+         (i32.lt_s ($compare-integer-digits $a $b) (i32.const 0)))
+        (else
+         (i32.const 0))))
+     (else
+      (if (result i32) (%is-negative-integer $b)
+        (then
+         (i32.const 1))
+        (else
+         (i32.gt_s ($compare-integer-digits $a $b) (i32.const 0)))))))
 
  (func $integer-quotient (debug (export "integer-quotient"))
    (param $a i32)
@@ -1359,6 +1495,19 @@
    (i64.store $addr (i64.or (i64.load $addr)
                             (i64.shl (i64.const 1)
                                      (i64.extend_i32_u (i32.and $n (i32.const 0x3f)))))))
+
+ (func $get-integer-bit (debug (export "get-integer-bit"))
+   (param $x i32)
+   (param $n i32)
+   (result i64)
+
+   (local $addr i32)
+
+   (set! $addr (%get-integer-digit-addr $x (i32.shr_u $n (i32.const 6))))
+
+   (i64.and (i64.shr_u (i64.load $addr)
+                       (i64.extend_i32_u (i32.and $n (i32.const 0x3f))))
+            (i64.const 1)))
 
  (func $is-negative (export "is-negative")
    (param $x i32)
@@ -2074,9 +2223,11 @@
 
    (local $d i32)
    (local $d-bits i32)
+   (local $mantissa-adj i32)
    (local $n i32)
    (local $n-bits i32)
-   (local $mantissa-adj i32)
+   (local $quot i32)
+   (local $rem i32)
 
    (set! $n ($promote-to-integer ($numerator $x)))
    (set! $d ($promote-to-integer ($denominator $x)))
@@ -2096,12 +2247,22 @@
      (else
       ($shift-integer $n $mantissa-adj)))
 
-   ;; return value
-   ($adjust-mantissa ($coerce-integer-f64 ($integer-quotient $n $d))
-                     $mantissa-adj)
+   (set! $rem
+         (set! $quot ($integer-division $n $d)))
 
+   ;; round up if 2*rem is >= d
+   ($shift-integer $rem (i32.const 1))
+
+   (if ($integer-ge $rem $d)
+       (then
+        (set! $quot ($integer-addition/dealloc-2 $quot ($make-integer-i64 (i64.const 1))))))
+
+   ;; return value
+   ($adjust-mantissa ($coerce-integer-f64 $quot) $mantissa-adj)
+
+   ($dealloc-number $d)
    ($dealloc-number $n)
-   ($dealloc-number $d))
+   ($dealloc-number $rem))
 
  (func $promote-to-integer (debug (export "promote-to-integer"))
    (param $x i32)
@@ -2186,8 +2347,15 @@
                 (set! $significand (i64.const 0)))
              (else
               ;; attempt to express as a subnormal number
+              ;; first shift down with one extra bit at the bottom
+
               (set! $significand (i64.shr_u (i64.or $significand (i64.const 0x0010000000000000))
-                                            (i64.sub (i64.const 1) $mantissa)))))
+                                            (i64.sub (i64.const 0) $mantissa)))
+
+              ;; Round up last bit, and shift into place
+              (set! $significand (i64.shr_u (i64.add $significand
+                                                     (i64.and $significand (i64.const 1)))
+                                            (i64.const 1)))))
 
            (set! $mantissa (i64.const 0))))))
 
@@ -2200,10 +2368,12 @@
    (result f64)
 
    (local $bit-size i32)
+   (local $carry i64)
    (local $mantissa i64)
    (local $mantissa-adj i32)
    (local $result f64)
    (local $result-i64 i64)
+   (local $value i64)
 
    (set! $bit-size ($get-integer-bit-size $x))
 
@@ -2212,23 +2382,21 @@
         ($dealloc-number $x)
         (return (f64.const 0.0))))
 
-   (set! $mantissa-adj (i32.sub (i32.const 63) $bit-size))
+   (set! $mantissa-adj (i32.sub (i32.const 64) $bit-size))
 
-   ($shift-integer $x $mantissa-adj)
-
-   (set! $result (f64.convert_i64_u (i64.load (%get-integer-addr $x))))
-
-   (if $mantissa-adj
+   (if (i32.ge_s $mantissa-adj (i32.const 0))
        (then
-        (set! $result-i64 (i64.reinterpret_f64 $result))
-        (set! $mantissa (i64.sub (i64.shr_u $result-i64 (i64.const 52))
-                                 (i64.extend_i32_s $mantissa-adj)))
-        (if (i64.ge_s $mantissa (i64.const 0x7ff))
-            (then
-             (set! $mantissa (i64.const 0x7ff))))
-        (set! $result (f64.reinterpret_i64
-                       (i64.or (i64.shl $mantissa (i64.const 52))
-                               (i64.and $result-i64 (i64.const 0x000fffffffffffff)))))))
+        (set! $value (i64.load (%get-integer-addr $x)))
+        (set! $mantissa-adj (i32.const 0)))
+
+     (else
+      (set! $carry ($get-integer-bit $x (i32.sub $bit-size (i32.const 65))))
+
+      ($shift-integer $x $mantissa-adj)
+
+      (set! $value (i64.add (i64.load (%get-integer-addr $x)) $carry))))
+
+   (set! $result ($adjust-mantissa (f64.convert_i64_u $value) $mantissa-adj))
 
    (if (result f64) (%is-negative-integer $x)
      (then (f64.neg $result))
@@ -2537,6 +2705,5 @@
 
      (else
       (i32.eq (%get-number-type $n) _number-type-integer))))
-
 
  )
