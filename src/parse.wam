@@ -55,6 +55,7 @@
  (import "numbers" "make-boxed-f64"                        (func $make-boxed-f64                       (param f64)         (result i32)))
  (import "numbers" "make-boxed-i64"                        (func $make-boxed-i64                       (param i64)         (result i32)))
  (import "numbers" "make-complex"                          (func $make-complex                         (param i32 i32)     (result i32)))
+ (import "numbers" "make-decimal"                          (func $make-decimal                         (param i64 i32)     (result i32)))
  (import "numbers" "make-rational"                         (func $make-rational                        (param i32 i32)     (result i32)))
  (import "numbers" "make-small-integer"                    (func $make-small-integer                   (param i32)         (result i32)))
  (import "numbers" "multiply-add-integer-i32"              (func $multiply-add-integer-i32             (param i32 i32 i32)))
@@ -2102,6 +2103,100 @@
    (if (result i32) (i32.eq $exactness _exact)
      (then ($normalize-rational $value))
      (else ($make-boxed-f64 ($coerce-f64 $value)))))
+
+ ;; max positive i64 divided by 10.
+ (define _max-significand (i64.const 0x0ccccccccccccccc))
+
+ (func $parse-inexact-decimal-value (debug (export "parse-inexact-decimal-value"))
+   (param $text i32)
+   (param $end i32)
+   (result i32)
+
+   (local $char i32)
+   (local $decimal-point i32)
+   (local $end-match i32)
+   (local $end-significand i32)
+   (local $exp i32)
+   (local $exp-digits i32)
+   (local $exp-pow-10 f64)
+   (local $exp-start i32)
+   (local $fractional-digits i32)
+   (local $scan i32)
+   (local $significand i64)
+
+   (drop ;; rule-id
+    (set! $end-match
+          ($lex-match-significand-forms $text $end)))
+
+   (set! $scan $text)
+   (set! $significand (i64.const 0))
+   (set! $decimal-point _null)
+
+   (loop $scan-significand
+     (if (i32.and (i32.lt_u $scan $end-match)
+                  (i64.lt_u $significand _max-significand))
+         (then
+          (set! $char ($get-string-char $scan))
+          (if (i32.eq $char _char-dot)
+              (then
+               (set! $decimal-point $scan))
+            (else
+             (set! $significand (i64.add (i64.mul $significand (i64.const 10))
+                                         (i64.extend_i32_u (i32.sub $char _char-0))))))
+
+          (%incr i32 $scan)
+          (br $scan-significand))))
+
+   (set! $end-significand $scan)
+
+   (if (i32.eq $decimal-point _null)
+       (then
+        (loop $scan-decimal-point
+          (if (i32.lt_u $scan $end-match)
+              (then
+               (set! $char ($get-string-char $scan))
+               (if (i32.eq $char _char-dot)
+                   (then
+                    (set! $decimal-point (i32.sub $scan (i32.const 1))))
+                 (else
+                  (%incr i32 $scan)
+                  (br $scan-decimal-point))))))))
+
+   (set! $fractional-digits (if (result i32) (i32.eq $decimal-point _null)
+                              (then (i32.const 0))
+                              (else (i32.sub (i32.sub $end-significand $decimal-point)
+                                             (i32.const 1)))))
+
+   (if (i32.eq $end $end-match)
+       (then
+        (set! $exp (i32.sub (i32.const 0) $fractional-digits)))
+
+     (else
+      ;; parse suffix: e+25, for example
+
+      (set! $exp-start (i32.add $end-match (i32.const 1)))
+
+      (drop ;; rule-id
+       (set! $exp-digits
+             ($lex-match-sign $exp-start $end)))
+
+      (set! $exp ($parse-uinteger-10-value $exp-digits $end))
+
+      (if (i32.and (i32.gt_u $exp-digits $exp-start)
+                   (i32.eq ($get-string-char $exp-start) _char-minus))
+          (then
+           (set! $exp ($negate-number $exp))))
+
+      (if (i32.eqz (%is-small-integer $exp))
+          (then
+           (return
+            ($make-boxed-f64 (if (result f64) ($is-negative $exp)
+                               (then (f64.const 0.0))
+                               (else (f64.const +inf))))
+            ($dealloc-number $exp))))))
+
+   ($make-decimal $significand
+                  (i32.sub (%get-small-integer-value $exp) $fractional-digits)))
 
  (func $parse-exact-decimal-value (debug (export "parse-exact-decimal-value"))
    (param $text i32)

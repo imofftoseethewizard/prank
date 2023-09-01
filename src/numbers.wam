@@ -86,6 +86,9 @@
 
  (debug
   (global $debug (export "#debug") (mut i32) (i32.const 0))
+  (global $d1 (export "d1") (mut i64) (i64.const 0))
+  (global $d2 (export "d2") (mut i64) (i64.const 0))
+  (global $d3 (export "d3") (mut i64) (i64.const 0))
   (global $p1 (export "p1") (mut i32) (i32.const 0))
   (global $p2 (export "p2") (mut i32) (i32.const 0))
   (global $p3 (export "p3") (mut i32) (i32.const 0))
@@ -2706,4 +2709,376 @@
      (else
       (i32.eq (%get-number-type $n) _number-type-integer))))
 
- )
+ ;;-----------------------------------------------------------------------------
+ ;;
+ ;; Double-f64 Operations
+ ;;
+ ;; Add and multiply routines using a pair of f64s simulating an f128.
+ ;;
+ ;; These are used in decimal parsing to provided enough precision to use
+ ;; floating point for computing an accurate result.
+
+ (func $double-add-1 (debug (export "double-add-1"))
+   (param $h f64)
+   (param $l f64)
+   (param $f f64)
+   (result f64 f64)
+
+   (local $r_h f64)
+   (local $r_l f64)
+   (local $t_h f64)
+   (local $t_l f64)
+
+   (set! $t_h (f64.add $h $f))
+   (set! $t_l (f64.add $l (f64.sub $f (f64.sub $t_h $h))))
+
+   (set! $r_h (f64.add $t_h $t_l))
+   (set! $r_l (f64.sub $t_l (f64.sub $r_h $t_h)))
+
+   $r_h
+   $r_l)
+
+ (func $double-add (debug (export "double-add"))
+   (param $a_h f64)
+   (param $a_l f64)
+   (param $b_h f64)
+   (param $b_l f64)
+   (result f64 f64)
+
+   ($double-add-1 ($double-add-1 $a_h $a_l $b_l) $b_h))
+
+ (func $double-mul-1 (debug (export "double-mul-1"))
+   (param $h f64)
+   (param $l f64)
+   (param $f f64)
+   (result f64 f64)
+
+   (local $r_h f64)
+   (local $r_l f64)
+   (local $t_h f64)
+   (local $t_l f64)
+
+   (set! $t_h (f64.mul $h $f))
+   (set! $t_l (f64.mul $l $f))
+
+   (set! $r_h (f64.add $t_h $t_l))
+   (set! $r_l (f64.sub $t_l (f64.sub $r_h $t_h)))
+
+   $r_h
+   $r_l)
+
+ (func $double-mul (debug (export "double-mul"))
+   (param $a_h f64)
+   (param $a_l f64)
+   (param $b_h f64)
+   (param $b_l f64)
+   (result f64 f64)
+
+   ($double-add ($double-mul-1 $a_h $a_l $b_h) ($double-mul-1 $a_h $a_l $b_l)))
+
+ (func $double-positive-pow-10 (debug (export "double-positive-pow-10"))
+   (param $h f64)
+   (param $l f64)
+   (param $n i32)
+   (result f64 f64)
+
+   (if (i32.eq $n (i32.const 1))
+       (then
+        (return $h $l)))
+
+   (if (i32.and $n (i32.const 0xfffffe00))
+       (then
+        (return (f64.const +inf) (f64.const 0))))
+
+   ;; Put $h $l on the stack.  Any consequent will consume and replace
+   ;; these two values, and at the end, they are the return value.
+
+   $h
+   $l
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 1))
+       (then ($double-mul-1 (f64.const 1e1))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 2))
+       (then ($double-mul-1 (f64.const 1e2))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 4))
+       (then ($double-mul-1 (f64.const 1e4))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 8))
+       (then ($double-mul-1 (f64.const 1e8))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x10))
+       (then ($double-mul-1 (f64.const 1e16))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x20))
+       (then ($double-mul (f64.const 1e32) (f64.const -905969664.0))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x40))
+       (then ($double-mul (f64.const 1e64) (f64.const -4.242063737401796e+19))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x80))
+       (then ($double-mul (f64.const 1e128) (f64.const 5.3509723052451824e+32))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x100))
+       (then ($double-mul (f64.const 1e256) (f64.const -2.1320419009454396e+47)))))
+
+ (func $double-negative-pow-10 (debug (export "double-negative-pow-10"))
+   (param $h f64)
+   (param $l f64)
+   (param $n i32)
+   (result f64 f64)
+
+   (if (i32.and $n (i32.const 0xfffffe00))
+       (then
+        (return (f64.const 0) (f64.const 0))))
+
+   ;; Put $h $l on the stack.  Any consequent will consume and replace
+   ;; these two values -- as indicated by the (param ...) (result ...)
+   ;; annotations on the conditionals -- and at the end, they are the
+   ;; return value.
+
+   $h
+   $l
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 1))
+       (then ($double-mul (f64.const 0.1) (f64.const -1.6305215615551747e-19))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 2))
+       (then ($double-mul (f64.const 0.01) (f64.const -9.477862787268161e-20))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 4))
+       (then ($double-mul (f64.const 0.0001) (f64.const 1.3447671533954056e-22))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 8))
+       (then ($double-mul (f64.const 1e-08) (f64.const -8.149880976617501e-26))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x10))
+       (then ($double-mul (f64.const 1e-16) (f64.const 1.0721879329278485e-34))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x20))
+       (then ($double-mul (f64.const 1e-32) (f64.const 1.8183955345018783e-50))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x40))
+       (then ($double-mul (f64.const 1e-64) (f64.const -2.3056703642312677e-82))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x80))
+       (then ($double-mul (f64.const 1e-128) (f64.const 4.0957073008694175e-146))))
+
+   (if (param f64 f64) (result f64 f64) (i32.or $n (i32.const 0x100))
+       (then ($double-mul (f64.const 1e-256) (f64.const -1.331139458467538e-274)))))
+
+ (func $double-pow-10 (debug (export "double-pow-10"))
+   (param $h f64)
+   (param $l f64)
+   (param $n i32)
+   (result f64 f64)
+
+   (if (i32.eqz $n) (then (return (f64.const 1) (f64.const 0))))
+
+   (if (result f64 f64) (i32.gt_s $n (i32.const 0))
+     (then ($double-positive-pow-10 $h $l $n))
+     (else ($double-negative-pow-10 $h $l (i32.sub (i32.const 0) $n)))))
+
+ (func $make-decimal (debug (export "make-decimal"))
+   (param $significand i64)
+   (param $exp i32)
+   (result i32)
+
+   (local $x f64)
+   (local $err f64)
+
+   (set! $x
+         (set! $err ($double-pow-10 (f64.convert_i64_u $significand)
+                                    (f64.const 0.0)
+                                    $exp)))
+
+   ($make-boxed-f64 (f64.add $x (f64.mul $err (f64.const 2.0)))))
+
+
+ (macro %i64.high_i32_u
+   (expr ,x)
+   (i64.shr_u ,x (i64.const 32)))
+
+ (macro %i64.low_i32_u
+   (expr ,x)
+   (i64.and ,x (i64.const 0xffffffff)))
+
+ (func $multiply-sig64 (debug (export "multiply-sig64"))
+   ;; Notionally, multiplies two 65 bit integers, returning a 65 bit integer,
+   ;; where each is represented as an i64 with a presumed leading digit of 1.
+   ;;
+   ;; The return value is composed of an i64 representing the lower 64 bits,
+   ;; again presuming a leading digit of 1, plus a flag indicating whether or
+   ;; not there was a carry. This flag may also be used as an exponent
+   ;; increment, since it takes the values of 0 or 1.
+   ;;
+   ;; Multiplication of these numbers is accomplished as follows:
+   ;;
+   ;; 1. It will be convenient to think of each of these as composed of two 32
+   ;;    bit parts -- ah, al, bh, bl.
+   ;;
+   ;; 2. Then we want to compute the product
+   ;;
+   ;;      (2**64 + ah + al) * (2**64 + bh + bl)
+   ;;          = 2**128 + 2**64 * ah + 2**64 * al
+   ;;            + 2**64 * bh + ah * bh + al * bh
+   ;;            + 2**64 * bl + ah * bl + al * bl
+   ;;
+   ;; 3. This will produce a 129 or 130 bit product.
+   ;;
+   ;; 4. The result will be the 64 bits immediately below the high bit of the sum.
+   ;;
+   ;; 5. These terms align with each other as follows:
+   ;;
+   ;;      144             128             96              64              32              0
+   ;;      | 2**128        |
+   ;;      |               | 2**64 * ah    |
+   ;;                      | 2**64 * bh    |
+   ;;                      | ah * bh                       |
+   ;;                                      | 2**64 * al    |
+   ;;                                      | 2**64 * bl    |
+   ;;                                      | ah * bl                       |
+   ;;                                      | al * bh                       |
+   ;;                                                      | al * bl                       |
+   ;;
+   ;; 6. The sum of terms 2-9 may produce up to 2 carries into the 128th bit.
+   ;;
+
+   (param $a i64)
+   (param $b i64)
+   (result i64 i32)
+
+   (local $ah i64)
+   (local $ah_x_bh i64)
+   (local $ah_x_bl i64)
+   (local $al i64)
+   (local $al_x_bh i64)
+   (local $al_x_bl i64)
+   (local $bh i64)
+   (local $bl i64)
+   (local $r i64)
+   (local $sh i64)
+   (local $sl i64)
+
+   (set! $al (%i64.low_i32_u $a))
+   (set! $ah (%i64.high_i32_u $a))
+
+   (set! $bl (%i64.low_i32_u $b))
+   (set! $bh (%i64.high_i32_u $b))
+
+   ;; primary products
+   (set! $ah_x_bh (i64.mul $ah $bh))
+   (set! $ah_x_bl (i64.mul $ah $bl))
+   (set! $al_x_bh (i64.mul $al $bh))
+   (set! $al_x_bl (i64.mul $al $bl))
+
+   ;; rounding term
+   ;;      144             128             96              64              32              0
+   ;;                                      | ah * bl                       |
+   ;;                                      | al * bh                       |
+   ;;                                                      | al * bl                       |
+   (set! $r (i64.add (%i64.high_i32_u $al_x_bl)
+                     (i64.add (%i64.low_i32_u $al_x_bh)
+                              (%i64.low_i32_u $ah_x_bl))))
+
+   ;; sig terms
+   ;;      144             128             96              64              32              0
+   ;;                      | ah * bh                       |
+   ;;                                      | 2**64 * al    |
+   ;;                                      | 2**64 * bl    |
+   ;;                                      | ah * bl                       |
+   ;;                                      | al * bh                       |
+   (set! $sl (i64.add (i64.add (%i64.low_i32_u $ah_x_bh)
+                               (i64.add $al $bl))
+                      (i64.add (i64.add (%i64.high_i32_u $ah_x_bl)
+                                        (%i64.high_i32_u $al_x_bh))
+                               (%i64.high_i32_u $r))))
+
+   ;;      144             128             96              64              32              0
+   ;;      | 2**128        |
+   ;;      |               | 2**64 * ah    |
+   ;;                      | 2**64 * bh    |
+   ;;                      | ah * bh                       |
+   (set! $sh (i64.add (i64.add (i64.const 0x100000000)
+                               (i64.add (i64.add $ah $bh)
+                                        (%i64.high_i32_u $ah_x_bh)))
+                      (%i64.high_i32_u $sl)))
+
+   ;; detect carry into 128th bit
+   (if (result i64 i32) (i64.eqz (i64.and $sh (i64.const 0x200000000)))
+     (then
+      (i64.or (i64.shl $sh (i64.const 32))
+              (%i64.low_i32_u $sl))
+      (i32.const 0))
+     (else
+      (i64.or (i64.shl $sh (i64.const 31))
+              (i64.shr_u (%i64.low_i32_u $sl)
+                         (i64.const 1)))
+      (i32.const 1))))
+
+ (func $f96.mul (debug (export "f96.mul"))
+   (param $sig-a i64)
+   (param $exp-a i32)
+   (param $sig-b i64)
+   (param $exp-b i32)
+   (result i64 i32)
+
+   ;; multiply-sig64 returns and i64 (the significand) and an i32 (0 or 1, the
+   ;; exponent).  The additions add the exponents of the products to the
+   ;; exponent produced by the product of the significands. The significand
+   ;; itself is left on the stack and implicit in the result of this function.
+
+   (i32.add ($multiply-sig64 $sig-a $sig-b)
+            (i32.add $exp-a $exp-b)))
+
+ (func $f64.round_f96 (debug (export "f64.round_f96"))
+   (param $sig i64)
+   (param $exp i32)
+   (result f64)
+
+   (local $e i64)
+
+   (set! $e (i64.extend_i32_s (i32.add $exp (i32.const 0x3ff))))
+
+   (if (i64.ge_s $e (i64.const 0x7ff))
+       (then
+        (return (f64.const +inf))))
+
+   (if (i64.lt_s $e (i64.const -52))
+       (then
+        ;; 0 by way of large negative exponent
+        (return (f64.const 0.0))))
+
+   (if (i64.le_s $e (i64.const 0))
+       (then
+        ;; subnormal number
+        (return (f64.reinterpret_i64
+                 (i64.shr_u (i64.or (i64.const 0x10000000000000)
+                                    (i64.shr_u (i64.add $sig (i64.const 0x800))
+                                               (i64.const 12)))
+                            (i64.sub (i64.const 1) $e))))))
+
+   (f64.reinterpret_i64
+    (i64.or (i64.shl $e (i64.const 52))
+            (i64.shr_u (i64.add $sig
+                                (i64.shr_u (i64.and $sig (i64.const 0x1000))
+                                           (i64.const 1)))
+                       (i64.const 12)))))
+
+ (func $f96.convert_i64_u (debug (export "f96.convert_i64_u"))
+   (param $n i64)
+   (result i64 i32)
+
+   (local $c i64)
+
+   (if (i64.eqz $n)
+       (then (unreachable)))
+
+   (set! $c (i64.clz $n))
+
+   (i64.shl $n (i64.add $c (i64.const 1)))
+   (i32.wrap_i64 (i64.sub (i64.const 63) $c)))
+
+
+   )

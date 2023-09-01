@@ -1,5 +1,8 @@
 import pytest
 
+import ctypes
+import random
+
 from util import format_addr, to_int
 from modules.debug.block_mgr import *
 from modules.debug.numbers import *
@@ -552,3 +555,192 @@ def test_shift_integer_right():
                 x = int_to_integer((1<<n) + (1<<j))
                 shift_integer_right(x, k)
                 assert integer_to_int(x) == (1<<(n-k)) + (1<<(j-k))
+
+def double_to_uint64(x):
+    return ctypes.c_uint64.from_buffer(ctypes.c_double(x)).value
+
+def uint64_to_double(x):
+    return ctypes.c_double.from_buffer(ctypes.c_uint64(x)).value
+
+def format_b64(x):
+    return f'{x & 0xffffffffffffffff:064b}'
+
+def unpack_double(z):
+    zb = double_to_uint64(z)
+    significand = zb & 0xfffffffffffff
+    exp = (zb >> 52) & 0x7ff
+    sign = zb >> 63
+    return sign, exp, significand
+
+def pack_double(sign, exp, significand):
+    z = (
+        ((sign & 1) << 63) |
+        ((exp & 0x7ff) << 52) |
+        (significand & 0xfffffffffffff)
+    )
+    return uint64_to_double(z)
+
+def double_to_sig64(z):
+    sign, exp, significand = unpack_double(z)
+    return significand << 12
+
+@pytest.mark.slow
+def test_multiply_sig64():
+
+    init_test()
+
+    random.seed(7)
+
+    # for i in range(0, 52):
+    #     a = pack_double(0, 1022, 1<<i)
+
+    #     for j in range(0, 52):
+    #         b = pack_double(0, 1022, 1<<i)
+
+    def round_sig64(x):
+        return ((x & 0xffffffffffffffff) + 0x800) >> 12
+
+    # has been run up to 100_000_000 with no errors
+    N = 10_000_000
+    error_count = 0
+    for i in range(N):
+        a = random.random()
+        b = random.random()
+
+        try:
+            expected = double_to_sig64(a*b)
+            actual, _ = multiply_sig64(double_to_sig64(a), double_to_sig64(b))
+            assert round_sig64(expected) == round_sig64(actual)
+        except:
+            print(i)
+            print(format_b64(double_to_sig64(a)))
+            print(format_b64(double_to_sig64(b)))
+            print(format_b64(expected))
+            print(format_b64(actual))
+            print()
+            raise
+            error_count += 1
+
+    assert error_count == 0
+
+def test_f64_round_f96():
+
+    init_test()
+
+    assert f64_round_f96(1<<63, 0) == 1.5
+    assert f64_round_f96(1<<63, -1) == 0.75
+
+    x = 1.0
+    exp = 0
+    while x != 0.0:
+        assert f64_round_f96(0, exp) == x
+        exp -= 1
+        x /= 2.0
+
+    assert f64_round_f96(0, exp) == 0.0
+
+    x = 1.0
+    exp = 0
+    while x != float('inf'):
+        assert f64_round_f96(0, exp) == x
+        exp += 1
+        x *= 2.0
+
+    assert f64_round_f96(0, exp) == float('inf')
+
+@pytest.mark.slow
+def test_f96_mul():
+
+    init_test()
+
+    random.seed(0)
+
+    # has been tested up to 100_000_000 without errors
+    N = 100_000_000
+    error_count = 0
+    for i in range(N):
+        a_sig = random.randrange(0, 1<<64)
+        a_exp = random.randrange(-1000, 1000)
+
+        b_sig = random.randrange(0, 1<<64)
+        b_exp = random.randrange(-1000, 1000)
+
+        try:
+            a = f64_round_f96(a_sig, a_exp)
+            b = f64_round_f96(b_sig, b_exp)
+            expected = f64_round_f96(a_sig, a_exp)*f64_round_f96(b_sig, b_exp)
+            actual = f64_round_f96(*f96_mul(a_sig, a_exp, b_sig, b_exp))
+            _, act_exp, act_sig = unpack_double(actual)
+            _, exd_exp, exd_sig = unpack_double(expected)
+            assert act_exp == exd_exp
+            assert abs(act_sig - exd_sig) <= 2
+
+        except:
+            print(i)
+            print(format_b64(a_sig))
+            print(format_b64(a_exp))
+            print(format_b64(b_sig))
+            print(format_b64(b_exp))
+            print(format_b64(double_to_uint64(expected)))
+            print(format_b64(double_to_uint64(actual)))
+            print()
+            raise
+            error_count += 1
+
+    assert error_count == 0
+
+def test_f96_convert_i64_u():
+
+    init_test()
+
+    x = 1
+    while x < 1<<63:
+        assert f64_round_f96(*f96_convert_i64_u(x)) == float(x)
+        x *= 2
+
+    for x in range(1, 100000):
+        assert f64_round_f96(*f96_convert_i64_u(x)) == float(x)
+
+    mismatches = set()
+    for i in range(1, 1<<14):
+        for j in range(14, 64):
+            x = (1<<j) + i
+            if f64_round_f96(*f96_convert_i64_u(x)) != float(x):
+                mismatches.add(x & ((1<<12)-1))
+
+    print(len(mismatches))
+    f = open('test.out', 'w')
+    if mismatches:
+        for m in sorted(mismatches):
+            print(format_b64(m), file=f)
+
+
+    assert False
+    random.seed(0)
+
+    N = 10_000_000
+    error_count = 0
+    for i in range(N):
+        x = random.randrange(0, 1<<64)
+
+        try:
+            expected = float(x)
+            actual = f64_round_f96(*f96_convert_i64_u(x))
+            _, act_exp, act_sig = unpack_double(actual)
+            _, exd_exp, exd_sig = unpack_double(expected)
+            assert act_exp == exd_exp
+            assert abs(act_sig - exd_sig) == 0
+            assert abs(act_sig - exd_sig) <= 1
+
+        except:
+            print(i)
+            print(x)
+            print(expected)
+            print(actual)
+            print(format_b64(x))
+            print(format_b64(double_to_uint64(expected)))
+            print(format_b64(double_to_uint64(actual)))
+            raise
+            error_count += 1
+
+    assert error_count == 0
