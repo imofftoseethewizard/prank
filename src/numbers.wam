@@ -3038,6 +3038,7 @@
    (result f64)
 
    (local $e i64)
+   (local $r i64)
 
    (set! $e (i64.extend_i32_s (i32.add $exp (i32.const 0x3ff))))
 
@@ -3059,11 +3060,14 @@
                                                (i64.const 12)))
                             (i64.sub (i64.const 1) $e))))))
 
+   ;; round to even
+   (set! $r (i64.add (i64.const 0x7ff)
+                     (i64.and (i64.shr_u $sig (i64.const 12))
+                              (i64.const 1))))
+
    (f64.reinterpret_i64
     (i64.or (i64.shl $e (i64.const 52))
-            (i64.shr_u (i64.add $sig
-                                (i64.shr_u (i64.and $sig (i64.const 0x1000))
-                                           (i64.const 1)))
+            (i64.shr_u (i64.add $sig $r)
                        (i64.const 12)))))
 
  (func $f96.convert_i64_u (debug (export "f96.convert_i64_u"))

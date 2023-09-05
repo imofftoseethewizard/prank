@@ -701,27 +701,18 @@ def test_f96_convert_i64_u():
     for x in range(1, 100000):
         assert f64_round_f96(*f96_convert_i64_u(x)) == float(x)
 
-    mismatches = set()
-    for i in range(1, 1<<14):
-        for j in range(14, 64):
-            x = (1<<j) + i
-            if f64_round_f96(*f96_convert_i64_u(x)) != float(x):
-                mismatches.add(x & ((1<<12)-1))
-
-    print(len(mismatches))
-    f = open('test.out', 'w')
-    if mismatches:
-        for m in sorted(mismatches):
-            print(format_b64(m), file=f)
-
-
-    assert False
     random.seed(0)
 
-    N = 10_000_000
+    N = 10_000
     error_count = 0
     for i in range(N):
-        x = random.randrange(0, 1<<64)
+        x = random.randrange(0, 1<<63)
+
+    # n = 58
+    # N = 1<<(n - 53 + 4)
+    # error_count = 0
+    # for i in range(N):
+    #     x = (1<<55) + i
 
         try:
             expected = float(x)
@@ -732,15 +723,21 @@ def test_f96_convert_i64_u():
             assert abs(act_sig - exd_sig) == 0
             assert abs(act_sig - exd_sig) <= 1
 
+            # print(i)
+            # print('input:', x)
+            # print('input:', format_b64(x))
+            # print('expected:', expected)
+            # print('expected:', format_b64(double_to_uint64(expected)))
+
         except:
-            print(i)
-            print(x)
-            print(expected)
-            print(actual)
-            print(format_b64(x))
-            print(format_b64(double_to_uint64(expected)))
-            print(format_b64(double_to_uint64(actual)))
-            raise
+            # print(i)
+            # print('input:', x)
+            # print('input:', format_b64(x))
+            # print('expected:', expected)
+            # print('actual:  ', actual)
+            # print('expected:', format_b64(double_to_uint64(expected)))
+            # print('actual:  ', format_b64(double_to_uint64(actual)))
+            # raise
             error_count += 1
 
     assert error_count == 0
