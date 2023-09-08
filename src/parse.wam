@@ -2096,13 +2096,9 @@
    (param $exactness i32)
    (result i32)
 
-   (local $value i32)
-
-   (set! $value ($parse-exact-decimal-value $text $end))
-
    (if (result i32) (i32.eq $exactness _exact)
-     (then ($normalize-rational $value))
-     (else ($make-boxed-f64 ($coerce-f64 $value)))))
+     (then ($normalize-rational ($parse-exact-decimal-value $text $end)))
+     (else ($parse-inexact-decimal-value $text $end))))
 
  ;; max positive i64 divided by 10.
  (define _max-significand (i64.const 0x0ccccccccccccccc))
@@ -2169,7 +2165,7 @@
 
    (if (i32.eq $end $end-match)
        (then
-        (set! $exp (i32.sub (i32.const 0) $fractional-digits)))
+        (set! $exp (i32.const 0)))
 
      (else
       ;; parse suffix: e+25, for example

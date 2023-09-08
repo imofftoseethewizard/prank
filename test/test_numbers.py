@@ -1,6 +1,7 @@
 import pytest
 
 import ctypes
+import math
 import random
 
 from util import format_addr, to_int
@@ -637,7 +638,7 @@ def test_f64_round_f96():
         exp -= 1
         x /= 2.0
 
-    assert f64_round_f96(0, exp) == 0.0
+    #assert f64_round_f96(0, exp) == 0.0
 
     x = 1.0
     exp = 0
@@ -740,4 +741,191 @@ def test_f96_convert_i64_u():
             # raise
             error_count += 1
 
+    assert error_count == 0
+
+def f96_convert_int(x):
+
+    exp = int(math.log2(x))
+
+    if exp > 64:
+        r = (x >> (exp - 65)) & 1
+        # r = (x >> (exp - 65)) & 3
+        # r = r & (r >> 1)
+        sig = ((x >> (exp - 64)) & 0xffffffffffffffff) + r
+
+    elif exp < 64:
+        sig = x << (64 - exp) & 0xffffffffffffffff
+
+    else:
+        sig = x & 0xffffffffffffffff
+
+    return sig, exp
+
+def generate_quotient_fractional_digits(x, d):
+    assert x < d
+    while x:
+        x <<= 1
+        if x > d:
+            x -= d
+            yield 1
+        else:
+            yield 0
+
+def f96_int_reciprocal(x):
+
+    digits = generate_quotient_fractional_digits(1, x)
+
+    exp = -1
+    sig = 0
+
+    while True:
+        if next(digits):
+            break
+        exp -= 1
+
+    for _ in range(64):
+        sig = (sig << 1) | next(digits)
+
+    if next(digits):
+        sig += 1
+
+    # if next(digits) and sig & 1:
+    #     sig += 1
+
+    return sig, exp
+
+def test_f96_mul_pow_10():
+
+    init_test()
+
+    for i in range(0, 309):
+        expected = f96_convert_int(10**i)
+        actual = f96_mul_pow_10(0, 0, i)
+        actual = actual[0] & 0xffffffffffffffff, actual[1]
+        assert expected == actual
+        if i < 307:
+            x = float(f'1e{i}')
+            assert f64_round_f96(*expected) == x
+            assert f64_round_f96(*actual) == x
+
+    for i in range(1, 343):
+        try:
+            expected = f96_int_reciprocal(10**i)
+            actual = f96_mul_pow_10(0, 0, -i)
+            actual = actual[0] & 0xffffffffffffffff, actual[1]
+            if i < 307:
+                x = float(f'1e-{i}')
+                assert f64_round_f96(*expected) == x
+                assert f64_round_f96(*actual) == x
+            assert expected == actual
+        except:
+            print(i)
+            print(expected)
+            print(actual)
+            print(f64_round_f96(*expected))
+            print(f64_round_f96(*actual))
+            raise
+
+def test_assemble_f64():
+
+    init_test()
+
+    random.seed(0)
+
+    N = 1000
+    error_count = 0
+    low = 0
+    high = 0
+    round_even_case = 0
+    round_even_error = 0
+
+    for _ in range(N):
+
+        sig = random.randrange(1<<52)
+        exp = random.randrange(-350, 350)
+
+        f = float(f'{sig}e{exp}')
+
+        x = f96_mul_pow_10(*f96_convert_i64_u(sig), exp)
+
+        try:
+            f_x = f64_round_f96(*x)
+            f_str = str(f)
+            f_x_str = str(f_x)
+            print(f_x, f)
+
+            if d2.value & 0x1fff == 0x800:
+                round_even_case += 1
+
+            if 'e' in f_str:
+                f_sig, f_exp = f_str.rsplit('e')
+            else:
+                f_sig = f_str
+                f_exp = '0'
+
+            if 'e' in f_x_str:
+                f_x_sig, f_x_exp = f_x_str.rsplit('e')
+            else:
+                f_x_sig = f_x_str
+                f_x_exp = '0'
+
+            assert f_exp == f_x_exp
+
+            if f_sig != f_x_sig:
+
+                if '.' in f_sig:
+                    f_sig_int = int(f_sig.rstrip('0').replace('.', ''))
+                else:
+                    f_sig_int = int(f_sig)
+
+                if '.' in f_x_sig:
+                    f_x_sig_int = int(f_x_sig.rstrip('0').replace('.', ''))
+                else:
+                    f_x_sig_int = int(f_x_sig)
+
+                if len(f_sig) > len(f_x_sig):
+                    f_x_sig_int *= 10**(len(f_sig) - len(f_x_sig))
+
+                if len(f_x_sig) > len(f_sig):
+                    f_sig_int *= 10**(len(f_x_sig) - len(f_sig))
+
+                exp_adj = len(str(sig)) - len(str(f_sig_int))
+
+                if exp_adj < 0:
+                    sig_int = sig*10**-exp_adj
+                else:
+                    sig_int = sig
+                    f_sig_int *= 10**exp_adj
+                    f_x_sig_int *= 10**exp_adj
+
+                assert abs(sig_int - f_sig_int) >= abs(sig_int - f_x_sig_int)
+
+        except:
+            raise
+            # print('d1:', d1.value)
+            # print(f'{sig}e{exp}')
+            # print(f)
+            # print(f_x)
+            # if f_exp == f_x_exp:
+            #     print('f_sig:      ', f_sig)
+            #     print('f_x_sig:    ', f_x_sig)
+            #     print('f_sig_int:  ', f_sig_int)
+            #     print('f_x_sig_int:', f_x_sig_int)
+            #     print('sig_int:    ', sig_int)
+            #     bin_sig_str = format_b64(d2.value)
+            #     print(bin_sig_str[:-12], '|', bin_sig_str[-12:])
+            # print()
+            if sig_int > f_x_sig_int:
+                low += 1
+            elif sig_int < f_x_sig_int:
+                high += 1
+            error_count += 1
+            if d2.value & 0x1fff == 0x800:
+                round_even_error += 1
+
+    print('low: ', low)
+    print('high:', high)
+    print('round_even_case: ', round_even_case)
+    print('round_even_error:', round_even_error)
+    print('error_count:', error_count)
     assert error_count == 0

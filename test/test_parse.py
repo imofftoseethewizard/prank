@@ -1454,8 +1454,7 @@ def test_stochastic_case_5():
 -80535206
 #o+62031661607740057744/1000445124i)	forehands #("bravado's"
 skimp	#\\delete	inferential #\\xed432
-"incarceration") "debars Seattle's filed drum Cherie cubicle Steiner's Yellowstone" #\\x1151c)
-'''
+"incarceration") "debars Seattle's filed drum Cherie cubicle Steiner's Yellowstone" #\\x1151c)'''
 
     start, end = prepare_parse(src)
     v = parse(start, end)

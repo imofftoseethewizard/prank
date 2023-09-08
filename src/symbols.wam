@@ -243,15 +243,28 @@
 
  (func $grow-symbol-table (debug (export "grow-symbol-table"))
 
+   (local $addr i32)
+   (local $size i32)
+
    (%global.double i32 $symbol-table-size)
    (%set-symbol-table-capacity (%calc-symbol-table-capacity))
    (%set-hash-offset-mask (%calc-hash-offset-mask))
 
    (%set-hash-table-addr (i32.shl (%get-symbol-table-size) _symbol-table-entry-size-bits))
 
-   (memory.fill (%get-hash-table-addr)
-                _null
-                (i32.shl (%get-symbol-table-size) _value-size-bits))
+   (set! $addr (%get-hash-table-addr))
+   (set! $size (i32.shl (%get-symbol-table-size) _value-size-bits))
+
+   (if (i32.gt_u (i32.add $addr $size)
+                 (i32.shl (memory.size) (i32.const 16)))
+       (then
+        (drop
+         (memory.grow (i32.shr_u (i32.add (i32.sub (i32.add $addr $size)
+                                                  (i32.shl (memory.size) (i32.const 16)))
+                                         (i32.const 0xffff))
+                                (i32.const 16))))))
+
+   (memory.fill $addr _null $size)
 
    ($rebuild-hash-table))
 
