@@ -297,8 +297,9 @@ decimal_test_cases = [
     '1e0',
     '1.',
     '1.0',
-    '1.00',
+    '1.00000000',
     '0.1',
+    '.25',
     '.3333',
     '101.101',
     '655.36',
@@ -323,6 +324,7 @@ exact_decimal_test_values = [
     1,
     1,
     (1, 10),
+    (1, 4),
     (3333, 10000),
     (101101, 1000),
     (16384, 25),
@@ -341,7 +343,6 @@ exact_decimal_test_values = [
     100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,
 ]
 
-@pytest.mark.slow
 def test_parse_exact_decimal():
 
     init_test()
@@ -416,7 +417,6 @@ def test_parse_exact_decimal():
             print(hex(parse_mod.p4.value))
             raise
 
-@pytest.mark.slow
 def test_parse_decimal():
 
     init_test()
@@ -1568,6 +1568,30 @@ def test_subnormal_min():
     print(f'{double_to_uint64(expected):064b}')
     assert is_boxed_f64(v)
     assert get_boxed_f64(v) == expected
+
+
+def test_stochastic_case_8():
+
+    init_test()
+
+    src = '0e-323'
+    # src = '#d.0e-323'
+    start, end = prepare_parse(src)
+    v = parse(start, end)
+    assert is_boxed_f64(v)
+    assert get_boxed_f64(v) == 0.0
+
+    src = '#d.0e-323@-150884817'
+    start, end = prepare_parse(src)
+    v = parse(start, end)
+
+    assert is_complex(v)
+    re = real_part(v)
+    im = imag_part(v)
+    assert is_boxed_f64(re)
+    assert is_boxed_f64(im)
+    assert get_boxed_f64(re) == 0.0
+    assert get_boxed_f64(im) == 0.0
 
 
 # F64(value=8.881824356e-27, text='.8881824356e-26')

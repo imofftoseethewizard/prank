@@ -8,6 +8,7 @@ from math import isnan
 
 from util import create_test_string, double_to_uint64, format_addr, to_int, to_str
 from validate import blocks, free_blocks, prepare_validation, validate
+from string_util import dump_strings
 
 
 from modules.debug.block_mgr import *
@@ -212,7 +213,7 @@ def generate_polar_complex():
     exactness = generate_exactness()
 
     mag = generate_real(radix, exactness)
-    arg = generate_real(radix, exactness)
+    arg = generate_small_real(radix, exactness)
 
     try:
         if type(mag) == Rational:
@@ -354,6 +355,24 @@ def generate_real(radix, exactness):
 
     assert False
 
+def generate_small_real(radix, exactness):
+
+    if exactness == 'i':
+        return generate_inexact_small_real(radix)
+
+    if exactness == 'e' or radix != 10 and exactness == '':
+        return generate_exact_small_real(radix)
+
+    # => radix == 10 and exactness == ''
+
+    if random_boolean():
+        return generate_small_decimal()
+
+    else:
+        return generate_exact_small_real(10)
+
+    assert False
+
 def generate_exact_real(radix, allow_rationals=True):
 
     choice = random.randrange(22 if allow_rationals else 21)
@@ -372,6 +391,12 @@ def generate_exact_real(radix, allow_rationals=True):
 
     assert False
 
+def generate_exact_small_real(radix, allow_rationals=True):
+
+    sign = random.choice(('', '+', '-'))
+    v = random.randrange(10)
+    return SmallInteger(v * (-1 if sign == '-' else 1), sign + format_int(v, radix))
+
 def generate_inexact_real(radix):
 
     if random_boolean():
@@ -388,6 +413,12 @@ def generate_inexact_real(radix):
         return F64(v, r.text)
 
     assert False
+
+def generate_inexact_small_real(radix):
+
+    r = generate_exact_small_real(radix)
+
+    return F64(float(r.value), r.text)
 
 def generate_small_integer(radix):
 
@@ -428,8 +459,18 @@ def generate_decimal():
 
     return F64(float(text), text)
 
-def generate_decimal_digits():
-    return ''.join(random.choices('0123456789', k=random.randrange(1, 16)))
+def generate_small_decimal():
+
+    if random_boolean():
+        text = '.' + generate_decimal_digits()
+
+    else:
+        text = generate_decimal_digits(k_limit=2) + '.' + generate_decimal_digits()
+
+    return F64(float(text), text)
+
+def generate_decimal_digits(k_limit=16):
+    return ''.join(random.choices('0123456789', k=random.randrange(1, k_limit)))
 
 def generate_decimal_suffix():
     return 'e' + random.choice('+-') + str(random.randrange(1, 340))
@@ -571,7 +612,7 @@ def generate_string():
     s = ' '.join(ws)
     return String(s, '"' + s + '"')
 
-def stochastic_test(N, seed=0, check_valid=True):
+def stochastic_test(N, seed=0, check_valid=True, check_valid_interval=1, check_valid_start=0):
     random.seed(seed)
     init_test()
     for i in range(N):
@@ -583,7 +624,7 @@ def stochastic_test(N, seed=0, check_valid=True):
             assert v & 0xffff != 0x0107
             check_result(d, v)
             dealloc_value(v)
-            if check_valid:
+            if check_valid and (i+1) % check_valid_interval == 0 and i >= check_valid_start:
                 validate()
         except:
             print()
@@ -792,19 +833,22 @@ def check_result(d, v):
             assert d.value == to_str(addr, addr + strings.get_string_size(v))
 
         elif is_symbol(v):
-            # if type(d) != Symbol:
-            #     print(format_addr(v), d)
+            if type(d) != Identifier:
+                print(format_addr(v), d)
 
-            # assert type(d) == Symbol
-            # todo
-            ...
+            assert type(d) == Identifier
+
+            n = get_symbol_name(v)
+            addr = strings.get_string_addr(n)
+            size = strings.get_string_size(n)
+            assert d.value == to_str(addr, addr + size)
 
         elif is_char(v):
             if type(d) != Character:
                 print(format_addr(v), d)
 
             assert type(d) == Character
-            # todo
+            assert d.value == get_char_code_point(v)
 
         elif v == NULL:
             assert type(d) == List

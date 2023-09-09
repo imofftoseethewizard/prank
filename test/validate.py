@@ -248,9 +248,10 @@ def validate_block_list(blockset):
     total_size = 0
     while block != NULL:
         assert block_mgr.get_previous_block(block) == last
-        if block_mgr.get_block_addr(block) != addr:
+        block_addr = block_mgr.get_block_addr(block) & 0xffffffff
+        if block_addr != addr:
             print(format_addr(block), format_addr(block_mgr.get_block_addr(block)), format_addr(addr))
-        assert block_mgr.get_block_addr(block) == addr
+        assert block_addr == addr
         size = block_mgr.get_block_size(block)
         assert size > 0
         addr += size

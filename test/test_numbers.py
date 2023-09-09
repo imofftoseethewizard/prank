@@ -929,3 +929,21 @@ def test_assemble_f64():
     print('round_even_error:', round_even_error)
     print('error_count:', error_count)
     assert error_count == 0
+
+def test_make_decimal():
+
+    init_test()
+
+    sig, exp = f96_convert_i64_u(100)
+    print(format_b64(sig), exp)
+
+    sig, exp = f96_mul_pow_10(sig, exp, -2)
+    print(format_b64(sig), exp)
+
+    f = f64_round_f96(sig, exp)
+    print(f)
+
+    for i in range(7):
+        print(i)
+        f64 = make_decimal(10**i, -i)
+        assert get_boxed_f64(f64) == 1.0

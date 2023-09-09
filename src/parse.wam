@@ -2143,6 +2143,10 @@
           (%incr i32 $scan)
           (br $scan-significand))))
 
+   (if (i64.eqz $significand)
+       (then
+        (return ($make-boxed-f64 (f64.const 0.0)))))
+
    (set! $end-significand $scan)
 
    (if (i32.eq $decimal-point _null)

@@ -2915,10 +2915,8 @@
    (param $exp i32)
    (result i32)
 
-   (local $x f64)
-   (set! $x ($f64-round-f96 ($f96-mul-pow-10 ($f96-convert-i64-u $sig) $exp)))
-
-   ($make-boxed-f64 $x))
+   ($make-boxed-f64 ($f64-round-f96 ($f96-mul-pow-10 ($f96-convert-i64-u $sig)
+                                                     $exp))))
 
  (define _f96-inf  (i64.const 0) (i32.const 0x7fffffff)) ;; max exp
  (define _f96-zero (i64.const 0) (i32.const 0x80000000)) ;; min exp
@@ -3214,14 +3212,14 @@
         ;; Least positive f64
         (return (f64.const 5e-324))))
 
+   ;; Drop lsb and set msb, and then another shift to allow
+   ;; for carry in rounding below.
+   (set! $sig (i64.or (i64.shr_u $sig (i64.const 2))
+                      (i64.const 0x4000000000000000)))
+
    (if (i64.le_s $e (i64.const 0))
        (then
         ;; subnormal number
-
-        ;; Drop lsb and set msb, and then another shift to allow
-        ;; for carry in rounding below.
-        (set! $sig (i64.or (i64.shr_u $sig (i64.const 2))
-                           (i64.const 0x4000000000000000)))
 
         ;; # of bits to be shifted out of sig
         (set! $s (i64.sub (i64.const 11) $e))
@@ -3235,14 +3233,21 @@
         (return (f64.reinterpret_i64 (i64.shr_u (i64.add $sig $r) $s)))))
 
    ;; round to even
-   (set! $r (i64.add (i64.const 0x7ff)
-                     (i64.and (i64.shr_u $sig (i64.const 12))
+   (set! $r (i64.add (i64.const 0x1ff)
+                     (i64.and (i64.shr_u $sig (i64.const 10))
                               (i64.const 1))))
+
+   (set! $sig (i64.add $sig $r))
+
+   (if (i64.eqz (i64.clz $sig))
+       (then
+        (%incr i64 $e)
+        (set! $sig (i64.shr_u $sig (i64.const 1)))))
 
    (f64.reinterpret_i64
     (i64.or (i64.shl $e (i64.const 52))
-            (i64.shr_u (i64.add $sig $r)
-                       (i64.const 12)))))
+            (i64.and (i64.shr_u $sig (i64.const 10))
+                     (i64.const 0xfffffffffffff)))))
 
  (func $f96-convert-i64-u (debug (export "f96-convert-i64-u"))
    (param $n i64)
